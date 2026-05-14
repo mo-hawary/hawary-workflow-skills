@@ -1,8 +1,10 @@
+<div dir="rtl" lang="ar-EG">
+
 # Hawary Workflow Skills
 
-[English](README.md) | [العربية](README.ar.md)
+[English](README.md) | [مصري](README.ar.md)
 
-مهارات سير عمل قابلة لإعادة الاستخدام لوكلاء البرمجة، ومساعدي البرمجة بالذكاء الاصطناعي، والفرق التي تريد عادات تنفيذ مبنية على المصدر.
+مهارات جاهزة تقدر تستخدمها مع coding agents زي Codex و Claude وأي agent بيفهم صيغة `SKILL.md`.
 
 [![Skills](https://img.shields.io/badge/Agent%20Skills-SKILL.md-2563eb)](docs/compatible-agents.md)
 [![Codex](https://img.shields.io/badge/Codex-ready-111827)](docs/codex.md)
@@ -11,72 +13,90 @@
 [![Validate](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
-**Hawary Workflow Skills** تجمع سير عمل هندسية متكررة في صيغة يمكن لوكلاء البرمجة قراءتها عبر `SKILL.md`: حالة المستودع، جاهزية سير العمل، تنظيف التوثيق، مواصفات الميزات، تدقيق العقود بين الطبقات، مراجعة طلبات السحب، تخطيط اختبارات QA، وتشغيل اختبارات الموبايل end-to-end باستخدام Maestro.
+**Hawary Workflow Skills** هو repo فيه workflows متكررة للبرمجة بالـ AI agents: تعرف حالة repo، تراجع جاهزية الشغل، تنضف docs، تكتب spec قبل التنفيذ، تراجع العقود بين layers، تعمل PR review loop، تخطط QA bug hunt، وتشغل mobile E2E flows باستخدام Maestro.
 
-إذا وفرت لك هذه المهارات وقتا، فضلا ضع نجمة للمستودع. هذا يساعد مطورين آخرين على اكتشافه.
+لو المهارات دي وفرت عليك وقت، اعمل star للـ repo. ده بيساعد ناس أكتر تكتشفه.
 
-## الاستخدام مع وكيلك
+## استخدمه مع الـ agent بتاعك
 
-يمكنك توجيه وكيل البرمجة إلى هذا المستودع، أو نسخ مجلدات محددة من `skills/` إلى مجلد المهارات الذي يستخدمه وكيلك. إذا كانت بيئتك تدعم `skills` CLI، يمكنك استخدامه كاختصار اختياري.
+تقدر تعمل واحد من دول:
 
-| الوكيل | الدليل | مكان التثبيت |
+- تخلي الـ coding agent يقرأ repo ده مباشرة.
+- تنسخ skill معينة من `skills/` لمجلد skills عندك.
+- تستخدم `skills` CLI لو بيئتك بتدعمه.
+
+| الـ agent | الدليل | مكان التثبيت |
 | --- | --- | --- |
-| Codex | [التثبيت على Codex](docs/codex.md) | `.agents/skills` أو `~/.agents/skills` أو مجلد مهارات Codex لديك |
-| Claude | [التثبيت على Claude](docs/claude.md) | `.claude/skills` أو `~/.claude/skills` أو رفع مهارة مخصصة في Claude |
-| OpenClaw و Qwen والوكلاء المتوافقون | [التثبيت على وكلاء آخرين](docs/compatible-agents.md) | أي مجلد متوافق مع Agent Skills |
+| Codex | [Install on Codex](docs/codex.md) | `.agents/skills` أو `~/.agents/skills` أو skills directory الخاص بـ Codex |
+| Claude | [Install on Claude](docs/claude.md) | `.claude/skills` أو `~/.claude/skills` أو Claude custom Skills upload |
+| OpenClaw و Qwen وأي agent متوافق | [Install on other agents](docs/compatible-agents.md) | أي folder متوافق مع Agent Skills |
 
 مثال سريع للنسخ:
+
+</div>
 
 ```bash
 cp -R skills/project-docs-cleanup /path/to/agent/skills/
 ```
 
+<div dir="rtl" lang="ar-EG">
+
 Windows PowerShell:
+
+</div>
 
 ```powershell
 Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 ```
 
-مسار اختياري باستخدام `skills` CLI عندما يدعمه وكيلك:
+<div dir="rtl" lang="ar-EG">
+
+اختياري: لو الـ agent عندك بيدعم `skills` CLI:
+
+</div>
 
 ```bash
 npx skills add mo-hawary/hawary-workflow-skills --list
 npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
 
-إذا لم يكن `npx skills` متاحا في بيئتك أو لم يدعم هذا المستودع، استخدم طريقة النسخ أعلاه.
+<div dir="rtl" lang="ar-EG">
 
-## المهارات
+لو `npx skills` مش متاح أو مش شغال مع البيئة عندك، استخدم طريقة النسخ اللي فوق.
 
-| المهارة | متى تستخدمها | الناتج |
+## المهارات الموجودة
+
+| Skill | تستخدمها إمتى؟ | بتطلع إيه؟ |
 | --- | --- | --- |
-| [`project-status-dashboard`](skills/project-status-dashboard/SKILL.md) | عندما تريد معرفة حالة المستودع الآن. | الحالة الحالية، الفرع والانحراف، العمل المفتوح، إشارات التحقق، المخاطر، والخطوة التالية. |
-| [`repo-workflow-checker`](skills/repo-workflow-checker/SKILL.md) | عندما تريد معرفة هل المستودع جاهز لعمل متكرر مع الوكلاء. | أصول سير العمل الموجودة، الفجوات، الهيكل المقترح، وخريطة التحقق. |
-| [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | عندما تكون الوثائق أو الخطط أو ملفات backlog أو المواصفات قديمة. | صحة الوثائق، العناصر القديمة، التناقضات، مرشحات الأرشفة، والتعديلات المقترحة. |
-| [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | عندما تحتاج ميزة أو مجموعة أخطاء إلى خطة قبل البرمجة. | مواصفة مبنية على المصدر، قرارات مطلوبة، تغييرات العقود، مراحل التنفيذ، ومعايير القبول. |
-| [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | عندما قد تختلف واجهة المستخدم أو API أو قاعدة البيانات أو jobs أو الوثائق. | اختلافات عقود مرتبة حسب الخطورة مع دليل، أثر، اتجاه إصلاح، وتحقق. |
-| [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | عندما يحتاج PR أو فرع إلى مراجعة قوية، تحقق من الإصلاح، وإعادة مراجعة قبل الدمج. | ملاحظات، إثبات الإصلاح، جولات المراجعة، التحقق، المخاطر المتبقية، وجاهزية الدمج. |
-| [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | عندما تحتاج منطقة في المنتج إلى اكتشاف QA ومسارات تدقيق وتذاكر جاهزة للإصلاح. | مسارات تدقيق، مصفوفة ملاحظات، لوحة إصلاحات، بوابات أثر، وخطة اختبار. |
-| [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | عندما تحتاج اختبار موبايل end-to-end مبني على أدلة باستخدام Maestro. | إعداد التدفق، نتائج نقاط التحقق، أدلة من logs/screenshots/state، تشخيص، ومخاطر متبقية. |
+| [`project-status-dashboard`](skills/project-status-dashboard/SKILL.md) | لما تحتاج تعرف حالة repo بسرعة. | الحالة الحالية، branch/drift، الشغل المفتوح، verification hints، risks، والخطوة الجاية. |
+| [`repo-workflow-checker`](skills/repo-workflow-checker/SKILL.md) | لما تحب تعرف repo جاهز لشغل agents بشكل منظم ولا لأ. | الموجود، النواقص، scaffold مقترح، وخريطة verification. |
+| [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | لما docs أو plans أو backlog أو specs يكونوا محتاجين cleanup. | doc health، حاجات قديمة، تناقضات، archive candidates، وتعديلات مقترحة. |
+| [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | لما feature أو bug cluster محتاج spec قبل الكود. | source-backed spec، قرارات محتاجة تأكيد، contract changes، phases، و acceptance criteria. |
+| [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | لما UI/API/database/jobs/docs ممكن يكونوا مش متفقين. | contract mismatches مرتبة بالخطورة، evidence، impact، fix direction، و verification. |
+| [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | لما PR أو branch محتاج review قوي و re-review قبل merge. | findings، fix proof، review rounds، validation، residual risk، و merge readiness. |
+| [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | لما area محتاجة QA discovery وخطة bugs جاهزة للإصلاح. | audit tracks، findings matrix، fix board، impact gates، و test plan. |
+| [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | لما تحتاج mobile E2E proof باستخدام Maestro. | flow setup، checkpoint results، logs/screenshots/state evidence، diagnosis، و residual risk. |
 
-## اختيار المهارة
+## تختار أنهي skill؟
 
-| إذا كنت تفكر في... | استخدم |
+| لو بتفكر تقول... | استخدم |
 | --- | --- |
-| "ما حالة هذا المستودع؟" | `project-status-dashboard` |
-| "هل المستودع جاهز لعمل الوكلاء؟" | `repo-workflow-checker` |
-| "أي وثائق أصبحت قديمة؟" | `project-docs-cleanup` |
-| "خطط هذه الميزة قبل التنفيذ." | `feature-spec-delivery-pipeline` |
-| "هل هذه الطبقات متفقة؟" | `cross-layer-contract-audit` |
-| "راجع هذا PR بدون نشر تعليقات على GitHub." | `pull-request-review-loop` |
-| "ما الذي يجب اختباره قبل الإصلاح؟" | `qa-bug-hunt-planner` |
-| "أثبت أن تدفق الموبايل يعمل." | `mobile-maestro-e2e-orchestrator` |
+| "إيه حالة repo ده؟" | `project-status-dashboard` |
+| "هل repo جاهز لشغل agents؟" | `repo-workflow-checker` |
+| "إيه docs اللي بقت قديمة؟" | `project-docs-cleanup` |
+| "خطط feature دي قبل التنفيذ." | `feature-spec-delivery-pipeline` |
+| "هل layers دي متفقة؟" | `cross-layer-contract-audit` |
+| "راجع PR ده من غير ما تنشر comments على GitHub." | `pull-request-review-loop` |
+| "نختبر إيه قبل ما نصلح؟" | `qa-bug-hunt-planner` |
+| "اثبت إن mobile flow ده شغال." | `mobile-maestro-e2e-orchestrator` |
 
 ## أمثلة
 
-راجع [docs/examples.md](docs/examples.md) للحصول على prompts جاهزة للنسخ لكل مهارة.
+شوف [docs/examples.md](docs/examples.md) عشان prompts جاهزة لكل skill.
 
-## الهيكل
+## شكل المجلدات
+
+</div>
 
 ```text
 skills/
@@ -88,62 +108,70 @@ skills/
         `-- examples.md
 ```
 
-`SKILL.md` هو المصدر القابل للنقل بين الوكلاء. هذه المهارات Markdown-first، وتستخدم Ruby فقط للتحقق من المستودع. مجلد `references/` يحفظ الأمثلة والقوائم والقوالب خارج جسم المهارة الأساسي. ملف `agents/openai.yaml` هو metadata اختيارية لواجهة OpenAI/Codex، ويمكن للوكلاء الآخرين تجاهله.
+<div dir="rtl" lang="ar-EG">
 
-## للوكلاء الذكيين
+`SKILL.md` هو المصدر الأساسي اللي أي agent يقدر يقرأه. المهارات دي Markdown-first، و Ruby مستخدمة بس للتحقق من repo. مجلد `references/` فيه الأمثلة والـ checklists والـ templates بعيد عن جسم skill الأساسي. ملف `agents/openai.yaml` اختياري ومفيد كـ metadata لـ OpenAI/Codex، وأي agent تاني يقدر يتجاهله.
 
-عندما يوجهك مطور إلى هذا المستودع، اقرأ المجلد المناسب داخل `skills/`، ثم حمل فقط الملفات المرجعية التي تحتاجها من مجلد `references/` الخاص بالمهارة. إذا كان ملف مرجعي مفقودا، اذكر الفجوة واستمر من `SKILL.md` الأساسي. لا تفترض مسارات أو منتجات أو أسرار أو قواعد شركة خاصة. اطلب الموافقة قبل تعديل كود التنفيذ عندما تنص المهارة على report-first أو approval-required.
+## تعليمات للـ AI agents
 
-## إضافة مهارات
+لو developer وجهك للـ repo ده، اقرأ skill المناسبة من `skills/`، وبعدها افتح بس الملفات اللي محتاجها من `references/`. لو reference file مش موجود، قول إن فيه gap وكمل من `SKILL.md`. ما تفترضش private paths أو product names أو secrets أو rules خاصة بشركة. لو skill بتقول report-first أو approval-required، اسأل قبل ما تعدل implementation code.
 
-اتبع نفس سير العمل لكل مهارة جديدة:
+## إضافة skills جديدة
 
-1. استخرج السلوك القابل لإعادة الاستخدام من ممارسة حقيقية متكررة.
+كل skill جديدة تمشي بنفس workflow:
+
+1. استخرج workflow متكرر ومفيد من شغل حقيقي.
 2. عمم الأسماء والمسارات والأمثلة.
-3. اجعل `SKILL.md` مختصرا، وانقل القوالب والقوائم إلى `references/`.
+3. خلي `SKILL.md` مختصر، وانقل templates/checklists لـ `references/`.
 4. أضف metadata في `agents/openai.yaml`.
-5. حدث README والوثائق و CHANGELOG.
-6. شغل التحقق قبل فتح PR.
+5. حدّث README والdocs والـ changelog.
+6. شغّل validation قبل ما تفتح PR.
 
-## تم اختباره مع
+## متجرب على
 
-- أوامر النسخ على macOS و Linux
-- أوامر النسخ على Windows PowerShell
+- أوامر نسخ macOS و Linux
+- أوامر نسخ Windows PowerShell
 - تثبيت Codex-style في `.agents/skills`
 - تثبيت Claude-style في `.claude/skills`
-- هياكل مجلدات Agent Skills العامة
+- أي generic Agent Skills folder layout
 
 ## التحقق
 
-شغل نفس الفحوص المستخدمة في CI:
+شغّل نفس check اللي CI بيشغله:
+
+</div>
 
 ```bash
 ruby scripts/validate_skills.rb
 ```
 
-يتحقق validator من frontmatter، طول الوصف، التسمية، symlinks، وأنماط النظافة المهمة قبل النشر العام.
+<div dir="rtl" lang="ar-EG">
 
-## المراجع
+الـ validator بيتأكد من frontmatter، طول description، naming، symlinks، وحاجات مهمة للنشر العام.
+
+## مراجع
 
 - [Claude Code skills](https://docs.claude.com/en/docs/claude-code/skills)
 - [Claude Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
 - [Skills CLI](https://skills.sh/docs/cli)
 - [Vercel Agent Skills directory](https://vercel.com/docs/agent-resources/skills)
 
-## وثائق المشروع
+## Docs المشروع
 
-- [الأمثلة](docs/examples.md)
-- [خارطة الطريق](docs/roadmap.md)
-- [سير عمل تأليف المهارات](docs/skill-authoring.md)
-- [المساهمة](CONTRIBUTING.md)
-- [الدعم](SUPPORT.md)
-- [الأمان](SECURITY.md)
-- [مدونة السلوك](CODE_OF_CONDUCT.md)
+- [Examples](docs/examples.md)
+- [Roadmap](docs/roadmap.md)
+- [Skill authoring workflow](docs/skill-authoring.md)
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Security](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
-## سجل التغييرات
+## Changelog
 
-راجع [CHANGELOG.md](CHANGELOG.md).
+شوف [CHANGELOG.md](CHANGELOG.md).
 
-## الرخصة
+## License
 
-MIT. راجع [LICENSE](LICENSE).
+MIT. شوف [LICENSE](LICENSE).
+
+</div>
