@@ -15,22 +15,13 @@ If these skills save you time, please star the repo. It helps other developers d
 
 ## Use With Your Agent
 
-Point your coding agent at this repository, install with the `skills` CLI, or copy individual folders from `skills/` into the skill directory your agent uses.
+Point your coding agent at this repository or copy individual folders from `skills/` into the skill directory your agent uses. If your environment supports the `skills` CLI, you can use that as an optional shortcut.
 
 | Agent | Guide | Install target |
 | --- | --- | --- |
 | Codex | [Install on Codex](docs/codex.md) | `.agents/skills`, `~/.agents/skills`, or your Codex skills directory |
 | Claude | [Install on Claude](docs/claude.md) | `.claude/skills`, `~/.claude/skills`, or Claude custom Skills upload |
 | OpenClaw, Qwen, and compatible agents | [Install on other agents](docs/compatible-agents.md) | any Agent Skills-compatible directory |
-
-Install with the `skills` CLI when your agent supports it:
-
-```bash
-npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
-```
-
-If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
 
 Quick copy example:
 
@@ -43,6 +34,15 @@ Windows PowerShell:
 ```powershell
 Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 ```
+
+Optional `skills` CLI path when your agent supports it:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
 
 ## Skills
 
@@ -86,7 +86,7 @@ skills/
         `-- examples.md
 ```
 
-`SKILL.md` is the portable source. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
+`SKILL.md` is the portable source. These skills are Markdown-first by design; Ruby is used only for repository validation. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
 
 ## For AI Agents
 

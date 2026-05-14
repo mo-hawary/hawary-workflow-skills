@@ -7,6 +7,7 @@ Hawary Workflow Skills is intentionally small and practical. The goal is to keep
 - Add more public-safe workflow skills from repeated real-world usage.
 - Expand compatibility notes for Codex, Claude Code, and other Agent Skills consumers.
 - Add lightweight smoke tests for skill folder structure and referenced files.
+- Add behavior-oriented skill smoke tests that check output shape from sample prompts without depending on private projects.
 - Improve social preview and project examples as the collection grows.
 
 ## Later
