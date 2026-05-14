@@ -6,7 +6,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Added
+
+- Egyptian Arabic README with language links from the English README.
 
 ## [0.3.0] - 2026-05-14
 
