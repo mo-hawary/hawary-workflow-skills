@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Workflow Checker"
+  short_description: "Checks agent workflow readiness and reports scaffold gaps."
+  default_prompt: "Use repo-workflow-checker to audit this repository's agent workflow scaffold."

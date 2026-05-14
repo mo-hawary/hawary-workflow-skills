@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Status Dashboard"
+  short_description: "Read-only repo health snapshot from git, docs, queues, and verification hints."
+  default_prompt: "Use project-status-dashboard to summarize the current repository state and the next useful action."

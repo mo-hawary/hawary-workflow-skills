@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cross-Layer Contract Audit"
+  short_description: "Finds drift between client, API, database, jobs, integrations, and docs."
+  default_prompt: "Use cross-layer-contract-audit to inspect this feature area for contract mismatches."

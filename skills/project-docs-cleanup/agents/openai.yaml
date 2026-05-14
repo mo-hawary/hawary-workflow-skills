@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Docs Cleanup"
+  short_description: "Audits stale docs, backlog files, specs, plans, and cleanup candidates."
+  default_prompt: "Use project-docs-cleanup to audit this repository's docs and propose cleanup."
