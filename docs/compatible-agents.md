@@ -31,7 +31,14 @@ A compatible agent should:
 
 ## Install
 
-Copy any folder under `skills/` into your agent's skill directory:
+Install with the `skills` CLI when supported:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill qa-bug-hunt-planner
+```
+
+Or copy any folder under `skills/` into your agent's skill directory:
 
 macOS/Linux:
 
@@ -45,10 +52,15 @@ Windows PowerShell:
 Copy-Item -Recurse skills\cross-layer-contract-audit C:\path\to\agent\skills\
 ```
 
-If your agent supports repo-local skills, keep them inside the project. If it supports user-wide skills, install them into the user's global skill directory.
+If your agent supports repo-local skills, keep them inside the project. If it supports user-wide skills, install them into the user's global skill directory. If your agent can read repositories directly, point it at this repo and ask it to use the matching `skills/<skill-name>/SKILL.md` folder.
 
 ## Portability Notes
 
 The skills avoid Codex-only and Claude-only behavior where possible. Platform-specific distribution should wrap the same source folders rather than rewriting the skills.
 
 If a platform needs a bundle name, use `hawary-workflow-skills`. Keep individual skill names descriptive, lowercase, and kebab-case.
+
+## References
+
+- [Skills CLI](https://skills.sh/docs/cli)
+- [Vercel Agent Skills directory](https://vercel.com/docs/agent-resources/skills)

@@ -29,6 +29,11 @@ Do not use this for generic web QA, unit tests, or non-Maestro mobile frameworks
 6. Summarize proof and residual risk.
 
 For sample prompts and evidence summaries, see `references/examples.md`.
+For checkpoint and evidence capture guidance, see `references/evidence-checklist.md`.
+
+## Input Signals
+
+Use the flow name, platform, device or simulator IDs, app flavor, Maestro YAML files, test account setup, logs, screenshots, backend traces, and any known flaky step. If the platform or runner is missing, report the missing setup before attempting a run.
 
 ## Output
 
@@ -48,6 +53,12 @@ Return:
 - Do not treat a visible screen alone as full business-flow success when logs/API/state matter.
 - Ask before changing app code, test flows, product behavior, or UI layout.
 - Keep commands platform-specific and explicit.
+
+## Avoid
+
+- Do not rerun the full suite when one checkpoint is enough.
+- Do not call a failure a flake without evidence from a retry or environment signal.
+- Do not edit app code or test flows during diagnosis unless the user approves.
 
 ## Final Checks
 

@@ -1,8 +1,17 @@
 # Claude Install Guide
 
-Claude Code reads skills from `.claude/skills` in a project and from `~/.claude/skills` for personal use.
+Claude Code reads skills from `.claude/skills` in a project and from `~/.claude/skills` for personal use. Claude Code skills use the same `SKILL.md` folder pattern as this repository.
 
 Claude web and desktop can also use uploaded custom Skills.
+
+## CLI Install
+
+If your environment uses the open `skills` CLI, install from GitHub and then copy or adapt the installed folder into Claude's skills directory when needed:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
 
 ## Claude Code User Install
 
@@ -81,3 +90,8 @@ Compress-Archive -Path skills\project-docs-cleanup -DestinationPath project-docs
 ## Sharing
 
 For Team and Enterprise plans, Claude supports organization-managed and organization-shared skills. Use the canonical folders under `skills/` as the source when preparing shared uploads.
+
+## References
+
+- [Claude Code skills](https://docs.claude.com/en/docs/claude-code/skills)
+- [Claude Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)

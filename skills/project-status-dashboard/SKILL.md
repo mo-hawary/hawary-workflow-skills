@@ -31,6 +31,11 @@ Do not use this for cleanup edits; use `project-docs-cleanup`. Do not use it for
 5. Return a concise dashboard.
 
 For sample prompts and dashboard outputs, see `references/examples.md`.
+For a ready-to-fill dashboard template, see `references/dashboard-template.md`.
+
+## Input Signals
+
+Prefer cheap, read-only signals: `git status`, recent commits, current branch, remotes, README, agent instructions, active specs, backlog files, test scripts, CI workflow names, and local log files the user points to.
 
 ## Output
 
@@ -49,6 +54,12 @@ Use this structure:
 - Never treat docs as source of truth when code or git evidence contradicts them.
 - If data is missing, say what is unknown instead of guessing.
 - Do not run long or destructive commands.
+
+## Avoid
+
+- Do not turn the dashboard into a cleanup plan unless the user asks.
+- Do not imply CI, tests, or deploys passed unless you observed that result.
+- Do not run network or heavyweight commands just to fill a nice-looking dashboard.
 
 ## Final Checks
 

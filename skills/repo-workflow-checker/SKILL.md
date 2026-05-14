@@ -25,6 +25,11 @@ Look for:
 - Archive and history conventions for completed work.
 
 For sample prompts and readiness reports, see `references/examples.md`.
+For a scaffold scoring matrix, see `references/scaffold-matrix.md`.
+
+## Input Signals
+
+Use repository files and configuration: instructions docs, skill folders, scripts, package manifests, CI workflows, issue templates, PR templates, changelog, archive folders, and test commands. Adapt the check to the repo's language and tooling.
 
 ## Output
 
@@ -43,6 +48,12 @@ Return:
 - Do not create files unless the user explicitly asks for setup.
 - Keep recommendations minimal and repo-shaped.
 - Do not require a specific vendor or agent platform.
+
+## Avoid
+
+- Do not prescribe both Codex and Claude directories when one existing convention is clear.
+- Do not mark a scaffold ready if no verification command can be found.
+- Do not propose broad process docs when a small instruction file or template would close the gap.
 
 ## Final Checks
 

@@ -1,25 +1,32 @@
 # Hawary Workflow Skills
 
-Reusable workflow skills for coding agents.
+Reusable workflow skills for coding agents, AI pair programmers, and teams that want source-backed delivery habits.
 
 [![Skills](https://img.shields.io/badge/Agent%20Skills-SKILL.md-2563eb)](docs/compatible-agents.md)
 [![Codex](https://img.shields.io/badge/Codex-ready-111827)](docs/codex.md)
 [![Claude](https://img.shields.io/badge/Claude-ready-d97706)](docs/claude.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
-**Hawary Workflow Skills** packages repeatable engineering workflows for agents that understand the `SKILL.md` format: repo status, workflow readiness, docs cleanup, feature specs, cross-layer audits, and mobile E2E orchestration.
+**Hawary Workflow Skills** packages repeatable engineering workflows for agents that understand the `SKILL.md` format: repo status, workflow readiness, docs cleanup, feature specs, cross-layer audits, PR review loops, QA bug hunts, and mobile E2E orchestration.
 
 If these skills save you time, please star the repo. It helps other developers discover it.
 
 ## Use With Your Agent
 
-Point your coding agent at this repository, or copy individual folders from `skills/` into the skill directory your agent uses.
+Point your coding agent at this repository, install with the `skills` CLI, or copy individual folders from `skills/` into the skill directory your agent uses.
 
 | Agent | Guide | Install target |
 | --- | --- | --- |
 | Codex | [Install on Codex](docs/codex.md) | `.agents/skills`, `~/.agents/skills`, or your Codex skills directory |
 | Claude | [Install on Claude](docs/claude.md) | `.claude/skills`, `~/.claude/skills`, or Claude custom Skills upload |
 | OpenClaw, Qwen, and compatible agents | [Install on other agents](docs/compatible-agents.md) | any Agent Skills-compatible directory |
+
+Install with the `skills` CLI when your agent supports it:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
 
 Quick copy example:
 
@@ -42,6 +49,8 @@ Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 | [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | Docs, plans, backlog files, or specs may be stale. | Doc health, stale items, contradictions, archive candidates, proposed edits. |
 | [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | A feature or bug cluster needs a plan before coding. | Source-backed spec, decisions needed, contract changes, phases, acceptance criteria. |
 | [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | Client, API, database, jobs, or docs may disagree. | Severity-ranked contract mismatches with evidence, impact, fix direction, verification. |
+| [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
+| [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
 
 ## Choosing A Skill
@@ -53,6 +62,8 @@ Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 | "Which docs are stale?" | `project-docs-cleanup` |
 | "Plan this feature before implementation." | `feature-spec-delivery-pipeline` |
 | "Do these layers agree?" | `cross-layer-contract-audit` |
+| "Review this PR without posting comments." | `pull-request-review-loop` |
+| "What should we QA before fixing?" | `qa-bug-hunt-planner` |
 | "Prove this mobile flow works." | `mobile-maestro-e2e-orchestrator` |
 
 ## Structure
@@ -67,7 +78,22 @@ skills/
         `-- examples.md
 ```
 
-`SKILL.md` is the portable source. `references/` keeps examples out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
+`SKILL.md` is the portable source. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
+
+## For AI Agents
+
+When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
+
+## Adding Skills
+
+Use the same workflow for every new skill:
+
+1. Extract the reusable behavior from real usage.
+2. Generalize names, paths, and examples.
+3. Keep `SKILL.md` concise and move templates/checklists into `references/`.
+4. Add `agents/openai.yaml` metadata.
+5. Update this README, docs, and changelog.
+6. Run validation before opening a PR.
 
 ## Tested With
 
@@ -86,6 +112,13 @@ ruby scripts/validate_skills.rb
 ```
 
 The validator checks skill frontmatter, description length, naming, symlinks, and common public-release hygiene patterns.
+
+## References
+
+- [Claude Code skills](https://docs.claude.com/en/docs/claude-code/skills)
+- [Claude Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
+- [Skills CLI](https://skills.sh/docs/cli)
+- [Vercel Agent Skills directory](https://vercel.com/docs/agent-resources/skills)
 
 ## Changelog
 

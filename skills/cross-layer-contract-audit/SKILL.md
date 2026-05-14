@@ -23,6 +23,10 @@ Adapt the layer map to the repo. Common layers include:
 - Background jobs, queues, webhooks, and third-party integration contracts.
 - Documentation and specs as supporting context only.
 
+## Input Signals
+
+Start from concrete signals such as changed files, failing tests, route names, migration names, API schemas, generated clients, UI forms, webhook payloads, or user-reported mismatches. If the user gives only a broad area, map the smallest boundary that can be verified end to end.
+
 ## Workflow
 
 1. Identify the user-requested contract or feature area.
@@ -37,6 +41,7 @@ Adapt the layer map to the repo. Common layers include:
 5. Produce a severity-ranked report.
 
 For sample prompts and report shape, see `references/examples.md`.
+For a compact field-by-field audit checklist, see `references/contract-checklist.md`.
 
 ## Output
 
@@ -55,6 +60,12 @@ For each finding:
 - Do not fix during the audit unless the user explicitly approves implementation changes.
 - Flag unclear product behavior as an open question rather than deciding it.
 - Treat auth, payments, sessions, data migration, and destructive changes as high-risk.
+
+## Avoid
+
+- Do not report a mismatch without naming both sides of the boundary.
+- Do not collapse product uncertainty into an implementation recommendation.
+- Do not broaden the audit into unrelated refactors.
 
 ## Final Checks
 
