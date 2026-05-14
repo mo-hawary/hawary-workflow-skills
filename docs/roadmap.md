@@ -2,6 +2,15 @@
 
 Hawary Workflow Skills is intentionally small and practical. The goal is to keep each skill portable, inspectable, and useful across Codex, Claude, and compatible agents.
 
+## Current State
+
+- Public MIT-licensed repository with protected `main` and squash-merged pull requests.
+- Canonical skills live under `skills/` and use portable `SKILL.md` files.
+- Current skill coverage includes repo status, workflow readiness, docs cleanup, feature specs, contract audits, PR review loops, QA bug hunts, and Maestro-based mobile E2E orchestration.
+- Install docs cover Codex, Claude, and compatible Agent Skills consumers.
+- English and Egyptian Arabic READMEs are available at the repository root.
+- CI validates skill metadata and public-release hygiene on pull requests.
+
 ## Near Term
 
 - Add more public-safe workflow skills from repeated real-world usage.

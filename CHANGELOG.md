@@ -9,6 +9,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 ### Added
 
 - Egyptian Arabic README with language links from the English README.
+- Current-state documentation in the README, roadmap, and skill authoring guide.
 
 ### Changed
 

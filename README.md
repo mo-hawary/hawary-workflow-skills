@@ -15,6 +15,10 @@ Reusable workflow skills for coding agents, AI pair programmers, and teams that 
 
 If these skills save you time, please star the repo. It helps other developers discover it.
 
+## Current State
+
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, examples, roadmap, changelog, and CI validation.
+
 ## Use With Your Agent
 
 Point your coding agent at this repository or copy individual folders from `skills/` into the skill directory your agent uses. If your environment supports the `skills` CLI, you can use that as an optional shortcut.
