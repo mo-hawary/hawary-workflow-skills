@@ -1,6 +1,6 @@
 # Hawary Workflow Skills
 
-[English](README.md) | [العربية](README.ar.md)
+[English](README.md) | [مصري](README.ar.md)
 
 Reusable workflow skills for coding agents, AI pair programmers, and teams that want source-backed delivery habits.
 
