@@ -1,0 +1,4 @@
+interface:
+  display_name: "QA Bug Hunt Planner"
+  short_description: "Builds evidence-backed QA tracks, bug-hunt tickets, impact gates, and tests."
+  default_prompt: "Use qa-bug-hunt-planner to scan this area and build a fix-ready QA plan."

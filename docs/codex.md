@@ -1,6 +1,17 @@
 # Codex Install Guide
 
-These paths are tested with Codex-style Agent Skills installs. If your Codex setup uses a different skills directory, copy the same `skills/<skill-name>` folder there.
+These paths are tested with Codex-style Agent Skills installs. If your Codex setup uses a different skills directory, copy the same `skills/<skill-name>` folder there. You can also point Codex at this repository and ask it to load the relevant skill folder.
+
+## CLI Install
+
+If your environment uses the open `skills` CLI, install from GitHub:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
 
 ## User Install
 

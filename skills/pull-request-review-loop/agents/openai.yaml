@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pull Request Review Loop"
+  short_description: "Runs evidence-backed PR review, fix validation, and re-review loops."
+  default_prompt: "Use pull-request-review-loop to review this PR locally and report merge readiness."

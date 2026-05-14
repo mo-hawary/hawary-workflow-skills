@@ -36,6 +36,11 @@ Do not use this for a read-only health snapshot; use `project-status-dashboard`.
 5. Ask for approval before implementation when behavior, layout, copy, or data contracts are not settled.
 
 For sample prompts and spec shape, see `references/examples.md`.
+For a reusable spec skeleton, see `references/spec-template.md`.
+
+## Input Signals
+
+Use source evidence before proposing a plan: changed files, current behavior, failing tests, issue text, screenshots, logs, schemas, route handlers, migrations, and prior specs. If the request is vague, ask for the missing product decision only after mapping what the repo already proves.
 
 ## Output
 
@@ -56,6 +61,12 @@ Use this structure:
 - Do not make product, UI, or layout decisions without approval.
 - Do not edit implementation code unless the user explicitly asks you to proceed.
 - Keep the plan narrow enough to review.
+
+## Avoid
+
+- Do not turn the spec into a broad roadmap unless the user asked for one.
+- Do not hide unresolved decisions inside acceptance criteria.
+- Do not propose implementation phases that cannot be verified independently.
 
 ## Final Checks
 

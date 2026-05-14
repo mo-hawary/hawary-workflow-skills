@@ -33,6 +33,11 @@ Do not use this for a general current-state dashboard; use `project-status-dashb
 5. If approved, make minimal documentation edits and preserve history in an archive when appropriate.
 
 For sample prompts and cleanup reports, see `references/examples.md`.
+For archive and stale-doc decision rules, see `references/archive-policy.md`.
+
+## Input Signals
+
+Use active docs, recent commits, branch names, issue exports, spec indexes, release notes, TODO files, CI workflows, and actual file paths. Treat docs as candidates for cleanup, not proof of current behavior.
 
 ## Output
 
@@ -52,6 +57,12 @@ Return:
 - Do not change implementation, tests, migrations, generated files, or runtime config.
 - Do not rewrite product strategy or user-facing wording unless asked.
 - Prefer small, reviewable doc edits.
+
+## Avoid
+
+- Do not erase useful context just because it is old.
+- Do not merge contradictory docs without naming the evidence that resolves the conflict.
+- Do not move active plans into archive without checking current branch/work queue signals.
 
 ## Final Checks
 
