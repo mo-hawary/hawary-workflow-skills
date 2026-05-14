@@ -87,6 +87,10 @@ ruby scripts/validate_skills.rb
 
 The validator checks skill frontmatter, description length, naming, symlinks, and common public-release hygiene patterns.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
