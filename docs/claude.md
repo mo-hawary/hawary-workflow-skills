@@ -13,6 +13,8 @@ npx skills add mo-hawary/hawary-workflow-skills --list
 npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
 
+If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
+
 ## Claude Code User Install
 
 Install all skills for use across repositories:

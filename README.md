@@ -28,6 +28,8 @@ npx skills add mo-hawary/hawary-workflow-skills --list
 npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
 
+If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
+
 Quick copy example:
 
 ```bash
@@ -82,7 +84,7 @@ skills/
 
 ## For AI Agents
 
-When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
+When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. If a referenced file is missing, report the gap and continue from the main `SKILL.md`. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
 
 ## Adding Skills
 

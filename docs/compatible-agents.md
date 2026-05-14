@@ -35,10 +35,10 @@ Install with the `skills` CLI when supported:
 
 ```bash
 npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill qa-bug-hunt-planner
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
 
-Or copy any folder under `skills/` into your agent's skill directory:
+If `npx skills` is not available in your environment or does not support this repository, copy any folder under `skills/` into your agent's skill directory:
 
 macOS/Linux:
 

@@ -8,8 +8,10 @@ If your environment uses the open `skills` CLI, install from GitHub:
 
 ```bash
 npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill pull-request-review-loop
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
 
 ## User Install
 
