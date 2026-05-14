@@ -4,17 +4,6 @@ Claude Code reads skills from `.claude/skills` in a project and from `~/.claude/
 
 Claude web and desktop can also use uploaded custom Skills.
 
-## CLI Install
-
-If your environment uses the open `skills` CLI, install from GitHub and then copy or adapt the installed folder into Claude's skills directory when needed:
-
-```bash
-npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
-```
-
-If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
-
 ## Claude Code User Install
 
 Install all skills for use across repositories:
@@ -50,6 +39,17 @@ Copy-Item -Recurse skills\project-docs-cleanup $HOME\.claude\skills\
 ```
 
 Restart Claude Code if the new skill does not appear immediately.
+
+## Optional CLI Install
+
+If your environment uses the open `skills` CLI, install from GitHub and then copy or adapt the installed folder into Claude's skills directory when needed:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
 
 ## Claude Code Project Install
 
