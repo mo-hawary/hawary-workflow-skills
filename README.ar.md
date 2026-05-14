@@ -13,7 +13,16 @@
 [![Validate](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
-**Hawary Workflow Skills** هو repo فيه workflows متكررة للبرمجة بالـ AI agents: تعرف حالة repo، تراجع جاهزية الشغل، تنضف docs، تكتب spec قبل التنفيذ، تراجع العقود بين layers، تعمل PR review loop، تخطط QA bug hunt، وتشغل mobile E2E flows باستخدام Maestro.
+**Hawary Workflow Skills** فكرته بسيطة: بدل ما تشرح للـ agent نفس طريقة الشغل كل مرة، تديه skill جاهزة تمشيه بخطوات واضحة.
+
+المهارات دي بتساعدك في حاجات زي:
+
+- تعرف حالة repo بسرعة.
+- تنظف docs وتطلع الحاجات القديمة.
+- تكتب spec واضح قبل التنفيذ.
+- تراجع PRs بشكل منظم.
+- تخطط QA bug hunts.
+- تشغل mobile E2E flows باستخدام Maestro.
 
 لو المهارات دي وفرت عليك وقت، اعمل star للـ repo. ده بيساعد ناس أكتر تكتشفه.
 
