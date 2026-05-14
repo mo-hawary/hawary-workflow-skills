@@ -5,6 +5,8 @@ Reusable workflow skills for coding agents, AI pair programmers, and teams that 
 [![Skills](https://img.shields.io/badge/Agent%20Skills-SKILL.md-2563eb)](docs/compatible-agents.md)
 [![Codex](https://img.shields.io/badge/Codex-ready-111827)](docs/codex.md)
 [![Claude](https://img.shields.io/badge/Claude-ready-d97706)](docs/claude.md)
+[![Release](https://img.shields.io/github/v/release/mo-hawary/hawary-workflow-skills?color=0ea5e9)](https://github.com/mo-hawary/hawary-workflow-skills/releases)
+[![Validate](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
 **Hawary Workflow Skills** packages repeatable engineering workflows for agents that understand the `SKILL.md` format: repo status, workflow readiness, docs cleanup, feature specs, cross-layer audits, PR review loops, QA bug hunts, and mobile E2E orchestration.
@@ -68,6 +70,10 @@ Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 | "What should we QA before fixing?" | `qa-bug-hunt-planner` |
 | "Prove this mobile flow works." | `mobile-maestro-e2e-orchestrator` |
 
+## Examples
+
+See [docs/examples.md](docs/examples.md) for copy/paste prompts for each skill.
+
 ## Structure
 
 ```text
@@ -121,6 +127,16 @@ The validator checks skill frontmatter, description length, naming, symlinks, an
 - [Claude Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
 - [Skills CLI](https://skills.sh/docs/cli)
 - [Vercel Agent Skills directory](https://vercel.com/docs/agent-resources/skills)
+
+## Project Docs
+
+- [Examples](docs/examples.md)
+- [Roadmap](docs/roadmap.md)
+- [Skill authoring workflow](docs/skill-authoring.md)
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Security](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## Changelog
 

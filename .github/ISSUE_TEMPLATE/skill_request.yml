@@ -1,0 +1,39 @@
+name: Skill request
+description: Propose a new reusable Agent Skill.
+title: "Skill request: "
+labels: [enhancement, skill-request]
+body:
+  - type: markdown
+    attributes:
+      value: Describe the reusable workflow, not a private project. Keep examples public-safe.
+  - type: input
+    id: name
+    attributes:
+      label: Proposed skill name
+      description: Lowercase kebab-case if you have a name in mind.
+      placeholder: release-readiness-checker
+    validations:
+      required: false
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What should an agent do with this skill, and when should it trigger?
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example prompts
+      description: Public-safe prompts that should use this skill.
+      placeholder: |
+        Use release-readiness-checker to audit this repo before tagging.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected output
+      description: What report, plan, checklist, or artifact should the skill produce?
+    validations:
+      required: false
