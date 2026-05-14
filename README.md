@@ -1,5 +1,7 @@
 # Hawary Workflow Skills
 
+[English](README.md) | [مصري](README.ar.md)
+
 Reusable workflow skills for coding agents, AI pair programmers, and teams that want source-backed delivery habits.
 
 [![Skills](https://img.shields.io/badge/Agent%20Skills-SKILL.md-2563eb)](docs/compatible-agents.md)
