@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a problem with a skill, install path, docs, or validation.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Hawary Workflow Skills. Please avoid sharing secrets, private repo names, or customer data.
+  - type: input
+    id: skill
+    attributes:
+      label: Skill or area
+      description: Which skill, doc, or workflow is affected?
+      placeholder: project-docs-cleanup
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal command, prompt, install path, or file structure needed to reproduce.
+      placeholder: |
+        1. Install ...
+        2. Ask the agent ...
+        3. Observe ...
+    validations:
+      required: false
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs, screenshots, validator output, or relevant snippets. Redact sensitive data.
+    validations:
+      required: false

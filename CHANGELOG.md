@@ -8,6 +8,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- Premium open-source polish: issue templates, support guide, code of conduct, roadmap, skill-authoring guide, Dependabot config, and social preview asset.
+
 - Initial Hawary Workflow Skills collection:
   - `project-status-dashboard`
   - `repo-workflow-checker`
