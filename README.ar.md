@@ -13,7 +13,7 @@
 [![Validate](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
-**Hawary Workflow Skills** فكرته بسيطة: بدل ما تشرح للـ agent نفس طريقة الشغل كل مرة، تديه skill جاهزة تمشيه بخطوات واضحة.
+<p dir="rtl"><strong dir="ltr">Hawary Workflow Skills</strong> فكرته بسيطة: بدل ما تشرح للـ agent نفس طريقة الشغل كل مرة، تديه skill جاهزة تمشيه بخطوات واضحة.</p>
 
 المهارات دي بتساعدك في حاجات زي:
 
