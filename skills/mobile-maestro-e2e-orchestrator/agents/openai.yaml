@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mobile Maestro E2E Orchestrator"
+  short_description: "Evidence-driven mobile E2E flow runner with logs, checkpoints, and targeted retries."
+  default_prompt: "Use mobile-maestro-e2e-orchestrator to validate this mobile flow with Maestro."

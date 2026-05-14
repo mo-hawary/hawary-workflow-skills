@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Spec Delivery Pipeline"
+  short_description: "Builds a source-backed implementation spec, impact map, and verification plan."
+  default_prompt: "Use feature-spec-delivery-pipeline to turn this request into a buildable spec."
