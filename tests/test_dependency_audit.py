@@ -108,6 +108,48 @@ def test_osv_standard_cvss_severity_is_normalized_for_fail_thresholds():
     assert module.severity_value(findings[0].severity) >= module.severity_value("high")
 
 
+def test_run_osv_scans_recursively(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    commands: list[list[str]] = []
+
+    def fake_run_json(command: list[str], cwd: Path):
+        commands.append(command)
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), {}
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    module.run_osv(tmp_path)
+
+    assert commands == [["osv-scanner", "scan", "source", "--recursive", str(tmp_path), "--format", "json"]]
+
+
+def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "yarn.lock").write_text("# yarn lockfile\n", encoding="utf-8")
+    audit_data = {
+        "vulnerabilities": {
+            "left-pad": {
+                "severity": "high",
+                "via": [{"title": "Example advisory", "url": "GHSA-test", "severity": "high"}],
+                "fixAvailable": {"version": "1.3.1"},
+            }
+        }
+    }
+
+    def fake_run_json(command: list[str], cwd: Path):
+        assert command == ["yarn", "npm", "audit", "--json"]
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=1), audit_data
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    findings, _ = module.run_native_audits(tmp_path, module.discover_projects(tmp_path))
+
+    assert findings[0].source == "yarn npm audit"
+    assert findings[0].package == "left-pad"
+    assert findings[0].severity == "high"
+
+
 def test_dry_run_reports_detected_projects_without_running_scanners(tmp_path, monkeypatch):
     module = load_dependency_audit()
     report_path = tmp_path / "report.json"

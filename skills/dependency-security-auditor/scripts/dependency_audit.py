@@ -382,6 +382,13 @@ def parse_npm_audit(data: Any, project_path: str) -> list[Finding]:
     return findings
 
 
+def parse_yarn_audit(data: Any, project_path: str) -> list[Finding]:
+    findings = parse_npm_audit(data, project_path)
+    for finding in findings:
+        finding.source = "yarn npm audit"
+    return findings
+
+
 def parse_pnpm_audit(data: Any, project_path: str) -> list[Finding]:
     if isinstance(data, dict) and isinstance(data.get("vulnerabilities"), dict):
         return parse_npm_audit(data, project_path)
@@ -603,8 +610,10 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                 if data:
                     findings.extend(parse_pnpm_audit(data, project.path))
             elif "yarn.lock" in project.lockfiles:
-                run, _ = run_json(["yarn", "npm", "audit", "--json"], project_dir)
+                run, data = run_json(["yarn", "npm", "audit", "--json"], project_dir)
                 runs.append(run)
+                if data:
+                    findings.extend(parse_yarn_audit(data, project.path))
 
         if project.ecosystem == "python":
             for lockfile in project.lockfiles:
@@ -660,7 +669,7 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
 
 
 def run_osv(root: Path) -> tuple[list[Finding], ToolRun]:
-    command = ["osv-scanner", "scan", "source", str(root), "--format", "json"]
+    command = ["osv-scanner", "scan", "source", "--recursive", str(root), "--format", "json"]
     run, data = run_json(command, root)
     if not run.available:
         return [], run
