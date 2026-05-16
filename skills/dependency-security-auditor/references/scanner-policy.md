@@ -19,8 +19,8 @@ Use multiple sources because no single vulnerability database catches everything
 - Prefer exact lockfiles over manifests.
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
 - For Node, use the lockfile matching the package manager.
-- For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version and pair with native checks when available.
-- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`.
+- For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
+- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
 - For Flutter applications, commit `pubspec.lock` and scan it.
 
 ## Failure Policy
@@ -33,7 +33,7 @@ Recommended defaults:
 | pre-push | high/critical | Good local safety gate. |
 | PR CI | high/critical or newly introduced vulnerable dependency | Use annotations or uploaded report. |
 | release CI | moderate with fix available, high, critical | Stricter before release. |
-| scheduled CI | no hard fail or issue creation | Alert on newly disclosed issues. |
+| scheduled CI | critical | Fail on critical; report or create follow-up issues for high/moderate findings. |
 
 ## Runtime And Freshness Policy
 
@@ -52,7 +52,7 @@ Treat freshness as prioritization, not vulnerability evidence:
 | minor | feature-level drift | Review release notes. |
 | major | possible breaking change | Plan separately from CVE fixes. |
 
-Use freshness in CI and scheduled jobs by default. Skip it in pre-push if registry calls are too slow.
+Use freshness in CI and scheduled jobs by default. Skip it in pre-push if registry calls are too slow. Python freshness is based on the installed environment via `pip list --outdated`, so treat it as prioritization only and not as lockfile truth.
 
 ## Triage Rules
 
@@ -66,6 +66,6 @@ Use freshness in CI and scheduled jobs by default. Skip it in pre-push if regist
 
 - OSV-Scanner supports many lockfiles, including Node lockfiles, Python lockfiles, `requirements.txt`, and Dart `pubspec.lock`.
 - Trivy can scan repository files and language-specific packages, and is useful as a CI backstop.
-- `pip-audit` is Python-focused and maintained in the PyPA ecosystem.
+- `pip-audit` is Python-focused and maintained in the PyPA ecosystem. `pip-audit -r requirements.txt` works best with pinned requirements; environment markers, private indexes, or unpinned ranges may need extra setup.
 - `npm audit` requires a package lock or shrinkwrap for normal audit behavior.
 - `dart pub outdated` and `flutter pub outdated` identify stale dependencies but do not replace CVE scanning.

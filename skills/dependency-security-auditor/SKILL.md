@@ -65,6 +65,7 @@ Useful flags:
 - `--freshness`: force runtime/latest-version checks.
 - `--fail-on-major-outdated`: fail when freshness checks find major-version lag.
 - `--skip-osv` / `--skip-native`: run only native audits or only OSV-Scanner.
+- `--verbose`: print scanner discovery, command execution, missing tools, and non-fatal diagnostics to stderr.
 
 For Husky, pre-commit, and GitHub Actions examples, see `references/hook-and-ci-examples.md`.
 For scanner selection and policy guidance, see `references/scanner-policy.md`.
@@ -97,6 +98,8 @@ Return:
 - Prefer patched minor/patch releases before major upgrades.
 - For Node, do not blindly run `npm audit fix --force`; review suggested downgrades or major jumps.
 - For Flutter/Dart applications, require `pubspec.lock` for actionable CVE scanning.
+- Treat Python freshness as installed-environment freshness, not lockfile CVE evidence.
+- Scanner command failures return `scanner_error` and should fail hooks/CI until rerun or triaged.
 
 ## Scanner Unavailable Policy
 

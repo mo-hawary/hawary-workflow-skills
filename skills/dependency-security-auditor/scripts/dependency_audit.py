@@ -29,6 +29,7 @@ SKIP_DIRS = {
     ".wrangler",
     "build",
     "dist",
+    "fixtures",
     "node_modules",
     "venv",
 }
@@ -107,6 +108,11 @@ class FreshnessFinding:
 
 
 CVE_TOOLS = {"osv-scanner", "npm", "pnpm", "yarn", "pip-audit"}
+
+
+def debug(message: str, verbose: bool) -> None:
+    if verbose:
+        print(f"[dependency-audit] {message}", file=sys.stderr)
 
 
 def severity_value(value: str | None) -> int:
@@ -289,6 +295,8 @@ def discover_projects(root: Path) -> list[ProjectSignal]:
                 signal.manifests.append("package.json")
             if not node_locks:
                 signal.notes.append("No Node lockfile found; CVE evidence may be incomplete.")
+            if "bun.lock" in node_locks:
+                signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
             projects[(signal.ecosystem, directory)] = signal
 
         python_locks = sorted(files & {"poetry.lock", "uv.lock", "Pipfile.lock"})
@@ -698,6 +706,10 @@ def report_status(findings: list[Finding], runs: list[ToolRun], projects: list[P
     return "clean"
 
 
+def has_failed_tools(runs: list[ToolRun]) -> bool:
+    return any(run.available and run.exit_code not in (0, None) for run in runs)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit dependency vulnerabilities across common app stacks.")
     parser.add_argument("--root", default=".", help="Repository or app root to scan.")
@@ -710,10 +722,15 @@ def main() -> int:
     parser.add_argument("--freshness", action="store_true", help="Force runtime and latest-version freshness checks.")
     parser.add_argument("--fail-on-major-outdated", action="store_true", help="Fail when freshness checks find major-version lag.")
     parser.add_argument("--dry-run", action="store_true", help="Discover projects and show what would be scanned without running scanners.")
+    parser.add_argument("--verbose", action="store_true", help="Print scanner discovery and command diagnostics to stderr.")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
     projects = discover_projects(root)
+    for project in projects:
+        debug(f"detected {project.ecosystem} project at {project.path} locks={project.lockfiles or '-'} manifests={project.manifests or '-'}", args.verbose)
+        for note in project.notes:
+            debug(f"note for {project.path}: {note}", args.verbose)
     findings: list[Finding] = []
     freshness: list[FreshnessFinding] = []
     runtime: list[RuntimeInfo] = []
@@ -727,17 +744,28 @@ def main() -> int:
         osv_findings, osv_run = run_osv(root)
         findings.extend(osv_findings)
         runs.append(osv_run)
+        debug(f"ran {' '.join(osv_run.command)} available={osv_run.available} exit={osv_run.exit_code}", args.verbose)
 
     if not args.dry_run and not args.skip_native:
         native_findings, native_runs = run_native_audits(root, projects)
         findings.extend(native_findings)
         runs.extend(native_runs)
+        for run in native_runs:
+            debug(f"ran {' '.join(run.command)} available={run.available} exit={run.exit_code}", args.verbose)
 
     if not args.dry_run and run_freshness:
         runtime, runtime_runs = detect_runtime(root, projects)
         freshness, freshness_runs = run_freshness_checks(root, projects)
         runs.extend(runtime_runs)
         runs.extend(freshness_runs)
+        for run in runtime_runs + freshness_runs:
+            debug(f"ran {' '.join(run.command)} available={run.available} exit={run.exit_code}", args.verbose)
+
+    for run in runs:
+        if not run.available:
+            debug(f"missing tool: {run.tool}", args.verbose)
+        elif run.exit_code not in (0, None):
+            debug(f"failed tool: {run.tool} exit={run.exit_code} stderr={run.stderr or '-'}", args.verbose)
 
     findings.sort(key=lambda item: (-severity_value(item.severity), item.package, item.advisory))
     threshold = severity_value(args.fail_on)
@@ -772,7 +800,7 @@ def main() -> int:
         Path(args.report).write_text(output + "\n", encoding="utf-8")
         print(f"wrote {args.report}")
 
-    return 1 if failing or failing_freshness else 0
+    return 1 if failing or failing_freshness or has_failed_tools(runs) else 0
 
 
 if __name__ == "__main__":

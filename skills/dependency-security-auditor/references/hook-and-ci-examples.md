@@ -37,6 +37,7 @@ repos:
     hooks:
       - id: dependency-security-audit
         name: Dependency security audit
+        # Dependency audits can hit registries and scanners, so keep them out of pre-commit.
         entry: bash -c 'python3 "$DEPENDENCY_AUDIT_SCRIPT" --root . --mode pre-push --skip-freshness --fail-on high'
         language: system
         pass_filenames: false
@@ -64,6 +65,7 @@ env:
 
 jobs:
   osv-scan:
+    # Broad cross-ecosystem coverage from the official pinned OSV reusable workflow.
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8"
     with:
       scan-args: |-
@@ -90,12 +92,14 @@ jobs:
         run: python3 -m pip install pip-audit
 
       - name: Run dependency security audit
+        # Skip OSV here because the dedicated job above handles it; keep native audits and freshness in this report.
         run: |
           python3 "$DEPENDENCY_AUDIT_SCRIPT" \
             --root . \
             --mode ci \
             --skip-osv \
             --fail-on high \
+            --verbose \
             --report dependency-security-report.json
 
       - name: Upload dependency report

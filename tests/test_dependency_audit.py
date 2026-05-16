@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "skills" / "dependency-security-auditor" / "scripts" / "dependency_audit.py"
+FIXTURE_ROOT = Path(__file__).resolve().parent / "fixtures" / "known-vulnerable-node"
 
 
 def load_dependency_audit():
@@ -148,6 +149,125 @@ def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
     assert findings[0].source == "yarn npm audit"
     assert findings[0].package == "left-pad"
     assert findings[0].severity == "high"
+
+
+def test_npm_pnpm_and_pip_audit_parsers_normalize_findings():
+    module = load_dependency_audit()
+
+    npm_findings = module.parse_npm_audit(
+        {
+            "vulnerabilities": {
+                "lodash": {
+                    "severity": "high",
+                    "via": [{"title": "Prototype pollution", "url": "GHSA-lodash", "severity": "high"}],
+                    "fixAvailable": {"version": "4.17.21"},
+                }
+            }
+        },
+        ".",
+    )
+    pnpm_findings = module.parse_pnpm_audit(
+        {
+            "advisories": {
+                "100": {
+                    "module_name": "minimist",
+                    "severity": "moderate",
+                    "url": "GHSA-minimist",
+                    "title": "Prototype pollution",
+                    "findings": [{"version": "0.0.8"}],
+                    "patched_versions": [">=1.2.6"],
+                }
+            }
+        },
+        ".",
+    )
+    pip_findings = module.parse_pip_audit(
+        {
+            "dependencies": [
+                {
+                    "name": "django",
+                    "version": "2.2.0",
+                    "vulns": [
+                        {
+                            "id": "PYSEC-1",
+                            "aliases": ["CVE-1234"],
+                            "severity": "HIGH",
+                            "fix_versions": ["4.2.0"],
+                            "summary": "Example issue",
+                        }
+                    ],
+                }
+            ]
+        },
+        ".",
+    )
+
+    assert npm_findings[0].package == "lodash"
+    assert npm_findings[0].fixed_versions == ["4.17.21"]
+    assert pnpm_findings[0].package == "minimist"
+    assert pnpm_findings[0].version == "0.0.8"
+    assert pip_findings[0].package == "django"
+    assert pip_findings[0].fixed_versions == ["4.2.0"]
+
+
+def test_main_exits_nonzero_when_scanner_errors_without_findings(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    report_path = tmp_path / "report.json"
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+
+    monkeypatch.setattr(
+        module,
+        "run_osv",
+        lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=2, stderr="boom")),
+    )
+    monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
+    monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--report", str(report_path)])
+
+    assert module.main() == 1
+    report = report_path.read_text(encoding="utf-8")
+    assert '"status": "scanner_error"' in report
+    assert '"failed_tools": [' in report
+
+
+def test_verbose_mode_prints_diagnostics(tmp_path, monkeypatch, capsys):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "bun.lock").write_text("# bun lock\n", encoding="utf-8")
+
+    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=False)))
+    monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
+    monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--verbose"])
+
+    module.main()
+    captured = capsys.readouterr()
+
+    assert "detected node project" in captured.err
+    assert "missing tool: osv-scanner" in captured.err
+
+
+def test_bun_lock_adds_note_about_native_audit_gap(tmp_path):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text('{"dependencies":{"hono":"4.0.0"}}\n', encoding="utf-8")
+    (tmp_path / "bun.lock").write_text("# bun lock\n", encoding="utf-8")
+
+    projects = module.discover_projects(tmp_path)
+
+    assert any("Bun" in note for note in projects[0].notes)
+
+
+def test_known_vulnerable_fixture_is_discovered_as_locked_node_project():
+    module = load_dependency_audit()
+
+    projects = module.discover_projects(FIXTURE_ROOT)
+
+    assert projects[0].ecosystem == "node"
+    assert projects[0].lockfiles == ["package-lock.json"]
+    assert projects[0].manifests == ["package.json"]
 
 
 def test_dry_run_reports_detected_projects_without_running_scanners(tmp_path, monkeypatch):
