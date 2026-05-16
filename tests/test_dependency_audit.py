@@ -281,6 +281,36 @@ def test_main_exits_nonzero_when_scanner_errors_without_findings(tmp_path, monke
     assert '"failed_tools": [' in report
 
 
+def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    report_path = tmp_path / "report.json"
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+    low_finding = module.Finding(
+        source="npm audit",
+        ecosystem="npm",
+        package="left-pad",
+        version="1.3.0",
+        severity="low",
+        advisory="GHSA-low",
+        title="Low issue",
+        path=".",
+    )
+
+    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
+    monkeypatch.setattr(
+        module,
+        "run_native_audits",
+        lambda root, projects: ([low_finding], [module.ToolRun("npm", ["npm", "audit"], str(root), available=True, exit_code=1)]),
+    )
+    monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
+    monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--fail-on", "high", "--report", str(report_path)])
+
+    assert module.main() == 0
+    assert '"status": "vulnerable"' in report_path.read_text(encoding="utf-8")
+
+
 def test_verbose_mode_prints_diagnostics(tmp_path, monkeypatch, capsys):
     module = load_dependency_audit()
     (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")

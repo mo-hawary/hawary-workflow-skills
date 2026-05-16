@@ -734,7 +734,7 @@ def report_status(findings: list[Finding], runs: list[ToolRun], projects: list[P
         return "dry_run"
     if findings:
         return "vulnerable"
-    if any(run.available and run.exit_code not in (0, None) for run in runs):
+    if has_failed_tools(runs):
         return "scanner_error"
     if not projects:
         return "clean"
@@ -817,9 +817,10 @@ def main() -> int:
     failing = [item for item in findings if severity_value(item.severity) >= threshold]
     failing_freshness = [item for item in freshness if args.fail_on_major_outdated and item.update_type == "major"]
 
+    status = report_status(findings, runs, projects, dry_run=args.dry_run)
     report = {
         "root": str(root),
-        "status": report_status(findings, runs, projects, dry_run=args.dry_run),
+        "status": status,
         "mode": args.mode,
         "fail_on": args.fail_on,
         "detected_projects": [asdict(item) for item in projects],
@@ -845,7 +846,7 @@ def main() -> int:
         Path(args.report).write_text(output + "\n", encoding="utf-8")
         print(f"wrote {args.report}")
 
-    return 1 if failing or failing_freshness or has_failed_tools(runs) else 0
+    return 1 if failing or failing_freshness or status == "scanner_error" else 0
 
 
 if __name__ == "__main__":
