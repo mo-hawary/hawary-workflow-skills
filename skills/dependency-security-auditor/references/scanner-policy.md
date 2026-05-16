@@ -52,7 +52,7 @@ Treat freshness as prioritization, not vulnerability evidence:
 | minor | feature-level drift | Review release notes. |
 | major | possible breaking change | Plan separately from CVE fixes. |
 
-Use freshness in CI and scheduled jobs by default. Skip it in pre-push if registry calls are too slow. Python freshness is based on the installed environment via `pip list --outdated`, so treat it as prioritization only and not as lockfile truth.
+Use freshness in CI and scheduled jobs by default. Skip it in pre-push if registry calls are too slow. Python freshness is based on the installed environment via `pip list --outdated`, so treat it as prioritization only and not as lockfile truth. Yarn freshness is skipped because Yarn's npm plugin does not provide a supported `outdated` command.
 
 ## Triage Rules
 

@@ -183,6 +183,26 @@ def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
     assert findings[0].severity == "high"
 
 
+def test_yarn_freshness_is_skipped_because_yarn_has_no_outdated_command(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "yarn.lock").write_text("# yarn lockfile\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_json(command: list[str], cwd: Path):
+        calls.append(command)
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), {}
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+    monkeypatch.setattr(module.shutil, "which", lambda tool: f"/bin/{tool}")
+
+    freshness, runs = module.run_freshness_checks(tmp_path, module.discover_projects(tmp_path))
+
+    assert freshness == []
+    assert runs == []
+    assert calls == []
+
+
 def test_python_lockfile_projects_run_pip_audit_locked(tmp_path, monkeypatch):
     module = load_dependency_audit()
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'sample'\nversion = '0.1.0'\n", encoding="utf-8")

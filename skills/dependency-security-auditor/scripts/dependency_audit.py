@@ -697,8 +697,7 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
                 if data:
                     freshness.extend(parse_pnpm_outdated(data, project.path))
             elif "yarn.lock" in project.lockfiles and shutil.which("yarn"):
-                run, _ = run_json(["yarn", "npm", "outdated", "--json"], project_dir)
-                runs.append(run)
+                continue
 
         if project.ecosystem == "python":
             for lockfile in project.lockfiles:

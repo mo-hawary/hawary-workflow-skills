@@ -28,6 +28,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
 5. Detect runtime/tool versions when freshness mode is enabled: Node/npm/pnpm/Yarn/Bun, Python/pip-audit, Flutter/Dart.
 6. Compare current locked or installed versions against latest available versions when the ecosystem can do so:
    - Node: `npm outdated --json` or `pnpm outdated --format json`.
+   - Yarn: skip freshness; Yarn npm plugin does not provide a supported `outdated` command.
    - Flutter/Dart: `dart pub outdated --json` or `flutter pub outdated --json`.
    - Python: installed environment freshness when available; do not confuse this with lockfile CVE truth.
 7. Normalize findings by package, version, ecosystem, advisory ID, severity, fixed version, scanner source, and dependency path when available.
