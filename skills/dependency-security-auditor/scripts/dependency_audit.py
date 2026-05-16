@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -40,6 +41,14 @@ SEVERITY_ORDER = {
     "medium": 3,
     "high": 4,
     "critical": 5,
+}
+
+
+CVSS_V3_METRICS = {
+    "AV": {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2},
+    "AC": {"L": 0.77, "H": 0.44},
+    "UI": {"N": 0.85, "R": 0.62},
+    "CIA": {"H": 0.56, "L": 0.22, "N": 0.0},
 }
 
 
@@ -102,6 +111,92 @@ CVE_TOOLS = {"osv-scanner", "npm", "pnpm", "yarn", "pip-audit"}
 
 def severity_value(value: str | None) -> int:
     return SEVERITY_ORDER.get((value or "unknown").lower(), 0)
+
+
+def severity_from_score(score: float) -> str:
+    if score >= 9.0:
+        return "critical"
+    if score >= 7.0:
+        return "high"
+    if score >= 4.0:
+        return "medium"
+    if score > 0:
+        return "low"
+    return "unknown"
+
+
+def round_up_one_decimal(value: float) -> float:
+    return math.ceil(value * 10) / 10.0
+
+
+def parse_cvss_v3_score(vector: str) -> float | None:
+    if not vector.startswith("CVSS:3."):
+        return None
+    metrics: dict[str, str] = {}
+    for part in vector.split("/")[1:]:
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        metrics[key] = value
+
+    try:
+        scope = metrics["S"]
+        confidentiality = CVSS_V3_METRICS["CIA"][metrics["C"]]
+        integrity = CVSS_V3_METRICS["CIA"][metrics["I"]]
+        availability = CVSS_V3_METRICS["CIA"][metrics["A"]]
+        impact_sub_score = 1 - ((1 - confidentiality) * (1 - integrity) * (1 - availability))
+        if scope == "U":
+            impact = 6.42 * impact_sub_score
+        else:
+            impact = 7.52 * (impact_sub_score - 0.029) - 3.25 * ((impact_sub_score - 0.02) ** 15)
+
+        if impact <= 0:
+            return 0.0
+
+        privilege_required = metrics["PR"]
+        if privilege_required == "N":
+            privilege_value = 0.85
+        elif privilege_required == "L":
+            privilege_value = 0.62 if scope == "U" else 0.68
+        elif privilege_required == "H":
+            privilege_value = 0.27 if scope == "U" else 0.5
+        else:
+            return None
+
+        exploitability = (
+            8.22
+            * CVSS_V3_METRICS["AV"][metrics["AV"]]
+            * CVSS_V3_METRICS["AC"][metrics["AC"]]
+            * privilege_value
+            * CVSS_V3_METRICS["UI"][metrics["UI"]]
+        )
+        if scope == "U":
+            return round_up_one_decimal(min(impact + exploitability, 10))
+        return round_up_one_decimal(min(1.08 * (impact + exploitability), 10))
+    except KeyError:
+        return None
+
+
+def normalize_osv_severity(vuln: dict[str, Any]) -> str:
+    database_specific = vuln.get("database_specific")
+    if isinstance(database_specific, dict) and database_specific.get("severity"):
+        return str(database_specific["severity"]).lower()
+
+    for severity_item in vuln.get("severity", []):
+        if not isinstance(severity_item, dict):
+            continue
+        score = str(severity_item.get("score") or "")
+        if not score:
+            continue
+        if score.lower() in SEVERITY_ORDER:
+            return score.lower()
+        numeric_match = re.search(r"\b\d+(?:\.\d+)?\b", score)
+        if numeric_match and not score.startswith("CVSS:"):
+            return severity_from_score(float(numeric_match.group(0)))
+        cvss_score = parse_cvss_v3_score(score)
+        if cvss_score is not None:
+            return severity_from_score(cvss_score)
+    return "unknown"
 
 
 def run_json(command: list[str], cwd: Path) -> tuple[ToolRun, Any | None]:
@@ -341,10 +436,7 @@ def parse_osv(data: Any) -> list[Finding]:
 
     def handle_vuln(vuln: dict[str, Any], package: str = "", version: str | None = None, path: str | None = None) -> None:
         advisory = str(vuln.get("id") or (vuln.get("aliases") or ["unknown"])[0])
-        severity = "unknown"
-        database_specific = vuln.get("database_specific")
-        if isinstance(database_specific, dict) and database_specific.get("severity"):
-            severity = str(database_specific["severity"]).lower()
+        severity = normalize_osv_severity(vuln)
         fixed_versions: list[str] = []
         for affected in vuln.get("affected", []):
             for range_item in affected.get("ranges", []):

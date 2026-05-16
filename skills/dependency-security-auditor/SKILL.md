@@ -17,7 +17,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
    - Node: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`.
    - Python: `requirements.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pyproject.toml`.
    - Flutter/Dart: `pubspec.yaml`, `pubspec.lock`.
-2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown.
+2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown. For Python, `pyproject.toml` is only a detection signal unless paired with a lockfile or pinned requirements.
 3. Run a broad scanner:
    - Prefer OSV-Scanner for cross-ecosystem CVE detection.
    - Use Trivy as an optional CI backstop for repository, container, and SBOM scans.

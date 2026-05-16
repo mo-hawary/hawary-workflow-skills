@@ -75,6 +75,39 @@ def test_python_outdated_json_is_normalized_into_freshness_findings(tmp_path, mo
     assert freshness[0].update_type == "major"
 
 
+def test_osv_standard_cvss_severity_is_normalized_for_fail_thresholds():
+    module = load_dependency_audit()
+    data = {
+        "results": [
+            {
+                "packages": [
+                    {
+                        "package": {"name": "example", "version": "1.0.0"},
+                        "locations": [{"path": "package-lock.json"}],
+                        "vulnerabilities": [
+                            {
+                                "id": "GHSA-test",
+                                "summary": "High impact advisory",
+                                "severity": [
+                                    {
+                                        "type": "CVSS_V3",
+                                        "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+
+    findings = module.parse_osv(data)
+
+    assert findings[0].severity == "critical"
+    assert module.severity_value(findings[0].severity) >= module.severity_value("high")
+
+
 def test_dry_run_reports_detected_projects_without_running_scanners(tmp_path, monkeypatch):
     module = load_dependency_audit()
     report_path = tmp_path / "report.json"

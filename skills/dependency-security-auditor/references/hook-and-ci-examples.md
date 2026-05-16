@@ -87,7 +87,7 @@ jobs:
           chmod +x "$DEPENDENCY_AUDIT_SCRIPT"
 
       - name: Install Python audit tool
-        run: python3 -m pip install --user pip-audit
+        run: python3 -m pip install pip-audit
 
       - name: Run dependency security audit
         run: |
