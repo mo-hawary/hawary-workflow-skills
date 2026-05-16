@@ -385,6 +385,9 @@ def node_manifest_has_workspaces(project_dir: Path) -> bool:
 
 
 def is_python_project_lockfile(name: str) -> bool:
+    # pip-audit documents --locked project scans for pyproject.toml and pylock.*.toml;
+    # pylock support still depends on the installed pip-audit version.
+    # Ref: https://github.com/pypa/pip-audit#usage
     return name in {"poetry.lock", "uv.lock", "Pipfile.lock"} or name == "pylock.toml" or name.startswith("pylock.") and name.endswith(".toml")
 
 
