@@ -109,6 +109,38 @@ def test_osv_standard_cvss_severity_is_normalized_for_fail_thresholds():
     assert module.severity_value(findings[0].severity) >= module.severity_value("high")
 
 
+def test_osv_cvss_v4_severity_is_normalized_for_fail_thresholds():
+    module = load_dependency_audit()
+    data = {
+        "results": [
+            {
+                "packages": [
+                    {
+                        "package": {"name": "example", "version": "1.0.0"},
+                        "vulnerabilities": [
+                            {
+                                "id": "GHSA-cvss4",
+                                "summary": "CVSS v4 advisory",
+                                "severity": [
+                                    {
+                                        "type": "CVSS_V4",
+                                        "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+
+    findings = module.parse_osv(data)
+
+    assert findings[0].severity == "critical"
+    assert module.severity_value(findings[0].severity) >= module.severity_value("high")
+
+
 def test_run_osv_scans_recursively(tmp_path, monkeypatch):
     module = load_dependency_audit()
     commands: list[list[str]] = []
@@ -149,6 +181,23 @@ def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
     assert findings[0].source == "yarn npm audit"
     assert findings[0].package == "left-pad"
     assert findings[0].severity == "high"
+
+
+def test_python_lockfile_projects_run_pip_audit_locked(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'sample'\nversion = '0.1.0'\n", encoding="utf-8")
+    (tmp_path / "poetry.lock").write_text("# poetry lock\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_json(command: list[str], cwd: Path):
+        calls.append(command)
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), {"dependencies": []}
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    module.run_native_audits(tmp_path, module.discover_projects(tmp_path))
+
+    assert calls == [["pip-audit", "--locked", "--format", "json"]]
 
 
 def test_npm_pnpm_and_pip_audit_parsers_normalize_findings():

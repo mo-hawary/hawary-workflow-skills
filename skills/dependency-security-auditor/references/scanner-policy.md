@@ -20,7 +20,7 @@ Use multiple sources because no single vulnerability database catches everything
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
 - For Node, use the lockfile matching the package manager.
 - For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
-- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
+- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Use `pip-audit -r` for requirements and `pip-audit --locked` for local project lockfiles. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
 - For Flutter applications, commit `pubspec.lock` and scan it.
 
 ## Failure Policy

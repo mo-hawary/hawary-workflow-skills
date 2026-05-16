@@ -23,7 +23,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
    - Use Trivy as an optional CI backstop for repository, container, and SBOM scans.
 4. Run native audits when available:
    - Node: `npm audit --package-lock-only --json`, `pnpm audit --json`, or `yarn npm audit --json`.
-   - Python: `pip-audit` for environments or requirements files.
+   - Python: `pip-audit` for environments, requirements files, or local project lockfiles via `--locked`.
    - Flutter/Dart: OSV-Scanner on `pubspec.lock`; use `dart pub outdated --json` or `flutter pub outdated --json` for freshness, not CVE truth.
 5. Detect runtime/tool versions when freshness mode is enabled: Node/npm/pnpm/Yarn/Bun, Python/pip-audit, Flutter/Dart.
 6. Compare current locked or installed versions against latest available versions when the ecosystem can do so:
@@ -99,6 +99,7 @@ Return:
 - For Node, do not blindly run `npm audit fix --force`; review suggested downgrades or major jumps.
 - For Flutter/Dart applications, require `pubspec.lock` for actionable CVE scanning.
 - Treat Python freshness as installed-environment freshness, not lockfile CVE evidence.
+- Treat dependency-free CVSS v4 parsing as severity-gate fallback; prefer scanner-provided severity when available.
 - Scanner command failures return `scanner_error` and should fail hooks/CI until rerun or triaged.
 
 ## Scanner Unavailable Policy

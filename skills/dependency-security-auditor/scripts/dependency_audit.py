@@ -183,6 +183,41 @@ def parse_cvss_v3_score(vector: str) -> float | None:
         return None
 
 
+def parse_cvss_v4_score(vector: str) -> float | None:
+    if not vector.startswith("CVSS:4.0/"):
+        return None
+    metrics: dict[str, str] = {}
+    for part in vector.split("/")[1:]:
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        metrics[key] = value
+
+    try:
+        exploitability = [
+            metrics["AV"] == "N",
+            metrics["AC"] == "L",
+            metrics["AT"] == "N",
+            metrics["PR"] == "N",
+            metrics["UI"] == "N",
+        ]
+        impacts = [metrics.get(key, "N") for key in ("VC", "VI", "VA", "SC", "SI", "SA")]
+    except KeyError:
+        return None
+
+    high_impact_count = impacts.count("H")
+    low_impact_count = impacts.count("L")
+    exploitability_score = sum(1 for item in exploitability if item)
+
+    if high_impact_count >= 3 and exploitability_score >= 4:
+        return 9.0
+    if high_impact_count > 0:
+        return 7.0
+    if low_impact_count > 0:
+        return 4.0
+    return 0.0
+
+
 def normalize_osv_severity(vuln: dict[str, Any]) -> str:
     database_specific = vuln.get("database_specific")
     if isinstance(database_specific, dict) and database_specific.get("severity"):
@@ -202,6 +237,9 @@ def normalize_osv_severity(vuln: dict[str, Any]) -> str:
         cvss_score = parse_cvss_v3_score(score)
         if cvss_score is not None:
             return severity_from_score(cvss_score)
+        cvss_v4_score = parse_cvss_v4_score(score)
+        if cvss_v4_score is not None:
+            return severity_from_score(cvss_v4_score)
     return "unknown"
 
 
@@ -624,10 +662,17 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                     findings.extend(parse_yarn_audit(data, project.path))
 
         if project.ecosystem == "python":
+            ran_locked_audit = False
             for lockfile in project.lockfiles:
                 if lockfile.endswith(".txt"):
                     run, data = run_json(["pip-audit", "-r", lockfile, "--format", "json"], project_dir)
                     runs.append(run)
+                    if data:
+                        findings.extend(parse_pip_audit(data, project.path))
+                elif lockfile in {"poetry.lock", "uv.lock", "Pipfile.lock"} and not ran_locked_audit:
+                    run, data = run_json(["pip-audit", "--locked", "--format", "json"], project_dir)
+                    runs.append(run)
+                    ran_locked_audit = True
                     if data:
                         findings.extend(parse_pip_audit(data, project.path))
 
