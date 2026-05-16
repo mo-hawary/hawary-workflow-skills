@@ -38,6 +38,8 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
 
 Use `scripts/dependency_audit.py` for deterministic discovery and scanner orchestration. It detects stacks, runtime tools, installed scanners, writes a JSON report, and can fail by severity threshold.
 
+When the skill is installed outside the target repo, set `DEPENDENCY_AUDIT_SCRIPT` to the script location and call `python3 "$DEPENDENCY_AUDIT_SCRIPT"` from hooks or CI. Do not assume `skills/dependency-security-auditor/...` exists in every audited repository.
+
 Example:
 
 ```bash
@@ -56,6 +58,14 @@ CI freshness example:
 python3 skills/dependency-security-auditor/scripts/dependency_audit.py --root . --mode ci --fail-on high --report dependency-security-report.json
 ```
 
+Useful flags:
+
+- `--dry-run`: discover projects and show what would be scanned without running scanners.
+- `--skip-freshness`: skip runtime/latest-version checks for fast hooks.
+- `--freshness`: force runtime/latest-version checks.
+- `--fail-on-major-outdated`: fail when freshness checks find major-version lag.
+- `--skip-osv` / `--skip-native`: run only native audits or only OSV-Scanner.
+
 For Husky, pre-commit, and GitHub Actions examples, see `references/hook-and-ci-examples.md`.
 For scanner selection and policy guidance, see `references/scanner-policy.md`.
 
@@ -63,7 +73,7 @@ For scanner selection and policy guidance, see `references/scanner-policy.md`.
 
 Return:
 
-- **Status:** clean, vulnerable, weak evidence, or scanner unavailable.
+- **Status:** clean, vulnerable, weak evidence, scanner unavailable, scanner error, or dry run.
 - **Detected Stacks:** ecosystem, project path, and lockfile status.
 - **Runtime:** installed runtime and package-manager versions when checked.
 - **Findings:** severity-ordered CVEs/GHSAs with package, version, path, fixed versions, and source scanner.
@@ -87,6 +97,13 @@ Return:
 - Prefer patched minor/patch releases before major upgrades.
 - For Node, do not blindly run `npm audit fix --force`; review suggested downgrades or major jumps.
 - For Flutter/Dart applications, require `pubspec.lock` for actionable CVE scanning.
+
+## Scanner Unavailable Policy
+
+- Do not install OSV-Scanner, pip-audit, package managers, or other tools without explicit approval.
+- If OSV-Scanner is missing, run available native audits and mark the evidence as incomplete.
+- If no CVE scanner for the detected stack is available, return `scanner_unavailable` and provide exact install/setup options.
+- If only manifests are present without lockfiles, return `weak_evidence` and explain that exact vulnerable versions are unknown.
 
 ## Final Checks
 

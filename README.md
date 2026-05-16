@@ -15,22 +15,13 @@ If these skills save you time, please star the repo. It helps other developers d
 
 ## Use With Your Agent
 
-Point your coding agent at this repository, install with the `skills` CLI, or copy individual folders from `skills/` into the skill directory your agent uses.
+Point your coding agent at this repository, or copy individual folders from `skills/` into the skill directory your agent uses. The optional `skills` CLI path is available for environments that support it.
 
 | Agent | Guide | Install target |
 | --- | --- | --- |
 | Codex | [Install on Codex](docs/codex.md) | `.agents/skills`, `~/.agents/skills`, or your Codex skills directory |
 | Claude | [Install on Claude](docs/claude.md) | `.claude/skills`, `~/.claude/skills`, or Claude custom Skills upload |
 | OpenClaw, Qwen, and compatible agents | [Install on other agents](docs/compatible-agents.md) | any Agent Skills-compatible directory |
-
-Install with the `skills` CLI when your agent supports it:
-
-```bash
-npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
-```
-
-If `npx skills` is not available in your environment or does not support this repository, use the copy method below.
 
 Quick copy example:
 
@@ -44,6 +35,15 @@ Windows PowerShell:
 Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 ```
 
+Optional `skills` CLI path:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
+
 ## Skills
 
 | Skill | Use When | Output |
@@ -56,6 +56,7 @@ Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
+| [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | You need dependency CVE scans, freshness checks, or hook/CI audit design. | Stack detection, scanner status, CVE findings, freshness risk, remediation and CI plan. |
 
 ## Choosing A Skill
 
@@ -69,6 +70,7 @@ Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 | "Review this PR without posting comments." | `pull-request-review-loop` |
 | "What should we QA before fixing?" | `qa-bug-hunt-planner` |
 | "Prove this mobile flow works." | `mobile-maestro-e2e-orchestrator` |
+| "Are our dependencies vulnerable?" | `dependency-security-auditor` |
 
 ## Examples
 
@@ -86,7 +88,7 @@ skills/
         `-- examples.md
 ```
 
-`SKILL.md` is the portable source. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
+`SKILL.md` is the portable source. These skills are Markdown-first by design; Ruby is used only for repository validation. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
 
 ## For AI Agents
 

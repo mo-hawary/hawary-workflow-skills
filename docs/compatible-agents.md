@@ -15,7 +15,7 @@ skills/
     `-- assets/
 ```
 
-Only `SKILL.md` is required. Supporting folders are optional. `agents/openai.yaml` is OpenAI/Codex UI metadata and can be ignored by other agents.
+Only `SKILL.md` is required. Supporting folders are optional. `agents/openai.yaml` is named for OpenAI/Codex UI metadata, not the generic skill contract, and can be ignored by other agents.
 
 ## Required Behavior
 
@@ -31,14 +31,7 @@ A compatible agent should:
 
 ## Install
 
-Install with the `skills` CLI when supported:
-
-```bash
-npx skills add mo-hawary/hawary-workflow-skills --list
-npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
-```
-
-If `npx skills` is not available in your environment or does not support this repository, copy any folder under `skills/` into your agent's skill directory:
+Copy any folder under `skills/` into your agent's skill directory:
 
 macOS/Linux:
 
@@ -53,6 +46,17 @@ Copy-Item -Recurse skills\cross-layer-contract-audit C:\path\to\agent\skills\
 ```
 
 If your agent supports repo-local skills, keep them inside the project. If it supports user-wide skills, install them into the user's global skill directory. If your agent can read repositories directly, point it at this repo and ask it to use the matching `skills/<skill-name>/SKILL.md` folder.
+
+## Optional CLI Install
+
+If your environment uses the open `skills` CLI, install from GitHub:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --list
+npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
+```
+
+If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
 
 ## Portability Notes
 

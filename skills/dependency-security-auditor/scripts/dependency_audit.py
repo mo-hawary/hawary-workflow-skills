@@ -97,6 +97,9 @@ class FreshnessFinding:
     note: str | None = None
 
 
+CVE_TOOLS = {"osv-scanner", "npm", "pnpm", "yarn", "pip-audit"}
+
+
 def severity_value(value: str | None) -> int:
     return SEVERITY_ORDER.get((value or "unknown").lower(), 0)
 
@@ -463,6 +466,33 @@ def parse_pub_outdated(data: Any, project_path: str) -> list[FreshnessFinding]:
     return freshness
 
 
+def parse_pip_outdated(data: Any, project_path: str) -> list[FreshnessFinding]:
+    freshness: list[FreshnessFinding] = []
+    if not isinstance(data, list):
+        return freshness
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        package = str(item.get("name") or "")
+        current = str(item.get("version")) if item.get("version") is not None else None
+        latest = str(item.get("latest_version") or item.get("latest")) if (item.get("latest_version") or item.get("latest")) is not None else None
+        if not package:
+            continue
+        freshness.append(
+            FreshnessFinding(
+                ecosystem="pypi",
+                package=package,
+                current=current,
+                wanted=None,
+                latest=latest,
+                update_type=classify_update(current, latest),
+                source="pip list --outdated",
+                path=project_path,
+            )
+        )
+    return freshness
+
+
 def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[Finding], list[ToolRun]]:
     findings: list[Finding] = []
     runs: list[ToolRun] = []
@@ -492,12 +522,6 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                     if data:
                         findings.extend(parse_pip_audit(data, project.path))
 
-        if project.ecosystem == "dart" and project.manifests:
-            tool = "flutter" if shutil.which("flutter") else "dart"
-            command = [tool, "pub", "outdated", "--json"]
-            run, _ = run_json(command, project_dir)
-            runs.append(run)
-
     return findings, runs
 
 
@@ -524,9 +548,11 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
 
         if project.ecosystem == "python":
             for lockfile in project.lockfiles:
-                if lockfile.endswith(".txt") and shutil.which("pip-audit"):
-                    run, _ = run_json(["python3", "-m", "pip", "list", "--outdated", "--format", "json"], project_dir)
+                if lockfile.endswith(".txt") and shutil.which("python3"):
+                    run, data = run_json(["python3", "-m", "pip", "list", "--outdated", "--format", "json"], project_dir)
                     runs.append(run)
+                    if data:
+                        freshness.extend(parse_pip_outdated(data, project.path))
                     break
 
         if project.ecosystem == "dart" and project.manifests:
@@ -549,6 +575,28 @@ def run_osv(root: Path) -> tuple[list[Finding], ToolRun]:
     return parse_osv(data), run
 
 
+def report_status(findings: list[Finding], runs: list[ToolRun], projects: list[ProjectSignal], dry_run: bool = False) -> str:
+    if dry_run:
+        return "dry_run"
+    if findings:
+        return "vulnerable"
+    if any(run.available and run.exit_code not in (0, None) for run in runs):
+        return "scanner_error"
+    if not projects:
+        return "clean"
+
+    cve_runs = [run for run in runs if run.tool in CVE_TOOLS]
+    missing_cve_tools = [run for run in cve_runs if not run.available]
+    available_cve_tools = [run for run in cve_runs if run.available]
+    has_weak_lockfile_evidence = any(project.notes for project in projects)
+
+    if cve_runs and missing_cve_tools and not available_cve_tools:
+        return "scanner_unavailable"
+    if missing_cve_tools or has_weak_lockfile_evidence:
+        return "weak_evidence"
+    return "clean"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit dependency vulnerabilities across common app stacks.")
     parser.add_argument("--root", default=".", help="Repository or app root to scan.")
@@ -560,6 +608,7 @@ def main() -> int:
     parser.add_argument("--skip-freshness", action="store_true", help="Skip runtime and latest-version freshness checks.")
     parser.add_argument("--freshness", action="store_true", help="Force runtime and latest-version freshness checks.")
     parser.add_argument("--fail-on-major-outdated", action="store_true", help="Fail when freshness checks find major-version lag.")
+    parser.add_argument("--dry-run", action="store_true", help="Discover projects and show what would be scanned without running scanners.")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -570,17 +619,20 @@ def main() -> int:
     runs: list[ToolRun] = []
     run_freshness = args.freshness or (args.mode in {"ci", "scheduled"} and not args.skip_freshness)
 
-    if not args.skip_osv:
+    if args.dry_run:
+        run_freshness = False
+
+    if not args.dry_run and not args.skip_osv:
         osv_findings, osv_run = run_osv(root)
         findings.extend(osv_findings)
         runs.append(osv_run)
 
-    if not args.skip_native:
+    if not args.dry_run and not args.skip_native:
         native_findings, native_runs = run_native_audits(root, projects)
         findings.extend(native_findings)
         runs.extend(native_runs)
 
-    if run_freshness:
+    if not args.dry_run and run_freshness:
         runtime, runtime_runs = detect_runtime(root, projects)
         freshness, freshness_runs = run_freshness_checks(root, projects)
         runs.extend(runtime_runs)
@@ -593,7 +645,7 @@ def main() -> int:
 
     report = {
         "root": str(root),
-        "status": "vulnerable" if findings else ("scanner_error" if any(run.available and run.exit_code not in (0, None) for run in runs) else "clean"),
+        "status": report_status(findings, runs, projects, dry_run=args.dry_run),
         "mode": args.mode,
         "fail_on": args.fail_on,
         "detected_projects": [asdict(item) for item in projects],

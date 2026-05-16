@@ -19,6 +19,7 @@ Use multiple sources because no single vulnerability database catches everything
 - Prefer exact lockfiles over manifests.
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
 - For Node, use the lockfile matching the package manager.
+- For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version and pair with native checks when available.
 - For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`.
 - For Flutter applications, commit `pubspec.lock` and scan it.
 

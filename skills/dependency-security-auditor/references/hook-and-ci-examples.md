@@ -1,5 +1,16 @@
 # Hook And CI Examples
 
+## Script Path
+
+Hooks and CI should not assume this skill repository is checked into the project being audited. Set one of these variables first:
+
+```bash
+export SKILL_ROOT="${SKILL_ROOT:-$HOME/.agents/skills/dependency-security-auditor}"
+export DEPENDENCY_AUDIT_SCRIPT="${DEPENDENCY_AUDIT_SCRIPT:-$SKILL_ROOT/scripts/dependency_audit.py}"
+```
+
+If you vendor the skill into a repo, `SKILL_ROOT=skills/dependency-security-auditor` is fine. For CI, prefer downloading the script from a pinned tag or commit SHA before running it.
+
 ## Husky Pre-Push
 
 Use `pre-push`, not `pre-commit`, for full dependency audits.
@@ -8,7 +19,9 @@ Use `pre-push`, not `pre-commit`, for full dependency audits.
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-python3 skills/dependency-security-auditor/scripts/dependency_audit.py \
+: "${DEPENDENCY_AUDIT_SCRIPT:?Set DEPENDENCY_AUDIT_SCRIPT to dependency_audit.py}"
+
+python3 "$DEPENDENCY_AUDIT_SCRIPT" \
   --root . \
   --mode pre-push \
   --skip-freshness \
@@ -16,7 +29,7 @@ python3 skills/dependency-security-auditor/scripts/dependency_audit.py \
   --report dependency-security-report.json
 ```
 
-## pre-commit Framework
+## pre-commit Framework (pre-push stage)
 
 ```yaml
 repos:
@@ -24,7 +37,7 @@ repos:
     hooks:
       - id: dependency-security-audit
         name: Dependency security audit
-        entry: python3 skills/dependency-security-auditor/scripts/dependency_audit.py --root . --mode pre-push --skip-freshness --fail-on high
+        entry: bash -c 'python3 "$DEPENDENCY_AUDIT_SCRIPT" --root . --mode pre-push --skip-freshness --fail-on high'
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -42,24 +55,46 @@ on:
   schedule:
     - cron: "17 4 * * 1"
 
+permissions:
+  contents: read
+
+env:
+  HAWARY_WORKFLOW_SKILLS_REF: <tag-or-commit-sha>
+  DEPENDENCY_AUDIT_SCRIPT: .github/tools/dependency_audit.py
+
 jobs:
+  osv-scan:
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8"
+    with:
+      scan-args: |-
+        --recursive
+        ./
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
   dependency-security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install OSV-Scanner
+      - name: Download audit script
         run: |
-          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b /usr/local/bin
+          mkdir -p .github/tools
+          curl -sSfL "https://raw.githubusercontent.com/mo-hawary/hawary-workflow-skills/${HAWARY_WORKFLOW_SKILLS_REF}/skills/dependency-security-auditor/scripts/dependency_audit.py" \
+            -o "$DEPENDENCY_AUDIT_SCRIPT"
+          chmod +x "$DEPENDENCY_AUDIT_SCRIPT"
 
       - name: Install Python audit tool
         run: python3 -m pip install --user pip-audit
 
       - name: Run dependency security audit
         run: |
-          python3 skills/dependency-security-auditor/scripts/dependency_audit.py \
+          python3 "$DEPENDENCY_AUDIT_SCRIPT" \
             --root . \
             --mode ci \
+            --skip-osv \
             --fail-on high \
             --report dependency-security-report.json
 
@@ -73,7 +108,7 @@ jobs:
 
 ## OSV-Scanner Action
 
-For GitHub-native code scanning, use the official OSV-Scanner action or reusable workflows. Pair that with the bundled script when you want local and CI output to match.
+For GitHub-native code scanning, use the official OSV-Scanner action or reusable workflows pinned to a version. Pair that with the bundled script using `--skip-osv` when you want native audit and freshness output without installing the OSV-Scanner CLI.
 
 ## Runtime And Freshness Modes
 
@@ -89,11 +124,11 @@ Recommended usage:
 
 ```bash
 # Fast local gate
-python3 skills/dependency-security-auditor/scripts/dependency_audit.py --root . --mode pre-push --skip-freshness --fail-on high
+python3 "$DEPENDENCY_AUDIT_SCRIPT" --root . --mode pre-push --skip-freshness --fail-on high
 
 # CI gate with freshness report
-python3 skills/dependency-security-auditor/scripts/dependency_audit.py --root . --mode ci --fail-on high --report dependency-security-report.json
+python3 "$DEPENDENCY_AUDIT_SCRIPT" --root . --mode ci --fail-on high --report dependency-security-report.json
 
 # Scheduled freshness/security report
-python3 skills/dependency-security-auditor/scripts/dependency_audit.py --root . --mode scheduled --fail-on critical --report dependency-security-report.json
+python3 "$DEPENDENCY_AUDIT_SCRIPT" --root . --mode scheduled --fail-on critical --report dependency-security-report.json
 ```
