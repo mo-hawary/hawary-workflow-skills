@@ -384,6 +384,10 @@ def node_manifest_has_workspaces(project_dir: Path) -> bool:
     return isinstance(data, dict) and bool(data.get("workspaces"))
 
 
+def is_python_project_lockfile(name: str) -> bool:
+    return name in {"poetry.lock", "uv.lock", "Pipfile.lock"} or name == "pylock.toml" or name.startswith("pylock.") and name.endswith(".toml")
+
+
 def discover_projects(root: Path) -> list[ProjectSignal]:
     projects: dict[tuple[str, Path], ProjectSignal] = {}
 
@@ -401,7 +405,7 @@ def discover_projects(root: Path) -> list[ProjectSignal]:
                 signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
             projects[(signal.ecosystem, directory)] = signal
 
-        python_locks = sorted(files & {"poetry.lock", "uv.lock", "Pipfile.lock"})
+        python_locks = sorted(name for name in files if is_python_project_lockfile(name))
         requirements = sorted(name for name in files if name == "requirements.txt" or "requirements" in name and name.endswith(".txt"))
         if "pyproject.toml" in files or python_locks or requirements:
             signal = ProjectSignal("python", rel(directory, root), manifests=[], lockfiles=python_locks + requirements)
@@ -748,7 +752,7 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                     runs.append(run)
                     if data:
                         findings.extend(parse_pip_audit(data, project.path))
-                elif lockfile in {"poetry.lock", "uv.lock", "Pipfile.lock"} and not ran_locked_audit:
+                elif is_python_project_lockfile(lockfile) and not ran_locked_audit:
                     run, data = run_json(["pip-audit", "--locked", "--format", "json", "."], project_dir)
                     runs.append(run)
                     ran_locked_audit = True

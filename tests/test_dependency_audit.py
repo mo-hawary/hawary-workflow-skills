@@ -321,6 +321,25 @@ def test_python_lockfile_projects_run_pip_audit_locked(tmp_path, monkeypatch):
     assert calls == [["pip-audit", "--locked", "--format", "json", "."]]
 
 
+def test_python_pylock_projects_run_pip_audit_locked(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'sample'\nversion = '0.1.0'\n", encoding="utf-8")
+    (tmp_path / "pylock.toml").write_text("lock-version = '1.0'\npackages = []\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_json(command: list[str], cwd: Path):
+        calls.append(command)
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), []
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    projects = module.discover_projects(tmp_path)
+    module.run_native_audits(tmp_path, projects)
+
+    assert projects[0].lockfiles == ["pylock.toml"]
+    assert calls == [["pip-audit", "--locked", "--format", "json", "."]]
+
+
 def test_npm_pnpm_and_pip_audit_parsers_normalize_findings():
     module = load_dependency_audit()
 

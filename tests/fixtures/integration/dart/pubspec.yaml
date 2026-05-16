@@ -1,0 +1,6 @@
+name: dependency_audit_integration_dart
+publish_to: none
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies: {}
+dev_dependencies: {}
