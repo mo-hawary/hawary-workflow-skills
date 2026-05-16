@@ -2,6 +2,18 @@
 
 Use this workflow when adding a new public skill.
 
+## Current Repository Shape
+
+The canonical source for every public skill is `skills/<skill-name>/SKILL.md`. Supporting examples, templates, and checklists belong in `skills/<skill-name>/references/`. Agent-specific metadata can live under `skills/<skill-name>/agents/` when useful, but the Markdown skill remains the portable source.
+
+Keep these project-level docs in sync when a change affects them:
+
+- `README.md` and `README.ar.md` for the public overview.
+- `docs/codex.md`, `docs/claude.md`, and `docs/compatible-agents.md` for install behavior.
+- `docs/examples.md` for prompt examples.
+- `docs/roadmap.md` for project direction.
+- `CHANGELOG.md` for user-visible changes.
+
 ## 1. Extract
 
 Start from a repeated workflow that has clear value outside one private project. Capture what triggers the skill, what evidence it should inspect, and what output it should produce.

@@ -1,5 +1,7 @@
 # Hawary Workflow Skills
 
+[English](README.md) | [مصري](README.ar.md)
+
 Reusable workflow skills for coding agents, AI pair programmers, and teams that want source-backed delivery habits.
 
 [![Skills](https://img.shields.io/badge/Agent%20Skills-SKILL.md-2563eb)](docs/compatible-agents.md)
@@ -13,9 +15,13 @@ Reusable workflow skills for coding agents, AI pair programmers, and teams that 
 
 If these skills save you time, please star the repo. It helps other developers discover it.
 
+## Current State
+
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, examples, roadmap, changelog, and CI validation.
+
 ## Use With Your Agent
 
-Point your coding agent at this repository, or copy individual folders from `skills/` into the skill directory your agent uses. The optional `skills` CLI path is available for environments that support it.
+Point your coding agent at this repository or copy individual folders from `skills/` into the skill directory your agent uses. If your environment supports the `skills` CLI, you can use that as an optional shortcut.
 
 | Agent | Guide | Install target |
 | --- | --- | --- |
@@ -35,7 +41,7 @@ Windows PowerShell:
 Copy-Item -Recurse skills\project-docs-cleanup C:\path\to\agent\skills\
 ```
 
-Optional `skills` CLI path:
+Optional `skills` CLI path when your agent supports it:
 
 ```bash
 npx skills add mo-hawary/hawary-workflow-skills --list

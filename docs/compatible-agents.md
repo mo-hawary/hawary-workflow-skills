@@ -49,7 +49,7 @@ If your agent supports repo-local skills, keep them inside the project. If it su
 
 ## Optional CLI Install
 
-If your environment uses the open `skills` CLI, install from GitHub:
+If your environment supports the `skills` CLI, you can install from GitHub:
 
 ```bash
 npx skills add mo-hawary/hawary-workflow-skills --list
