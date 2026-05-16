@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -74,6 +75,31 @@ def test_python_outdated_json_is_normalized_into_freshness_findings(tmp_path, mo
     assert freshness[0].current == "4.2.0"
     assert freshness[0].latest == "5.0.1"
     assert freshness[0].update_type == "major"
+
+
+def test_outdated_exit_with_json_data_is_not_a_scanner_error(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    command = ["npm", "outdated", "--json"]
+    stdout = json.dumps({"lodash": {"current": "4.17.20", "wanted": "4.17.21", "latest": "4.17.21"}})
+
+    def fake_run(command_arg: list[str], cwd: Path, text: bool, capture_output: bool, check: bool):
+        assert command_arg == command
+
+        class Proc:
+            returncode = 1
+            stderr = ""
+
+        proc = Proc()
+        proc.stdout = stdout
+        return proc
+
+    monkeypatch.setattr(module.shutil, "which", lambda tool: f"/bin/{tool}")
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    run, data = module.run_json(command, tmp_path)
+
+    assert run.tool_status == "ok"
+    assert data["lodash"]["latest"] == "4.17.21"
 
 
 def test_osv_standard_cvss_severity_is_normalized_for_fail_thresholds():
@@ -156,6 +182,27 @@ def test_run_osv_scans_recursively(tmp_path, monkeypatch):
     assert commands == [["osv-scanner", "scan", "source", "--recursive", str(tmp_path), "--format", "json"]]
 
 
+def test_osv_no_packages_found_is_weak_evidence_not_scanner_error(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+
+    def fake_run(command_arg: list[str], cwd: Path, text: bool, capture_output: bool, check: bool):
+        class Proc:
+            returncode = 128
+            stderr = "No packages found"
+            stdout = "{}"
+
+        return Proc()
+
+    monkeypatch.setattr(module.shutil, "which", lambda tool: f"/bin/{tool}")
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    findings, run = module.run_osv(tmp_path)
+
+    assert findings == []
+    assert run.tool_status == "no_packages_found"
+    assert module.report_status([], [run], []) == "weak_evidence"
+
+
 def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
     module = load_dependency_audit()
     (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
@@ -170,8 +217,9 @@ def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
         }
     }
 
-    def fake_run_json(command: list[str], cwd: Path):
-        assert command == ["yarn", "npm", "audit", "--json"]
+    def fake_run_json(command: list[str], cwd: Path, ndjson: bool = False):
+        assert command == ["yarn", "npm", "audit", "--recursive", "--json"]
+        assert ndjson is True
         return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=1), audit_data
 
     monkeypatch.setattr(module, "run_json", fake_run_json)
@@ -181,6 +229,59 @@ def test_yarn_audit_results_are_converted_to_findings(tmp_path, monkeypatch):
     assert findings[0].source == "yarn npm audit"
     assert findings[0].package == "left-pad"
     assert findings[0].severity == "high"
+
+
+def test_yarn_audit_parses_ndjson_output(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    command = ["yarn", "npm", "audit", "--recursive", "--json"]
+    audit_data = {
+        "vulnerabilities": {
+            "left-pad": {
+                "severity": "high",
+                "via": [{"title": "Example advisory", "url": "GHSA-test", "severity": "high"}],
+            }
+        }
+    }
+    stdout = "\n".join(
+        [
+            json.dumps({"type": "info", "data": "audit started"}),
+            json.dumps(audit_data),
+        ]
+    )
+
+    def fake_run(command_arg: list[str], cwd: Path, text: bool, capture_output: bool, check: bool):
+        assert command_arg == command
+
+        class Proc:
+            returncode = 1
+            stderr = ""
+
+        proc = Proc()
+        proc.stdout = stdout
+        return proc
+
+    monkeypatch.setattr(module.shutil, "which", lambda tool: f"/bin/{tool}")
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    run, data = module.run_json(command, tmp_path, ndjson=True)
+
+    assert run.tool_status == "vulnerability_found"
+    assert data["vulnerabilities"]["left-pad"]["severity"] == "high"
+
+
+def test_yarn_workspace_project_audits_all_workspaces_recursively(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text('{"workspaces":["packages/*"]}\n', encoding="utf-8")
+    (tmp_path / "yarn.lock").write_text("# yarn lockfile\n", encoding="utf-8")
+
+    def fake_run_json(command: list[str], cwd: Path, ndjson: bool = False):
+        assert command == ["yarn", "npm", "audit", "--all", "--recursive", "--json"]
+        assert ndjson is True
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), {}
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    module.run_native_audits(tmp_path, module.discover_projects(tmp_path))
 
 
 def test_yarn_freshness_is_skipped_because_yarn_has_no_outdated_command(tmp_path, monkeypatch):
@@ -217,7 +318,7 @@ def test_python_lockfile_projects_run_pip_audit_locked(tmp_path, monkeypatch):
 
     module.run_native_audits(tmp_path, module.discover_projects(tmp_path))
 
-    assert calls == [["pip-audit", "--locked", "--format", "json"]]
+    assert calls == [["pip-audit", "--locked", "--format", "json", "."]]
 
 
 def test_npm_pnpm_and_pip_audit_parsers_normalize_findings():
@@ -279,6 +380,32 @@ def test_npm_pnpm_and_pip_audit_parsers_normalize_findings():
     assert pip_findings[0].fixed_versions == ["4.2.0"]
 
 
+def test_pip_audit_top_level_list_json_is_normalized():
+    module = load_dependency_audit()
+
+    findings = module.parse_pip_audit(
+        [
+            {
+                "name": "flask",
+                "version": "0.5",
+                "vulns": [
+                    {
+                        "id": "PYSEC-2019-179",
+                        "aliases": ["CVE-2019-1010083"],
+                        "fix_versions": ["1.0"],
+                        "description": "Example issue",
+                    }
+                ],
+            }
+        ],
+        ".",
+    )
+
+    assert findings[0].package == "flask"
+    assert findings[0].advisory == "PYSEC-2019-179"
+    assert findings[0].fixed_versions == ["1.0"]
+
+
 def test_main_exits_nonzero_when_scanner_errors_without_findings(tmp_path, monkeypatch):
     module = load_dependency_audit()
     report_path = tmp_path / "report.json"
@@ -299,6 +426,7 @@ def test_main_exits_nonzero_when_scanner_errors_without_findings(tmp_path, monke
     report = report_path.read_text(encoding="utf-8")
     assert '"status": "scanner_error"' in report
     assert '"failed_tools": [' in report
+    assert '"tool_status": "scanner_error"' in report
 
 
 def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp_path, monkeypatch):
@@ -328,7 +456,37 @@ def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp
     monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--fail-on", "high", "--report", str(report_path)])
 
     assert module.main() == 0
-    assert '"status": "vulnerable"' in report_path.read_text(encoding="utf-8")
+    report = report_path.read_text(encoding="utf-8")
+    assert '"status": "vulnerable"' in report
+    assert '"tool_status": "vulnerability_found"' in report
+    assert '"failed_tools": []' in report
+
+
+def test_main_fails_when_real_scanner_error_is_masked_by_low_finding(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    report_path = tmp_path / "report.json"
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+    low_finding = module.Finding(
+        source="npm audit",
+        ecosystem="npm",
+        package="left-pad",
+        version="1.3.0",
+        severity="low",
+        advisory="GHSA-low",
+        title="Low issue",
+        path=".",
+    )
+
+    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=127)))
+    monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([low_finding], []))
+    monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
+    monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
+    monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--fail-on", "high", "--report", str(report_path)])
+
+    assert module.main() == 1
+    report = report_path.read_text(encoding="utf-8")
+    assert '"failed_tools": [\n      "osv-scanner"\n    ]' in report
 
 
 def test_verbose_mode_prints_diagnostics(tmp_path, monkeypatch, capsys):
