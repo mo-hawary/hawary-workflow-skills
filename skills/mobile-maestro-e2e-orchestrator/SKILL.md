@@ -17,16 +17,19 @@ Do not use this for generic web QA, unit tests, or non-Maestro mobile frameworks
 
 1. Identify the target flow and platforms.
 2. Discover app run commands, device IDs, Maestro flows, and test data setup.
-3. Start app logs before running the flow.
-4. Run Maestro in short checkpoints:
+3. Check whether Maestro is installed and configured before attempting execution.
+   - If Maestro is missing, report the setup gap, provide the smallest install/configuration next step, and still produce a checkpoint-based test plan.
+   - Do not claim that E2E validation ran when only a plan was produced.
+4. Start app logs before running the flow.
+5. Run Maestro in short checkpoints:
    - Keep UI waits short.
    - Use logs or visible state to decide when to continue.
    - Capture failure screenshots and logs.
-5. On failure:
+6. On failure:
    - Classify as app bug, test bug, setup issue, environment issue, or flake.
    - Re-run only the smallest useful checkpoint.
    - Propose a fix path with evidence.
-6. Summarize proof and residual risk.
+7. Summarize proof and residual risk.
 
 For sample prompts and evidence summaries, see `references/examples.md`.
 For checkpoint and evidence capture guidance, see `references/evidence-checklist.md`.
