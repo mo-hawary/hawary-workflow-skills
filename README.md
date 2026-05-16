@@ -62,6 +62,7 @@ If `npx skills` is not available in your environment or does not support this re
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
+| [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | You need dependency CVE scans, freshness checks, or hook/CI audit design. | Stack detection, scanner status, CVE findings, freshness risk, remediation and CI plan. |
 
 ## Choosing A Skill
 
@@ -75,6 +76,7 @@ If `npx skills` is not available in your environment or does not support this re
 | "Review this PR without posting comments." | `pull-request-review-loop` |
 | "What should we QA before fixing?" | `qa-bug-hunt-planner` |
 | "Prove this mobile flow works." | `mobile-maestro-e2e-orchestrator` |
+| "Are our dependencies vulnerable?" | `dependency-security-auditor` |
 
 ## Examples
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dependency Security Auditor"
+  short_description: "Audits dependency CVEs and designs stack-aware hooks or CI checks."
+  default_prompt: "Use dependency-security-auditor to scan this repo's dependencies and recommend pre-push or CI security checks."

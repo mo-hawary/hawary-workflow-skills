@@ -8,6 +8,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- `dependency-security-auditor` for dependency CVE scans, freshness checks, and hook/CI audit design.
 - Egyptian Arabic README with language links from the English README.
 - Current-state documentation in the README, roadmap, and skill authoring guide.
 

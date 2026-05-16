@@ -1,0 +1,6 @@
+{
+  "name": "@dependency-audit-integration/app",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {}
+}

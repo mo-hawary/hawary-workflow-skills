@@ -15,7 +15,7 @@ skills/
     `-- assets/
 ```
 
-Only `SKILL.md` is required. Supporting folders are optional. `agents/openai.yaml` is OpenAI/Codex UI metadata and can be ignored by other agents.
+Only `SKILL.md` is required. Supporting folders are optional. `agents/openai.yaml` is named for OpenAI/Codex UI metadata, not the generic skill contract, and can be ignored by other agents.
 
 ## Required Behavior
 

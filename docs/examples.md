@@ -49,3 +49,9 @@ Use qa-bug-hunt-planner to scan this area, recommend audit tracks, and create fi
 ```text
 Use mobile-maestro-e2e-orchestrator to validate this mobile flow with checkpoints, logs, and targeted retries.
 ```
+
+## Dependency Security
+
+```text
+Use dependency-security-auditor to scan this repo's dependencies and recommend pre-push or CI security checks.
+```
