@@ -48,6 +48,12 @@ npx skills add mo-hawary/hawary-workflow-skills --list
 npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 ```
 
+Use `--skill <skill-name>` to install one specific skill from this repository, for example:
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-auditor
+```
+
 If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
 
 ## Skills

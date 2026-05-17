@@ -75,6 +75,16 @@ npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 
 <div dir="rtl" lang="ar-EG">
 
+استخدم `--skill <skill-name>` عشان تثبت skill واحدة معينة من الـ repo، مثال:
+
+</div>
+
+```bash
+npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-auditor
+```
+
+<div dir="rtl" lang="ar-EG">
+
 لو `npx skills` مش متاح أو مش شغال مع البيئة عندك، استخدم طريقة النسخ اللي فوق.
 
 ## المهارات الموجودة
@@ -89,6 +99,7 @@ npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | لما PR أو branch محتاج review قوي و re-review قبل merge. | findings، fix proof، review rounds، validation، residual risk، و merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | لما area محتاجة QA discovery وخطة bugs جاهزة للإصلاح. | audit tracks، findings matrix، fix board، impact gates، و test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | لما تحتاج mobile E2E proof باستخدام Maestro. | flow setup، checkpoint results، logs/screenshots/state evidence، diagnosis، و residual risk. |
+| [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | لما تحتاج dependency CVE scans أو freshness checks أو hook/CI audit design. | stack detection، scanner status، CVE findings، freshness risk، remediation، و CI plan. |
 
 ## تختار أنهي skill؟
 
@@ -102,6 +113,7 @@ npx skills add mo-hawary/hawary-workflow-skills --skill project-docs-cleanup
 | "راجع PR ده من غير ما تنشر comments على GitHub." | `pull-request-review-loop` |
 | "نختبر إيه قبل ما نصلح؟" | `qa-bug-hunt-planner` |
 | "اثبت إن mobile flow ده شغال." | `mobile-maestro-e2e-orchestrator` |
+| "هل dependencies عندنا فيها vulnerabilities؟" | `dependency-security-auditor` |
 
 ## أمثلة
 
