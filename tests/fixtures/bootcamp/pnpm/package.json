@@ -1,0 +1,6 @@
+{
+  "name": "bootcamp-pnpm",
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.15.0",
+  "dependencies": {}
+}

@@ -28,7 +28,7 @@
 
 ## إحنا فين دلوقتي
 
-الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation.
+الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات واختبارات Python والـ whitespace.
 
 ## استخدمه مع الـ agent بتاعك
 
@@ -168,11 +168,14 @@ skills/
 
 ```bash
 ruby scripts/validate_skills.rb
+python -m pip install --require-hashes -r requirements-dev.txt
+pytest
+git diff --check
 ```
 
 <div dir="rtl" lang="ar-EG">
 
-الـ validator بيتأكد من frontmatter، طول description، naming، symlinks، وحاجات مهمة للنشر العام.
+الـ validator بيتأكد من frontmatter، طول description، naming، tracked references، لينكات Markdown المحلية، agent metadata، symlinks، وحاجات مهمة للنشر العام. CI بيثبت dependencies اختبارات Python من pins متحققة بالـ hashes في `requirements-dev.txt`.
 
 ## مراجع
 

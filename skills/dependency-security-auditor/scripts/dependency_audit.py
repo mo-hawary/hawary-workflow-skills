@@ -59,6 +59,7 @@ class ProjectSignal:
     path: str
     manifests: list[str] = field(default_factory=list)
     lockfiles: list[str] = field(default_factory=list)
+    package_manager: str | None = None
     notes: list[str] = field(default_factory=list)
 
 
@@ -115,6 +116,14 @@ class FreshnessFinding:
 
 
 CVE_TOOLS = {"osv-scanner", "npm", "pnpm", "yarn", "pip-audit"}
+INCOMPLETE_TOOL_STATUSES = {"no_packages_found", "unavailable", "unsupported"}
+UNUSABLE_TOOL_STATUSES = {"unavailable", "unsupported"}
+NODE_LOCKFILES_BY_MANAGER = {
+    "npm": "package-lock.json",
+    "pnpm": "pnpm-lock.yaml",
+    "yarn": "yarn.lock",
+    "bun": "bun.lock",
+}
 
 
 def debug(message: str, verbose: bool) -> None:
@@ -288,6 +297,23 @@ def parse_json_output(stdout: str, ndjson: bool = False) -> Any | None:
     return parsed_items[-1]
 
 
+def is_unsupported_yarn_audit(command: list[str], stderr: str) -> bool:
+    if len(command) < 3 or command[:3] != ["yarn", "npm", "audit"]:
+        return False
+    message = stderr.lower()
+    return "command \"npm\" not found" in message or "unknown syntax error" in message or "unknown command" in message
+
+
+def scanner_error_message(data: Any) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    error = data.get("error")
+    if not isinstance(error, dict):
+        return None
+    message = error.get("message") or error.get("code")
+    return str(message) if message else None
+
+
 def run_json(command: list[str], cwd: Path, ndjson: bool = False) -> tuple[ToolRun, Any | None]:
     tool = command[0]
     if shutil.which(tool) is None:
@@ -305,12 +331,18 @@ def run_json(command: list[str], cwd: Path, ndjson: bool = False) -> tuple[ToolR
     try:
         data = parse_json_output(proc.stdout, ndjson=ndjson)
     except json.JSONDecodeError:
+        if is_unsupported_yarn_audit(command, tool_run.stderr):
+            tool_run.tool_status = "unsupported"
         return tool_run, None
+    if is_unsupported_yarn_audit(command, tool_run.stderr):
+        tool_run.tool_status = "unsupported"
+        return tool_run, data
+    if tool_run.exit_code not in (0, None) and not tool_run.stderr:
+        message = scanner_error_message(data)
+        if message:
+            tool_run.stderr = message
     if tool_run.exit_code == 128 and len(command) >= 3 and command[:3] == ["osv-scanner", "scan", "source"]:
         tool_run.tool_status = "no_packages_found"
-    elif tool_run.exit_code not in (0, None) and data is not None and is_vulnerability_audit_command(command):
-        if data != {}:
-            tool_run.tool_status = "vulnerability_found"
     elif tool_run.exit_code not in (0, None) and data is not None and is_nonfatal_data_command(command):
         tool_run.tool_status = "ok"
     return tool_run, data
@@ -374,14 +406,47 @@ def rel(path: Path, root: Path) -> str:
 
 
 def node_manifest_has_workspaces(project_dir: Path) -> bool:
+    data = read_package_json(project_dir)
+    return isinstance(data, dict) and bool(data.get("workspaces"))
+
+
+def read_package_json(project_dir: Path) -> dict[str, Any]:
     package_json = project_dir / "package.json"
     if not package_json.exists():
-        return False
+        return {}
     try:
         data = json.loads(package_json.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def read_node_package_manager(project_dir: Path) -> str | None:
+    package_manager = read_package_json(project_dir).get("packageManager")
+    if not isinstance(package_manager, str):
+        return None
+    manager = package_manager.split("@", 1)[0].lower()
+    return manager if manager in NODE_LOCKFILES_BY_MANAGER else None
+
+
+def requirements_file_has_unpinned_entries(path: Path) -> bool:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
         return False
-    return isinstance(data, dict) and bool(data.get("workspaces"))
+
+    for raw_line in lines:
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if re.match(r"^(?:-r|--requirement|-c|--constraint)(?:\s|=|$)", line):
+            return True
+        if line.startswith(("-", "--")):
+            continue
+        requirement = line.split(";", 1)[0].strip()
+        if "==" not in requirement and "===" not in requirement:
+            return True
+    return False
 
 
 def is_python_project_lockfile(name: str) -> bool:
@@ -402,10 +467,28 @@ def discover_projects(root: Path) -> list[ProjectSignal]:
             signal = ProjectSignal("node", rel(directory, root), manifests=[], lockfiles=node_locks)
             if "package.json" in files:
                 signal.manifests.append("package.json")
+                signal.package_manager = read_node_package_manager(directory)
             if not node_locks:
                 signal.notes.append("No Node lockfile found; CVE evidence may be incomplete.")
+            if signal.package_manager:
+                expected_lockfile = NODE_LOCKFILES_BY_MANAGER[signal.package_manager]
+                conflicting_lockfiles = [lockfile for lockfile in node_locks if lockfile != expected_lockfile]
+                if expected_lockfile not in node_locks:
+                    signal.notes.append(
+                        f"packageManager declares {signal.package_manager}, but {expected_lockfile} was not found; native Node audit is incomplete."
+                    )
+                if conflicting_lockfiles:
+                    signal.notes.append(
+                        "Conflicting package manager evidence: "
+                        f"packageManager declares {signal.package_manager}, but found {', '.join(conflicting_lockfiles)}."
+                    )
+            elif len(node_locks) > 1:
+                signal.notes.append(f"Multiple Node lockfiles found ({', '.join(node_locks)}); native audit uses package-lock, pnpm, then yarn priority.")
             if "bun.lock" in node_locks:
-                signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
+                if "package-lock.json" in node_locks:
+                    signal.notes.append("Bun lockfile detected; native Bun audit falls back to package-lock.json because Bun has no native audit path.")
+                else:
+                    signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
             projects[(signal.ecosystem, directory)] = signal
 
         python_locks = sorted(name for name in files if is_python_project_lockfile(name))
@@ -416,6 +499,9 @@ def discover_projects(root: Path) -> list[ProjectSignal]:
                 signal.manifests.append("pyproject.toml")
             if not signal.lockfiles:
                 signal.notes.append("No Python lockfile or requirements file found; CVE evidence may be incomplete.")
+            for requirement_file in requirements:
+                if requirements_file_has_unpinned_entries(directory / requirement_file):
+                    signal.notes.append(f"{requirement_file} is not a lockfile unless versions are pinned; exact Python CVE evidence is weak.")
             projects[(signal.ecosystem, directory)] = signal
 
         if "pubspec.yaml" in files or "pubspec.lock" in files:
@@ -518,6 +604,13 @@ def parse_pnpm_audit(data: Any, project_path: str) -> list[Finding]:
     for advisory_id, advisory in advisories.items():
         if not isinstance(advisory, dict):
             continue
+        patched_versions = advisory.get("patched_versions", [])
+        if isinstance(patched_versions, str):
+            fixed_versions = [patched_versions] if patched_versions else []
+        elif isinstance(patched_versions, list):
+            fixed_versions = [str(item) for item in patched_versions]
+        else:
+            fixed_versions = []
         findings.append(
             Finding(
                 source="pnpm audit",
@@ -527,7 +620,7 @@ def parse_pnpm_audit(data: Any, project_path: str) -> list[Finding]:
                 severity=str(advisory.get("severity") or "unknown"),
                 advisory=str(advisory.get("url") or advisory_id),
                 title=str(advisory.get("title") or advisory_id),
-                fixed_versions=[str(item) for item in advisory.get("patched_versions", [])] if isinstance(advisory.get("patched_versions"), list) else [],
+                fixed_versions=fixed_versions,
                 path=project_path,
             )
         )
@@ -663,6 +756,26 @@ def parse_pnpm_outdated(data: Any, project_path: str) -> list[FreshnessFinding]:
     return freshness
 
 
+def mark_vulnerability_run(run: ToolRun, findings: list[Finding]) -> None:
+    if findings and run.tool_status in {"ok", "scanner_error"}:
+        run.tool_status = "vulnerability_found"
+
+
+def select_node_package_manager(project: ProjectSignal) -> str | None:
+    if project.package_manager:
+        if project.package_manager == "bun" and "package-lock.json" in project.lockfiles:
+            return "npm"
+        expected_lockfile = NODE_LOCKFILES_BY_MANAGER[project.package_manager]
+        return project.package_manager if expected_lockfile in project.lockfiles else None
+    if "package-lock.json" in project.lockfiles:
+        return "npm"
+    if "pnpm-lock.yaml" in project.lockfiles:
+        return "pnpm"
+    if "yarn.lock" in project.lockfiles:
+        return "yarn"
+    return None
+
+
 def parse_pub_outdated(data: Any, project_path: str) -> list[FreshnessFinding]:
     freshness: list[FreshnessFinding] = []
     if not isinstance(data, dict):
@@ -727,17 +840,22 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
     for project in projects:
         project_dir = root / project.path if project.path != "." else root
         if project.ecosystem == "node":
-            if "package-lock.json" in project.lockfiles:
+            node_manager = select_node_package_manager(project)
+            if node_manager == "npm":
                 run, data = run_json(["npm", "audit", "--package-lock-only", "--json"], project_dir)
                 runs.append(run)
                 if data:
-                    findings.extend(parse_npm_audit(data, project.path))
-            elif "pnpm-lock.yaml" in project.lockfiles:
+                    parsed_findings = parse_npm_audit(data, project.path)
+                    findings.extend(parsed_findings)
+                    mark_vulnerability_run(run, parsed_findings)
+            elif node_manager == "pnpm":
                 run, data = run_json(["pnpm", "audit", "--json"], project_dir)
                 runs.append(run)
                 if data:
-                    findings.extend(parse_pnpm_audit(data, project.path))
-            elif "yarn.lock" in project.lockfiles:
+                    parsed_findings = parse_pnpm_audit(data, project.path)
+                    findings.extend(parsed_findings)
+                    mark_vulnerability_run(run, parsed_findings)
+            elif node_manager == "yarn":
                 command = ["yarn", "npm", "audit"]
                 if node_manifest_has_workspaces(project_dir):
                     command.append("--all")
@@ -745,7 +863,9 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                 run, data = run_json(command, project_dir, ndjson=True)
                 runs.append(run)
                 if data:
-                    findings.extend(parse_yarn_audit(data, project.path))
+                    parsed_findings = parse_yarn_audit(data, project.path)
+                    findings.extend(parsed_findings)
+                    mark_vulnerability_run(run, parsed_findings)
 
         if project.ecosystem == "python":
             ran_locked_audit = False
@@ -754,13 +874,17 @@ def run_native_audits(root: Path, projects: list[ProjectSignal]) -> tuple[list[F
                     run, data = run_json(["pip-audit", "-r", lockfile, "--format", "json"], project_dir)
                     runs.append(run)
                     if data:
-                        findings.extend(parse_pip_audit(data, project.path))
+                        parsed_findings = parse_pip_audit(data, project.path)
+                        findings.extend(parsed_findings)
+                        mark_vulnerability_run(run, parsed_findings)
                 elif is_python_project_lockfile(lockfile) and not ran_locked_audit:
                     run, data = run_json(["pip-audit", "--locked", "--format", "json", "."], project_dir)
                     runs.append(run)
                     ran_locked_audit = True
                     if data:
-                        findings.extend(parse_pip_audit(data, project.path))
+                        parsed_findings = parse_pip_audit(data, project.path)
+                        findings.extend(parsed_findings)
+                        mark_vulnerability_run(run, parsed_findings)
 
     return findings, runs
 
@@ -772,17 +896,18 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
     for project in projects:
         project_dir = root / project.path if project.path != "." else root
         if project.ecosystem == "node":
-            if "package-lock.json" in project.lockfiles and (project_dir / "node_modules").exists():
+            node_manager = select_node_package_manager(project)
+            if node_manager == "npm" and (project_dir / "node_modules").exists():
                 run, data = run_json(["npm", "outdated", "--json"], project_dir)
                 runs.append(run)
                 if data:
                     freshness.extend(parse_npm_outdated(data, project.path))
-            elif "pnpm-lock.yaml" in project.lockfiles and shutil.which("pnpm"):
+            elif node_manager == "pnpm" and shutil.which("pnpm"):
                 run, data = run_json(["pnpm", "outdated", "--format", "json"], project_dir)
                 runs.append(run)
                 if data:
                     freshness.extend(parse_pnpm_outdated(data, project.path))
-            elif "yarn.lock" in project.lockfiles and shutil.which("yarn"):
+            elif node_manager == "yarn" and shutil.which("yarn"):
                 continue
 
         if project.ecosystem == "python":
@@ -806,28 +931,65 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
     return freshness, runs
 
 
-def run_osv(root: Path) -> tuple[list[Finding], ToolRun]:
-    command = ["osv-scanner", "scan", "source", "--recursive", str(root), "--format", "json"]
+def osv_lockfile_paths(root: Path, projects: list[ProjectSignal]) -> list[Path]:
+    paths: list[Path] = []
+    for project in projects:
+        project_dir = root / project.path if project.path != "." else root
+        if project.ecosystem == "node":
+            node_manager = select_node_package_manager(project)
+            if node_manager:
+                paths.append(project_dir / NODE_LOCKFILES_BY_MANAGER[node_manager])
+            continue
+        for lockfile in project.lockfiles:
+            paths.append(project_dir / lockfile)
+    return sorted(set(paths))
+
+
+def run_osv(root: Path, projects: list[ProjectSignal]) -> tuple[list[Finding], ToolRun]:
+    lockfiles = osv_lockfile_paths(root, projects)
+    if not lockfiles:
+        available = shutil.which("osv-scanner") is not None
+        run = ToolRun(
+            tool="osv-scanner",
+            command=["osv-scanner", "scan", "source"],
+            cwd=str(root),
+            available=available,
+            exit_code=None,
+            tool_status="no_packages_found" if available else "unavailable",
+        )
+        return [], run
+
+    command = ["osv-scanner", "scan", "source"]
+    for lockfile in lockfiles:
+        command.extend(["--lockfile", str(lockfile)])
+    command.extend(["--format", "json"])
     run, data = run_json(command, root)
     if not run.available:
         return [], run
-    return parse_osv(data), run
+    findings = parse_osv(data)
+    mark_vulnerability_run(run, findings)
+    return findings, run
 
 
 def report_status(findings: list[Finding], runs: list[ToolRun], projects: list[ProjectSignal], dry_run: bool = False) -> str:
     if dry_run:
         return "dry_run"
-    if has_failed_tools(runs):
-        return "scanner_error"
-    if findings:
-        return "vulnerable"
-
     cve_runs = [run for run in runs if run.tool in CVE_TOOLS]
-    missing_cve_tools = [run for run in cve_runs if not run.available or run.tool_status == "no_packages_found"]
-    available_cve_tools = [run for run in cve_runs if run.available]
+    missing_cve_tools = [run for run in cve_runs if run.tool_status in INCOMPLETE_TOOL_STATUSES]
+    unusable_cve_tools = [run for run in cve_runs if run.tool_status in UNUSABLE_TOOL_STATUSES]
+    usable_cve_tools = [run for run in cve_runs if run.available and run.tool_status not in INCOMPLETE_TOOL_STATUSES]
     has_weak_lockfile_evidence = any(project.notes for project in projects)
 
-    if cve_runs and missing_cve_tools and not available_cve_tools:
+    if findings and (has_failed_tools(runs) or missing_cve_tools or has_weak_lockfile_evidence):
+        return "partial_vulnerable"
+    if findings:
+        return "vulnerable"
+    if has_failed_tools(runs):
+        if any(run.tool in CVE_TOOLS and run.tool_status == "ok" for run in runs):
+            return "partial_clean"
+        return "scanner_error"
+
+    if cve_runs and unusable_cve_tools and not usable_cve_tools:
         return "scanner_unavailable"
     if missing_cve_tools or has_weak_lockfile_evidence:
         return "weak_evidence"
@@ -840,27 +1002,22 @@ def has_failed_tools(runs: list[ToolRun]) -> bool:
     return any(run.tool_status == "scanner_error" for run in runs)
 
 
-def finding_sources_for_tool(tool: str) -> set[str]:
-    if tool == "npm":
-        return {"npm audit"}
-    if tool == "pnpm":
-        return {"pnpm audit"}
-    if tool == "yarn":
-        return {"yarn npm audit"}
-    if tool == "pip-audit":
-        return {"pip-audit"}
-    if tool == "osv-scanner":
-        return {"osv-scanner"}
-    return set()
-
-
-def reconcile_tool_statuses(runs: list[ToolRun], findings: list[Finding]) -> None:
-    finding_sources = {finding.source for finding in findings}
-    for run in runs:
-        if run.tool_status != "scanner_error":
-            continue
-        if finding_sources_for_tool(run.tool) & finding_sources:
-            run.tool_status = "vulnerability_found"
+def setup_hints(runs: list[ToolRun], projects: list[ProjectSignal]) -> list[str]:
+    hints: list[str] = []
+    seen_tools = {run.tool for run in runs if run.tool_status in INCOMPLETE_TOOL_STATUSES or run.tool_status == "scanner_error"}
+    if "osv-scanner" in seen_tools:
+        hints.append("Install OSV-Scanner or rerun with --skip-osv when native scanners are enough.")
+    if "pip-audit" in seen_tools:
+        hints.append("python3 -m pip install pip-audit")
+        if shutil.which("uv"):
+            hints.append("uv tool install pip-audit")
+    if any(run.tool == "yarn" and run.tool_status == "unsupported" for run in runs):
+        hints.append("Yarn audit requires Yarn Berry with `yarn npm audit`; Yarn Classic cannot run this native audit.")
+    if any(run.tool_status == "scanner_error" and re.search(r"(fetch|network|registry|dns).*(failed|error)|failed.*(fetch|network|registry|dns)", run.stderr or "", re.IGNORECASE) for run in runs):
+        hints.append("A scanner could not reach its registry/API. Rerun with network access or check registry/DNS configuration.")
+    if any("not a lockfile unless versions are pinned" in note for project in projects for note in project.notes):
+        hints.append("Pin Python requirements with exact == versions or use a supported lockfile for stronger CVE evidence.")
+    return sorted(set(hints))
 
 
 def main() -> int:
@@ -894,7 +1051,7 @@ def main() -> int:
         run_freshness = False
 
     if not args.dry_run and not args.skip_osv:
-        osv_findings, osv_run = run_osv(root)
+        osv_findings, osv_run = run_osv(root, projects)
         findings.extend(osv_findings)
         runs.append(osv_run)
         debug(f"ran {' '.join(osv_run.command)} available={osv_run.available} exit={osv_run.exit_code}", args.verbose)
@@ -921,7 +1078,6 @@ def main() -> int:
             debug(f"failed tool: {run.tool} exit={run.exit_code} stderr={run.stderr or '-'}", args.verbose)
 
     findings.sort(key=lambda item: (-severity_value(item.severity), item.package, item.advisory))
-    reconcile_tool_statuses(runs, findings)
     threshold = severity_value(args.fail_on)
     failing = [item for item in findings if severity_value(item.severity) >= threshold]
     failing_freshness = [item for item in freshness if args.fail_on_major_outdated and item.update_type == "major"]
@@ -944,8 +1100,10 @@ def main() -> int:
             "freshness_count": len(freshness),
             "major_outdated_count": len([item for item in freshness if item.update_type == "major"]),
             "missing_tools": sorted({run.tool for run in runs if not run.available}),
+            "unsupported_tools": sorted({run.tool for run in runs if run.tool_status == "unsupported"}),
             "vulnerability_tools": sorted({run.tool for run in runs if run.tool_status == "vulnerability_found"}),
             "failed_tools": sorted({run.tool for run in runs if run.tool_status == "scanner_error"}),
+            "setup_hints": setup_hints(runs, projects),
         },
     }
 

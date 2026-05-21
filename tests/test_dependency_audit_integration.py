@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -68,6 +67,8 @@ def test_pnpm_fixture_runs_real_native_audit(tmp_path):
 
     pnpm_run = next(run for run in runs if run.tool == "pnpm")
     assert pnpm_run.command == ["pnpm", "audit", "--json"]
+    if pnpm_run.tool_status == "scanner_error" and "fetch failed" in pnpm_run.stderr.lower():
+        pytest.skip("pnpm audit could not reach the registry")
     assert_no_scanner_error(pnpm_run)
     assert isinstance(findings, list)
 
@@ -76,20 +77,20 @@ def test_yarn_workspace_fixture_runs_real_recursive_workspace_audit(tmp_path):
     require_tool("yarn")
     module = load_dependency_audit()
     root = copy_fixture(tmp_path, "yarn-workspace")
-    help_run = subprocess.run(["yarn", "npm", "audit", "--help"], cwd=root, text=True, capture_output=True, check=False)
-    if help_run.returncode != 0:
-        pytest.skip("installed Yarn does not support `yarn npm audit`")
 
     findings, runs = module.run_native_audits(root, module.discover_projects(root))
 
     yarn_run = next(run for run in runs if run.tool == "yarn")
     assert yarn_run.command == ["yarn", "npm", "audit", "--all", "--recursive", "--json"]
+    if yarn_run.tool_status == "unsupported":
+        assert any("Yarn" in hint for hint in module.setup_hints(runs, module.discover_projects(root)))
+        assert module.report_status(findings, runs, module.discover_projects(root)) == "scanner_unavailable"
+        return
     assert_no_scanner_error(yarn_run)
     assert isinstance(findings, list)
 
 
 def test_python_locked_fixture_runs_real_pip_audit(tmp_path):
-    require_tool("pip-audit")
     module = load_dependency_audit()
     root = copy_fixture(tmp_path, "python-locked")
 
@@ -97,6 +98,10 @@ def test_python_locked_fixture_runs_real_pip_audit(tmp_path):
 
     pip_audit_run = next(run for run in runs if run.tool == "pip-audit")
     assert pip_audit_run.command == ["pip-audit", "--locked", "--format", "json", "."]
+    if pip_audit_run.tool_status == "unavailable":
+        assert "python3 -m pip install pip-audit" in module.setup_hints(runs, module.discover_projects(root))
+        assert module.report_status(findings, runs, module.discover_projects(root)) == "scanner_unavailable"
+        return
     assert_no_scanner_error(pip_audit_run)
     assert isinstance(findings, list)
 

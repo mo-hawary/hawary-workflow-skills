@@ -48,6 +48,8 @@ Run:
 
 ```bash
 ruby scripts/validate_skills.rb
+python -m pip install --require-hashes -r requirements-dev.txt
+pytest
 git diff --check
 ```
 
