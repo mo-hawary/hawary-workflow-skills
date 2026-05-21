@@ -12,7 +12,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Prompt examples for `dependency-security-auditor`.
 - Fixture-backed bootcamp test matrix for dependency-auditor ecosystem coverage.
 - CI coverage for the dependency-auditor Python tests and whitespace checks.
-- Pinned CI validation inputs for GitHub Actions and Python test dependencies.
+- Pinned CI validation inputs for GitHub Actions and hash-checked Python test dependencies.
 - Egyptian Arabic README with language links from the English README.
 - Current-state documentation in the README, roadmap, and skill authoring guide.
 
