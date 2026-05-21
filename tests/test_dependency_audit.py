@@ -158,6 +158,30 @@ def test_npm_package_manager_without_package_lock_does_not_run_pnpm(tmp_path, mo
     assert any("packageManager declares npm" in note for note in projects[0].notes)
 
 
+def test_bun_project_with_package_lock_uses_npm_audit_fallback(tmp_path, monkeypatch):
+    module = load_dependency_audit()
+    (tmp_path / "package.json").write_text(
+        '{"packageManager":"bun@1.2.0","dependencies":{"hono":"4.0.0"}}\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "bun.lock").write_text("# bun lock\n", encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run_json(command: list[str], cwd: Path):
+        calls.append(command)
+        return module.ToolRun(command[0], command, str(cwd), available=True, exit_code=0), {}
+
+    monkeypatch.setattr(module, "run_json", fake_run_json)
+
+    projects = module.discover_projects(tmp_path)
+    module.run_native_audits(tmp_path, projects)
+
+    assert calls == [["npm", "audit", "--package-lock-only", "--json"]]
+    assert module.osv_lockfile_paths(tmp_path, projects) == [tmp_path / "package-lock.json"]
+    assert any("falls back to package-lock.json" in note for note in projects[0].notes)
+
+
 def test_skip_freshness_prevents_dart_outdated_during_native_audit(tmp_path, monkeypatch):
     module = load_dependency_audit()
     (tmp_path / "pubspec.yaml").write_text("name: sample\n", encoding="utf-8")
@@ -665,6 +689,18 @@ def test_marker_only_python_requirement_is_marked_as_weak_evidence(tmp_path):
         "requests; python_version == '3.11'\nflask==3.0.0; python_version == '3.11'\n",
         encoding="utf-8",
     )
+
+    projects = module.discover_projects(tmp_path)
+
+    assert projects[0].lockfiles == ["requirements.txt"]
+    assert any("not a lockfile unless versions are pinned" in note for note in projects[0].notes)
+
+
+def test_requirement_includes_are_marked_as_weak_evidence(tmp_path):
+    module = load_dependency_audit()
+    (tmp_path / "requirements.txt").write_text("-r base.txt\n--constraint constraints.txt\n", encoding="utf-8")
+    (tmp_path / "base.txt").write_text("requests\n", encoding="utf-8")
+    (tmp_path / "constraints.txt").write_text("urllib3==2.2.1\n", encoding="utf-8")
 
     projects = module.discover_projects(tmp_path)
 

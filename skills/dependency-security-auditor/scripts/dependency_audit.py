@@ -437,7 +437,11 @@ def requirements_file_has_unpinned_entries(path: Path) -> bool:
 
     for raw_line in lines:
         line = raw_line.split("#", 1)[0].strip()
-        if not line or line.startswith(("-", "--")):
+        if not line:
+            continue
+        if re.match(r"^(?:-r|--requirement|-c|--constraint)(?:\s|=|$)", line):
+            return True
+        if line.startswith(("-", "--")):
             continue
         requirement = line.split(";", 1)[0].strip()
         if "==" not in requirement and "===" not in requirement:
@@ -481,7 +485,10 @@ def discover_projects(root: Path) -> list[ProjectSignal]:
             elif len(node_locks) > 1:
                 signal.notes.append(f"Multiple Node lockfiles found ({', '.join(node_locks)}); native audit uses package-lock, pnpm, then yarn priority.")
             if "bun.lock" in node_locks:
-                signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
+                if "package-lock.json" in node_locks:
+                    signal.notes.append("Bun lockfile detected; native Bun audit falls back to package-lock.json because Bun has no native audit path.")
+                else:
+                    signal.notes.append("Bun lockfile detected; native Bun audit is not run. Confirm OSV-Scanner support or generate a package-lock.json for broader coverage.")
             projects[(signal.ecosystem, directory)] = signal
 
         python_locks = sorted(name for name in files if is_python_project_lockfile(name))
@@ -756,6 +763,8 @@ def mark_vulnerability_run(run: ToolRun, findings: list[Finding]) -> None:
 
 def select_node_package_manager(project: ProjectSignal) -> str | None:
     if project.package_manager:
+        if project.package_manager == "bun" and "package-lock.json" in project.lockfiles:
+            return "npm"
         expected_lockfile = NODE_LOCKFILES_BY_MANAGER[project.package_manager]
         return project.package_manager if expected_lockfile in project.lockfiles else None
     if "package-lock.json" in project.lockfiles:

@@ -20,8 +20,8 @@ Use multiple sources because no single vulnerability database catches everything
 - Pass discovered lockfiles explicitly to OSV-Scanner when using the bundled script; avoid broad recursive scans that can treat test fixtures, examples, or archived lockfiles as live project dependencies.
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
 - For Node, use the lockfile matching the package manager. If `package.json` declares `packageManager`, that value wins over stale/conflicting lockfiles; report the conflict instead of silently switching package managers.
-- For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
-- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Use `pip-audit -r` for requirements and `pip-audit --locked` for local project lockfiles. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
+- For Bun, detect `bun.lock` but treat scanner coverage as evolving. If a Bun project also provides `package-lock.json`, use it as the native npm audit fallback. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
+- For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Use `pip-audit -r` for requirements and `pip-audit --locked` for local project lockfiles. Treat requirement include/constraint directives as weak evidence unless the included files are independently pinned and audited. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
 - For Flutter applications, commit `pubspec.lock` and scan it.
 
 ## Failure Policy

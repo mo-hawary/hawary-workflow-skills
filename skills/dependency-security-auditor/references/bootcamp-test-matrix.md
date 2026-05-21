@@ -52,7 +52,8 @@ done
 - All bootcamp fixtures are detected as exactly one project.
 - OSV-Scanner is scoped to discovered project lockfiles so repository test fixtures do not become live dependency findings.
 - npm, pnpm, Yarn, pinned Python requirements, unpinned Python requirements, Python lockfiles, Flutter/Dart pub locks, Bun locks, manifest-only Node, and stale mixed Node lockfiles are covered.
+- Bun projects that provide `package-lock.json` use npm audit as a native fallback.
 - Stale pnpm lockfiles no longer override `packageManager=npm`.
-- Unpinned Python requirements are flagged as weak evidence.
+- Unpinned Python requirements and requirements includes are flagged as weak evidence.
 - Missing or unsupported scanners produce setup hints instead of vague failures.
 - Yarn Classic is treated as unsupported native audit coverage, not as a mysterious scanner crash.

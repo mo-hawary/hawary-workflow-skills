@@ -17,7 +17,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
    - Node: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`.
    - Python: `requirements.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pyproject.toml`.
    - Flutter/Dart: `pubspec.yaml`, `pubspec.lock`.
-2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown. For Node, respect `package.json` `packageManager`; conflicting lockfiles are stale evidence, not permission to switch package managers. For Python, `pyproject.toml` is only a detection signal unless paired with a lockfile or pinned requirements.
+2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown. For Node, respect `package.json` `packageManager`; conflicting lockfiles are stale evidence, not permission to switch package managers, except Bun projects may use `package-lock.json` as an explicit npm audit fallback. For Python, `pyproject.toml` is only a detection signal unless paired with a lockfile or pinned requirements.
 3. Run a broad scanner:
    - Prefer OSV-Scanner for cross-ecosystem CVE detection.
    - Use Trivy as an optional CI backstop for repository, container, and SBOM scans.
@@ -114,7 +114,7 @@ Return:
 - If no CVE scanner for the detected stack is available, return `scanner_unavailable` and provide exact install/setup options.
 - If a package manager is installed but cannot run the required audit command, mark it unsupported rather than a generic scanner crash.
 - If only manifests are present without lockfiles, return `weak_evidence` and explain that exact vulnerable versions are unknown.
-- If requirements files contain unpinned entries, mark Python CVE evidence weak because resolved versions are unknown.
+- If requirements files contain unpinned entries or include other requirements files, mark Python CVE evidence weak because resolved versions are unknown.
 
 ## Final Checks
 

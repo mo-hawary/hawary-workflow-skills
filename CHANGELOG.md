@@ -24,6 +24,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Expanded skill validation to check referenced files, agent metadata, local Markdown links, and README/example coverage.
 - Tightened dependency-auditor status handling so findings from one scanner run cannot mask another run's scanner error.
 - Scoped dependency-auditor OSV scans to discovered lockfiles so test fixtures and stale conflicting lockfiles do not create live dependency findings.
+- Added Bun `package-lock.json` audit fallback and weak-evidence handling for Python requirements includes.
 - Polished the Egyptian Arabic README intro for clearer, more natural wording.
 
 ## [0.3.0] - 2026-05-14
