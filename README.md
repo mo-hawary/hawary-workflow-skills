@@ -17,7 +17,7 @@ If these skills save you time, please star the repo. It helps other developers d
 
 ## Current State
 
-This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, examples, roadmap, changelog, and CI validation.
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, examples, roadmap, changelog, and CI validation for skill metadata, links, Python tests, and whitespace.
 
 ## Use With Your Agent
 
@@ -131,9 +131,12 @@ Run the same checks used by CI:
 
 ```bash
 ruby scripts/validate_skills.rb
+python -m pip install --require-hashes -r requirements-dev.txt
+pytest
+git diff --check
 ```
 
-The validator checks skill frontmatter, description length, naming, symlinks, and common public-release hygiene patterns.
+The validator checks skill frontmatter, description length, naming, tracked references, local Markdown links, agent metadata, symlinks, and common public-release hygiene patterns. CI installs Python test dependencies from hash-checked pins in `requirements-dev.txt`.
 
 ## References
 

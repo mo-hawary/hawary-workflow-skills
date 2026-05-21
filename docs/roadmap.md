@@ -9,7 +9,7 @@ Hawary Workflow Skills is intentionally small and practical. The goal is to keep
 - Current skill coverage includes repo status, workflow readiness, docs cleanup, feature specs, contract audits, PR review loops, QA bug hunts, and Maestro-based mobile E2E orchestration.
 - Install docs cover Codex, Claude, and compatible Agent Skills consumers.
 - English and Egyptian Arabic READMEs are available at the repository root.
-- CI validates skill metadata and public-release hygiene on pull requests.
+- CI validates skill metadata, tracked references, local links, Python tests, whitespace, and public-release hygiene on pull requests.
 
 ## Near Term
 
