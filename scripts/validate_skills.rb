@@ -3,6 +3,8 @@
 
 require "yaml"
 require "shellwords"
+require "set"
+require "pathname"
 
 ROOT = File.expand_path("..", __dir__)
 SKILL_FILES = Dir[File.join(ROOT, "skills/*/SKILL.md")].sort
@@ -37,9 +39,15 @@ def fail_with(message)
   exit 1
 end
 
+def relative_to_root(path)
+  Pathname.new(path).relative_path_from(Pathname.new(ROOT)).to_s
+end
+
 fail_with("no skills found") if SKILL_FILES.empty?
 
 names = {}
+tracked_files = `git -C #{ROOT.shellescape} ls-files`.lines.map(&:strip)
+tracked_file_set = tracked_files.to_set
 
 SKILL_FILES.each do |path|
   content = File.read(path)
@@ -56,10 +64,38 @@ SKILL_FILES.each do |path|
   fail_with("#{path}: missing description") if description.to_s.empty?
   fail_with("#{path}: description exceeds 200 characters") if description.length > 200
 
+  directory_name = File.basename(File.dirname(path))
+  fail_with("#{path}: frontmatter name #{name.inspect} does not match directory #{directory_name.inspect}") unless name == directory_name
+
+  content.scan(/`(references\/[^`]+)`/).flatten.each do |reference|
+    reference_path = File.join(File.dirname(path), reference)
+    reference_relative = relative_to_root(reference_path)
+    fail_with("#{path}: referenced file #{reference} is missing") unless File.file?(reference_path)
+    fail_with("#{path}: referenced file #{reference} is not tracked") unless tracked_file_set.include?(reference_relative)
+  end
+
+  openai_metadata = File.join(File.dirname(path), "agents/openai.yaml")
+  fail_with("#{path}: missing agents/openai.yaml metadata") unless File.file?(openai_metadata)
+
   names[name] = path
 end
 
-tracked_files = `git -C #{ROOT.shellescape} ls-files`.lines.map(&:strip)
+Dir[File.join(ROOT, "skills/*/agents/*.yaml")].sort.each do |path|
+  data = YAML.safe_load(File.read(path))
+  interface = data.is_a?(Hash) ? data["interface"] : nil
+  fail_with("#{path}: missing interface metadata") unless interface.is_a?(Hash)
+
+  %w[display_name short_description default_prompt].each do |key|
+    fail_with("#{path}: missing interface.#{key}") if interface[key].to_s.empty?
+  end
+end
+
+["README.md", "docs/examples.md"].each do |relative|
+  content = File.read(File.join(ROOT, relative))
+  names.each_key do |name|
+    fail_with("#{relative}: missing #{name}") unless content.include?(name)
+  end
+end
 
 tracked_files.each do |relative|
   path = File.join(ROOT, relative)
@@ -76,6 +112,20 @@ tracked_files.each do |relative|
 
   INTERNAL_COPY_PHRASES.each do |phrase|
     fail_with("#{relative}: matched internal-copy phrase #{phrase.inspect}") if text.downcase.include?(phrase)
+  end
+
+  next unless relative.end_with?(".md")
+
+  text.scan(/\[[^\]]+\]\(([^)\s]+)(?:\s+"[^"]*")?\)/).flatten.each do |target|
+    next if target.start_with?("#") || target.match?(/\A[a-z][a-z0-9+.-]*:/i)
+
+    target_path = target.split("#", 2).first
+    next if target_path.empty?
+
+    resolved = File.expand_path(target_path, File.dirname(path))
+    target_relative = relative_to_root(resolved)
+    fail_with("#{relative}: local link target #{target} is missing") unless File.exist?(resolved)
+    fail_with("#{relative}: local link target #{target} is not tracked") unless tracked_file_set.include?(target_relative)
   end
 end
 

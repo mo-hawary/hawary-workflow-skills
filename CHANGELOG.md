@@ -9,11 +9,18 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 ### Added
 
 - `dependency-security-auditor` for dependency CVE scans, freshness checks, and hook/CI audit design.
+- Prompt examples for `dependency-security-auditor`.
+- Fixture-backed bootcamp test matrix for dependency-auditor ecosystem coverage.
+- CI coverage for the dependency-auditor Python tests and whitespace checks.
 - Egyptian Arabic README with language links from the English README.
 - Current-state documentation in the README, roadmap, and skill authoring guide.
 
 ### Changed
 
+- Hardened `dependency-security-auditor` package-manager detection, partial-status reporting, pnpm audit parsing, and Python requirements evidence notes.
+- Added dependency-auditor setup hints and unsupported-tool handling for friendlier local installs.
+- Added bootcamp fixtures for npm, pnpm, Yarn, Bun, Flutter/Dart, pinned and unpinned Python requirements, Python lockfiles, manifest-only Node, and stale mixed Node lockfiles.
+- Expanded skill validation to check referenced files, agent metadata, local Markdown links, and README/example coverage.
 - Polished the Egyptian Arabic README intro for clearer, more natural wording.
 
 ## [0.3.0] - 2026-05-14

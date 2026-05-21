@@ -18,7 +18,7 @@ Use multiple sources because no single vulnerability database catches everything
 
 - Prefer exact lockfiles over manifests.
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
-- For Node, use the lockfile matching the package manager.
+- For Node, use the lockfile matching the package manager. If `package.json` declares `packageManager`, that value wins over stale/conflicting lockfiles; report the conflict instead of silently switching package managers.
 - For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
 - For Python, prefer pinned `requirements.txt`, `uv.lock`, `poetry.lock`, or `Pipfile.lock`. Use `pip-audit -r` for requirements and `pip-audit --locked` for local project lockfiles. Do not generate temporary lockfiles by default; that is a future enhancement because it can mutate project state or require network access.
 - For Flutter applications, commit `pubspec.lock` and scan it.
@@ -34,6 +34,8 @@ Recommended defaults:
 | PR CI | high/critical or newly introduced vulnerable dependency | Use annotations or uploaded report. |
 | release CI | moderate with fix available, high, critical | Stricter before release. |
 | scheduled CI | critical | Fail on critical; report or create follow-up issues for high/moderate findings. |
+
+Report installed-but-incompatible scanners as `unsupported` with a setup hint rather than a generic crash. For example, Yarn Classic does not support `yarn npm audit`; users need Yarn Berry audit support, OSV coverage, or a matching npm/pnpm lockfile path.
 
 ## Runtime And Freshness Policy
 

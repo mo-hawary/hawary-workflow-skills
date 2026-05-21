@@ -17,7 +17,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
    - Node: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`.
    - Python: `requirements.txt`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pyproject.toml`.
    - Flutter/Dart: `pubspec.yaml`, `pubspec.lock`.
-2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown. For Python, `pyproject.toml` is only a detection signal unless paired with a lockfile or pinned requirements.
+2. Scan lockfiles first. If a project has only a manifest and no lockfile, report weak evidence because exact resolved versions are unknown. For Node, respect `package.json` `packageManager`; conflicting lockfiles are stale evidence, not permission to switch package managers. For Python, `pyproject.toml` is only a detection signal unless paired with a lockfile or pinned requirements.
 3. Run a broad scanner:
    - Prefer OSV-Scanner for cross-ecosystem CVE detection.
    - Use Trivy as an optional CI backstop for repository, container, and SBOM scans.
@@ -70,17 +70,20 @@ Useful flags:
 
 For Husky, pre-commit, and GitHub Actions examples, see `references/hook-and-ci-examples.md`.
 For scanner selection and policy guidance, see `references/scanner-policy.md`.
+For prompt examples, see `references/examples.md`.
+For fixture-backed bootcamp coverage, see `references/bootcamp-test-matrix.md`.
 
 ## Output
 
 Return:
 
-- **Status:** clean, vulnerable, weak evidence, scanner unavailable, scanner error, or dry run.
+- **Status:** clean, vulnerable, partial vulnerable, partial clean, weak evidence, scanner unavailable, scanner error, or dry run.
 - **Detected Stacks:** ecosystem, project path, and lockfile status.
 - **Runtime:** installed runtime and package-manager versions when checked.
 - **Findings:** severity-ordered CVEs/GHSAs with package, version, path, fixed versions, and source scanner.
 - **Freshness:** current/wanted/latest versions and whether lag is patch, minor, or major.
 - **False Positive Notes:** why a finding may or may not affect runtime.
+- **Setup Hints:** missing or unsupported scanner setup steps, such as installing `pip-audit` or upgrading Yarn audit support.
 - **Remediation Plan:** minimal safe upgrades or overrides, plus required verification commands.
 - **Hook/CI Plan:** where to attach quick checks versus full scans.
 
@@ -96,19 +99,22 @@ Return:
 - Do not install tools, edit hooks, edit lockfiles, or upgrade packages without explicit approval.
 - Do not treat outdated packages as vulnerabilities unless a vulnerability advisory applies.
 - Do not claim “no issues” from one scanner alone; name the data sources checked.
+- Do not switch Node package managers based only on a stale lockfile when `package.json` declares `packageManager`.
 - Prefer patched minor/patch releases before major upgrades.
 - For Node, do not blindly run `npm audit fix --force`; review suggested downgrades or major jumps.
 - For Flutter/Dart applications, require `pubspec.lock` for actionable CVE scanning.
 - Treat Python freshness as installed-environment freshness, not lockfile CVE evidence.
 - Treat dependency-free CVSS v4 parsing as severity-gate fallback; prefer scanner-provided severity when available.
-- Scanner command failures return `scanner_error` and should fail hooks/CI until rerun or triaged.
+- Scanner command failures return `scanner_error`; if another scanner still produced findings, return `partial_vulnerable` and keep hooks/CI failing until rerun or triaged.
 
 ## Scanner Unavailable Policy
 
 - Do not install OSV-Scanner, pip-audit, package managers, or other tools without explicit approval.
 - If OSV-Scanner is missing, run available native audits and mark the evidence as incomplete.
 - If no CVE scanner for the detected stack is available, return `scanner_unavailable` and provide exact install/setup options.
+- If a package manager is installed but cannot run the required audit command, mark it unsupported rather than a generic scanner crash.
 - If only manifests are present without lockfiles, return `weak_evidence` and explain that exact vulnerable versions are unknown.
+- If requirements files contain unpinned entries, mark Python CVE evidence weak because resolved versions are unknown.
 
 ## Final Checks
 
