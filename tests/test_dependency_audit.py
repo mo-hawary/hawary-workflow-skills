@@ -631,6 +631,19 @@ def test_unpinned_python_requirements_are_marked_as_weak_evidence(tmp_path):
     assert any("not a lockfile unless versions are pinned" in note for note in projects[0].notes)
 
 
+def test_marker_only_python_requirement_is_marked_as_weak_evidence(tmp_path):
+    module = load_dependency_audit()
+    (tmp_path / "requirements.txt").write_text(
+        "requests; python_version == '3.11'\nflask==3.0.0; python_version == '3.11'\n",
+        encoding="utf-8",
+    )
+
+    projects = module.discover_projects(tmp_path)
+
+    assert projects[0].lockfiles == ["requirements.txt"]
+    assert any("not a lockfile unless versions are pinned" in note for note in projects[0].notes)
+
+
 def test_pip_audit_top_level_list_json_is_normalized():
     module = load_dependency_audit()
 

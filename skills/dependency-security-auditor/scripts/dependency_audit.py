@@ -439,7 +439,8 @@ def requirements_file_has_unpinned_entries(path: Path) -> bool:
         line = raw_line.split("#", 1)[0].strip()
         if not line or line.startswith(("-", "--")):
             continue
-        if "==" not in line and "===" not in line:
+        requirement = line.split(";", 1)[0].strip()
+        if "==" not in requirement and "===" not in requirement:
             return True
     return False
 
