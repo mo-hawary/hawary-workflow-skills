@@ -50,6 +50,7 @@ done
 ## Findings From Current Bootcamp Pass
 
 - All bootcamp fixtures are detected as exactly one project.
+- OSV-Scanner is scoped to discovered project lockfiles so repository test fixtures do not become live dependency findings.
 - npm, pnpm, Yarn, pinned Python requirements, unpinned Python requirements, Python lockfiles, Flutter/Dart pub locks, Bun locks, manifest-only Node, and stale mixed Node lockfiles are covered.
 - Stale pnpm lockfiles no longer override `packageManager=npm`.
 - Unpinned Python requirements are flagged as weak evidence.

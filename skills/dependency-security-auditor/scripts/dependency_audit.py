@@ -922,8 +922,38 @@ def run_freshness_checks(root: Path, projects: list[ProjectSignal]) -> tuple[lis
     return freshness, runs
 
 
-def run_osv(root: Path) -> tuple[list[Finding], ToolRun]:
-    command = ["osv-scanner", "scan", "source", "--recursive", str(root), "--format", "json"]
+def osv_lockfile_paths(root: Path, projects: list[ProjectSignal]) -> list[Path]:
+    paths: list[Path] = []
+    for project in projects:
+        project_dir = root / project.path if project.path != "." else root
+        if project.ecosystem == "node":
+            node_manager = select_node_package_manager(project)
+            if node_manager:
+                paths.append(project_dir / NODE_LOCKFILES_BY_MANAGER[node_manager])
+            continue
+        for lockfile in project.lockfiles:
+            paths.append(project_dir / lockfile)
+    return sorted(set(paths))
+
+
+def run_osv(root: Path, projects: list[ProjectSignal]) -> tuple[list[Finding], ToolRun]:
+    lockfiles = osv_lockfile_paths(root, projects)
+    if not lockfiles:
+        available = shutil.which("osv-scanner") is not None
+        run = ToolRun(
+            tool="osv-scanner",
+            command=["osv-scanner", "scan", "source"],
+            cwd=str(root),
+            available=available,
+            exit_code=None,
+            tool_status="no_packages_found" if available else "unavailable",
+        )
+        return [], run
+
+    command = ["osv-scanner", "scan", "source"]
+    for lockfile in lockfiles:
+        command.extend(["--lockfile", str(lockfile)])
+    command.extend(["--format", "json"])
     run, data = run_json(command, root)
     if not run.available:
         return [], run
@@ -1012,7 +1042,7 @@ def main() -> int:
         run_freshness = False
 
     if not args.dry_run and not args.skip_osv:
-        osv_findings, osv_run = run_osv(root)
+        osv_findings, osv_run = run_osv(root, projects)
         findings.extend(osv_findings)
         runs.append(osv_run)
         debug(f"ran {' '.join(osv_run.command)} available={osv_run.available} exit={osv_run.exit_code}", args.verbose)

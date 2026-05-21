@@ -17,6 +17,7 @@ Use multiple sources because no single vulnerability database catches everything
 ## Lockfile Rules
 
 - Prefer exact lockfiles over manifests.
+- Pass discovered lockfiles explicitly to OSV-Scanner when using the bundled script; avoid broad recursive scans that can treat test fixtures, examples, or archived lockfiles as live project dependencies.
 - Treat no lockfile as weak evidence unless the package manager can resolve exact versions in the scan.
 - For Node, use the lockfile matching the package manager. If `package.json` declares `packageManager`, that value wins over stale/conflicting lockfiles; report the conflict instead of silently switching package managers.
 - For Bun, detect `bun.lock` but treat scanner coverage as evolving; confirm OSV-Scanner support for the installed scanner version. If coverage is incomplete, generate a temporary `package-lock.json` with `npm install --package-lock-only --ignore-scripts` in a disposable workspace before scanning.
@@ -66,7 +67,7 @@ Use freshness in CI and scheduled jobs by default. Skip it in pre-push if regist
 
 ## Tool Notes
 
-- OSV-Scanner supports many lockfiles, including Node lockfiles, Python lockfiles, `requirements.txt`, and Dart `pubspec.lock`.
+- OSV-Scanner supports many lockfiles, including Node lockfiles, Python lockfiles, `requirements.txt`, and Dart `pubspec.lock`; the bundled wrapper scopes OSV to discovered lockfiles.
 - Trivy can scan repository files and language-specific packages, and is useful as a CI backstop.
 - `pip-audit` is Python-focused and maintained in the PyPA ecosystem. `pip-audit -r requirements.txt` works best with pinned requirements; environment markers, private indexes, or unpinned ranges may need extra setup.
 - `npm audit` requires a package lock or shrinkwrap for normal audit behavior.

@@ -37,7 +37,7 @@ Use this when asked to check package CVEs, scan `package.json`, scan `requiremen
 
 ## Bundled Tool
 
-Use `scripts/dependency_audit.py` for deterministic discovery and scanner orchestration. It detects stacks, runtime tools, installed scanners, writes a JSON report, and can fail by severity threshold.
+Use `scripts/dependency_audit.py` for deterministic discovery and scanner orchestration. It detects stacks, passes discovered lockfiles explicitly to OSV-Scanner, runs native audits where available, writes a JSON report, and can fail by severity threshold.
 
 When the skill is installed outside the target repo, set `DEPENDENCY_AUDIT_SCRIPT` to the script location and call `python3 "$DEPENDENCY_AUDIT_SCRIPT"` from hooks or CI. Do not assume `skills/dependency-security-auditor/...` exists in every audited repository.
 
@@ -92,7 +92,7 @@ Return:
 - `pre-commit`: keep fast; scan only changed lockfiles or run secrets checks.
 - `pre-push`: run dependency CVE scan and fail on high/critical by default; skip freshness unless the repo is small.
 - PR CI: run full dependency audit plus runtime/freshness checks; fail on high/critical or newly introduced vulnerabilities.
-- Scheduled CI: run full OSV plus optional Trivy/native audits and freshness checks; report all severities and stale major lines.
+- Scheduled CI: run OSV over discovered lockfiles plus optional Trivy/native audits and freshness checks; report all severities and stale major lines.
 
 ## Guardrails
 

@@ -23,6 +23,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Added bootcamp fixtures for npm, pnpm, Yarn, Bun, Flutter/Dart, pinned and unpinned Python requirements, Python lockfiles, manifest-only Node, and stale mixed Node lockfiles.
 - Expanded skill validation to check referenced files, agent metadata, local Markdown links, and README/example coverage.
 - Tightened dependency-auditor status handling so findings from one scanner run cannot mask another run's scanner error.
+- Scoped dependency-auditor OSV scans to discovered lockfiles so test fixtures and stale conflicting lockfiles do not create live dependency findings.
 - Polished the Egyptian Arabic README intro for clearer, more natural wording.
 
 ## [0.3.0] - 2026-05-14

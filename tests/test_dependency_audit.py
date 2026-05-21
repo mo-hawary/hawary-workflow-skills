@@ -32,7 +32,7 @@ def test_status_reports_scanner_unavailable_when_projects_exist_and_scanners_are
     monkeypatch.setattr(module.shutil, "which", fake_which)
 
     projects = module.discover_projects(tmp_path)
-    runs = [module.run_osv(tmp_path)[1]]
+    runs = [module.run_osv(tmp_path, projects)[1]]
     _, native_runs = module.run_native_audits(tmp_path, projects)
     runs.extend(native_runs)
 
@@ -84,6 +84,15 @@ def test_bootcamp_fixture_matrix_runs_each_native_audit_path(monkeypatch):
     assert ("python-requirements-unpinned", ["pip-audit", "-r", "requirements.txt", "--format", "json"]) in calls
     assert ("python-lock", ["pip-audit", "--locked", "--format", "json", "."]) in calls
     assert all(call[0] != "mixed-npm-with-stale-pnpm" or call[1][0] == "npm" for call in calls)
+
+
+def test_osv_lockfiles_follow_declared_node_package_manager():
+    module = load_dependency_audit()
+    root = BOOTCAMP_FIXTURE_ROOT / "mixed-npm-with-stale-pnpm"
+
+    paths = module.osv_lockfile_paths(root, module.discover_projects(root))
+
+    assert paths == [root / "package-lock.json"]
 
 
 def test_bootcamp_fixture_matrix_documents_weak_and_incomplete_evidence():
@@ -327,9 +336,15 @@ def test_osv_cvss_v4_severity_is_normalized_for_fail_thresholds():
     assert module.severity_value(findings[0].severity) >= module.severity_value("high")
 
 
-def test_run_osv_scans_recursively(tmp_path, monkeypatch):
+def test_run_osv_scans_discovered_lockfiles_only(tmp_path, monkeypatch):
     module = load_dependency_audit()
     commands: list[list[str]] = []
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+    fixture_dir = tmp_path / "tests" / "fixtures" / "known-vulnerable-node"
+    fixture_dir.mkdir(parents=True)
+    (fixture_dir / "package.json").write_text('{"dependencies":{"bad":"1.0.0"}}\n', encoding="utf-8")
+    (fixture_dir / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
 
     def fake_run_json(command: list[str], cwd: Path):
         commands.append(command)
@@ -337,9 +352,19 @@ def test_run_osv_scans_recursively(tmp_path, monkeypatch):
 
     monkeypatch.setattr(module, "run_json", fake_run_json)
 
-    module.run_osv(tmp_path)
+    module.run_osv(tmp_path, module.discover_projects(tmp_path))
 
-    assert commands == [["osv-scanner", "scan", "source", "--recursive", str(tmp_path), "--format", "json"]]
+    assert commands == [
+        [
+            "osv-scanner",
+            "scan",
+            "source",
+            "--lockfile",
+            str(tmp_path / "package-lock.json"),
+            "--format",
+            "json",
+        ]
+    ]
 
 
 def test_osv_no_packages_found_is_weak_evidence_not_scanner_error(tmp_path, monkeypatch):
@@ -356,7 +381,10 @@ def test_osv_no_packages_found_is_weak_evidence_not_scanner_error(tmp_path, monk
     monkeypatch.setattr(module.shutil, "which", lambda tool: f"/bin/{tool}")
     monkeypatch.setattr(module.subprocess, "run", fake_run)
 
-    findings, run = module.run_osv(tmp_path)
+    (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"lockfileVersion":3,"packages":{}}\n', encoding="utf-8")
+
+    findings, run = module.run_osv(tmp_path, module.discover_projects(tmp_path))
 
     assert findings == []
     assert run.tool_status == "no_packages_found"
@@ -679,7 +707,7 @@ def test_main_exits_nonzero_when_scanner_errors_without_findings(tmp_path, monke
     monkeypatch.setattr(
         module,
         "run_osv",
-        lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=2, stderr="boom")),
+        lambda root, projects: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=2, stderr="boom")),
     )
     monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([], []))
     monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
@@ -709,7 +737,7 @@ def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp
         path=".",
     )
 
-    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
+    monkeypatch.setattr(module, "run_osv", lambda root, projects: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
     monkeypatch.setattr(
         module,
         "run_native_audits",
@@ -745,7 +773,7 @@ def test_main_fails_when_same_tool_scanner_error_is_masked_by_low_finding(tmp_pa
         path=".",
     )
 
-    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
+    monkeypatch.setattr(module, "run_osv", lambda root, projects: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
     monkeypatch.setattr(
         module,
         "run_native_audits",
@@ -772,7 +800,7 @@ def test_verbose_mode_prints_diagnostics(tmp_path, monkeypatch, capsys):
     (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
     (tmp_path / "bun.lock").write_text("# bun lock\n", encoding="utf-8")
 
-    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=False)))
+    monkeypatch.setattr(module, "run_osv", lambda root, projects: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=False)))
     monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([], []))
     monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
     monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
