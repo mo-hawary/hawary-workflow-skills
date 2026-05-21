@@ -980,29 +980,6 @@ def setup_hints(runs: list[ToolRun], projects: list[ProjectSignal]) -> list[str]
     return sorted(set(hints))
 
 
-def finding_sources_for_tool(tool: str) -> set[str]:
-    if tool == "npm":
-        return {"npm audit"}
-    if tool == "pnpm":
-        return {"pnpm audit"}
-    if tool == "yarn":
-        return {"yarn npm audit"}
-    if tool == "pip-audit":
-        return {"pip-audit"}
-    if tool == "osv-scanner":
-        return {"osv-scanner"}
-    return set()
-
-
-def reconcile_tool_statuses(runs: list[ToolRun], findings: list[Finding]) -> None:
-    finding_sources = {finding.source for finding in findings}
-    for run in runs:
-        if run.tool_status not in {"ok", "scanner_error"}:
-            continue
-        if finding_sources_for_tool(run.tool) & finding_sources:
-            run.tool_status = "vulnerability_found"
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit dependency vulnerabilities across common app stacks.")
     parser.add_argument("--root", default=".", help="Repository or app root to scan.")
@@ -1061,7 +1038,6 @@ def main() -> int:
             debug(f"failed tool: {run.tool} exit={run.exit_code} stderr={run.stderr or '-'}", args.verbose)
 
     findings.sort(key=lambda item: (-severity_value(item.severity), item.package, item.advisory))
-    reconcile_tool_statuses(runs, findings)
     threshold = severity_value(args.fail_on)
     failing = [item for item in findings if severity_value(item.severity) >= threshold]
     failing_freshness = [item for item in freshness if args.fail_on_major_outdated and item.update_type == "major"]

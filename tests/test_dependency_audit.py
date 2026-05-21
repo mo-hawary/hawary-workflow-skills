@@ -240,9 +240,10 @@ def test_audit_error_json_is_scanner_error_not_vulnerability_found(tmp_path, mon
     assert any("registry/API" in hint for hint in module.setup_hints([run], []))
 
 
-def test_reconcile_marks_successful_audit_run_with_findings_as_vulnerability_found():
+def test_mark_vulnerability_run_only_updates_the_run_that_produced_findings():
     module = load_dependency_audit()
-    run = module.ToolRun("npm", ["npm", "audit"], ".", available=True, exit_code=0)
+    failed_run = module.ToolRun("npm", ["npm", "audit"], "pkg-a", available=True, exit_code=2)
+    finding_run = module.ToolRun("npm", ["npm", "audit"], "pkg-b", available=True, exit_code=1)
     finding = module.Finding(
         source="npm audit",
         ecosystem="npm",
@@ -251,11 +252,14 @@ def test_reconcile_marks_successful_audit_run_with_findings_as_vulnerability_fou
         severity="low",
         advisory="GHSA-low",
         title="Low issue",
+        path="pkg-b",
     )
 
-    module.reconcile_tool_statuses([run], [finding])
+    module.mark_vulnerability_run(finding_run, [finding])
 
-    assert run.tool_status == "vulnerability_found"
+    assert failed_run.tool_status == "scanner_error"
+    assert finding_run.tool_status == "vulnerability_found"
+    assert module.has_failed_tools([failed_run, finding_run]) is True
 
 
 def test_osv_standard_cvss_severity_is_normalized_for_fail_thresholds():
@@ -696,7 +700,10 @@ def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp
     monkeypatch.setattr(
         module,
         "run_native_audits",
-        lambda root, projects: ([low_finding], [module.ToolRun("npm", ["npm", "audit"], str(root), available=True, exit_code=1)]),
+        lambda root, projects: (
+            [low_finding],
+            [module.ToolRun("npm", ["npm", "audit"], str(root), available=True, exit_code=1, tool_status="vulnerability_found")],
+        ),
     )
     monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
     monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
@@ -709,7 +716,7 @@ def test_main_respects_fail_on_threshold_for_native_vulnerability_exit_codes(tmp
     assert '"failed_tools": []' in report
 
 
-def test_main_fails_when_real_scanner_error_is_masked_by_low_finding(tmp_path, monkeypatch):
+def test_main_fails_when_same_tool_scanner_error_is_masked_by_low_finding(tmp_path, monkeypatch):
     module = load_dependency_audit()
     report_path = tmp_path / "report.json"
     (tmp_path / "package.json").write_text('{"dependencies":{"left-pad":"1.3.0"}}\n', encoding="utf-8")
@@ -725,8 +732,18 @@ def test_main_fails_when_real_scanner_error_is_masked_by_low_finding(tmp_path, m
         path=".",
     )
 
-    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=127)))
-    monkeypatch.setattr(module, "run_native_audits", lambda root, projects: ([low_finding], []))
+    monkeypatch.setattr(module, "run_osv", lambda root: ([], module.ToolRun("osv-scanner", ["osv-scanner"], str(root), available=True, exit_code=0)))
+    monkeypatch.setattr(
+        module,
+        "run_native_audits",
+        lambda root, projects: (
+            [low_finding],
+            [
+                module.ToolRun("npm", ["npm", "audit"], str(root / "pkg-a"), available=True, exit_code=2),
+                module.ToolRun("npm", ["npm", "audit"], str(root / "pkg-b"), available=True, exit_code=1, tool_status="vulnerability_found"),
+            ],
+        ),
+    )
     monkeypatch.setattr(module, "run_freshness_checks", lambda root, projects: ([], []))
     monkeypatch.setattr(module, "detect_runtime", lambda root, projects: ([], []))
     monkeypatch.setattr(module.sys, "argv", ["dependency_audit.py", "--root", str(tmp_path), "--fail-on", "high", "--report", str(report_path)])
@@ -734,7 +751,7 @@ def test_main_fails_when_real_scanner_error_is_masked_by_low_finding(tmp_path, m
     assert module.main() == 1
     report = report_path.read_text(encoding="utf-8")
     assert '"status": "partial_vulnerable"' in report
-    assert '"failed_tools": [\n      "osv-scanner"\n    ]' in report
+    assert '"failed_tools": [\n      "npm"\n    ]' in report
 
 
 def test_verbose_mode_prints_diagnostics(tmp_path, monkeypatch, capsys):
