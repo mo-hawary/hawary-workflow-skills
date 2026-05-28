@@ -17,6 +17,8 @@ skills/
 
 Only `SKILL.md` is required. Supporting folders are optional. `agents/openai.yaml` is named for OpenAI/Codex UI metadata, not the generic skill contract, and can be ignored by other agents.
 
+Agents or directories that prefer a single metadata file can read [../skills-index.json](../skills-index.json). Claude Code can read [../.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) as a marketplace adapter.
+
 ## Required Behavior
 
 A compatible agent should:
@@ -69,6 +71,8 @@ If `npx skills` is not available in your environment or does not support this re
 The skills avoid Codex-only and Claude-only behavior where possible. Platform-specific distribution should wrap the same source folders rather than rewriting the skills.
 
 If a platform needs a bundle name, use `hawary-workflow-skills`. Keep individual skill names descriptive, lowercase, and kebab-case.
+
+See [../COMPATIBILITY.md](../COMPATIBILITY.md) for tested and expected agent paths.
 
 ## References
 

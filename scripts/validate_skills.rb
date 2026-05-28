@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "json"
 require "shellwords"
 require "set"
 require "pathname"
@@ -46,6 +47,7 @@ end
 fail_with("no skills found") if SKILL_FILES.empty?
 
 names = {}
+descriptions = {}
 tracked_files = `git -C #{ROOT.shellescape} ls-files`.lines.map(&:strip)
 tracked_file_set = tracked_files.to_set
 
@@ -78,6 +80,7 @@ SKILL_FILES.each do |path|
   fail_with("#{path}: missing agents/openai.yaml metadata") unless File.file?(openai_metadata)
 
   names[name] = path
+  descriptions[name] = description
 end
 
 Dir[File.join(ROOT, "skills/*/agents/*.yaml")].sort.each do |path|
@@ -96,6 +99,48 @@ end
     fail_with("#{relative}: missing #{name}") unless content.include?(name)
   end
 end
+
+catalog_path = File.join(ROOT, "skills-index.json")
+fail_with("skills-index.json: missing catalog") unless File.file?(catalog_path)
+
+catalog = JSON.parse(File.read(catalog_path))
+fail_with("skills-index.json: schema_version must be 1.0") unless catalog["schema_version"] == "1.0"
+fail_with("skills-index.json: canonical_source must be skills/") unless catalog["canonical_source"] == "skills/"
+
+compatible_agents = catalog["compatible_agents"]
+fail_with("skills-index.json: compatible_agents must be an array") unless compatible_agents.is_a?(Array)
+%w[codex claude-code].each do |agent|
+  fail_with("skills-index.json: missing compatible agent #{agent}") unless compatible_agents.include?(agent)
+end
+
+catalog_skills = catalog["skills"]
+fail_with("skills-index.json: skills must be an array") unless catalog_skills.is_a?(Array)
+indexed_names = catalog_skills.map { |skill| skill["name"] }.sort
+fail_with("skills-index.json: skill names do not match skills/") unless indexed_names == names.keys.sort
+
+catalog_skills.each do |skill|
+  name = skill["name"]
+  expected_path = "skills/#{name}/SKILL.md"
+  fail_with("skills-index.json: #{name} path must be #{expected_path}") unless skill["path"] == expected_path
+  fail_with("skills-index.json: #{name} description does not match SKILL.md") unless skill["description"] == descriptions[name]
+  fail_with("skills-index.json: #{name} category is missing") if skill["category"].to_s.empty?
+  fail_with("skills-index.json: #{name} outputs must be a non-empty array") unless skill["outputs"].is_a?(Array) && !skill["outputs"].empty?
+  fail_with("skills-index.json: #{name} must be installable") unless skill["installable"] == true
+end
+
+marketplace_path = File.join(ROOT, ".claude-plugin/marketplace.json")
+fail_with(".claude-plugin/marketplace.json: missing marketplace") unless File.file?(marketplace_path)
+
+marketplace = JSON.parse(File.read(marketplace_path))
+fail_with(".claude-plugin/marketplace.json: name must be hawary-workflow-skills") unless marketplace["name"] == "hawary-workflow-skills"
+plugins = marketplace["plugins"]
+fail_with(".claude-plugin/marketplace.json: plugins must be a non-empty array") unless plugins.is_a?(Array) && !plugins.empty?
+
+workflow_plugin = plugins.find { |plugin| plugin["name"] == "hawary-workflow-skills" }
+fail_with(".claude-plugin/marketplace.json: missing hawary-workflow-skills plugin") unless workflow_plugin
+fail_with(".claude-plugin/marketplace.json: plugin source must be ./") unless workflow_plugin["source"] == "./"
+fail_with(".claude-plugin/marketplace.json: plugin must expose ./skills") unless workflow_plugin["skills"] == "./skills"
+fail_with(".claude-plugin/marketplace.json: plugin must use strict false") unless workflow_plugin["strict"] == false
 
 tracked_files.each do |relative|
   path = File.join(ROOT, relative)

@@ -1,0 +1,24 @@
+{
+  "name": "hawary-workflow-skills",
+  "metadata": {
+    "description": "Source-backed workflow skills for planning, review, QA, docs cleanup, repo status, mobile E2E orchestration, and dependency security audits."
+  },
+  "owner": {
+    "name": "Mohamed Adel"
+  },
+  "plugins": [
+    {
+      "name": "hawary-workflow-skills",
+      "description": "Portable workflow skills for coding agents that need evidence-first engineering habits.",
+      "version": "0.4.0",
+      "source": "./",
+      "category": "productivity",
+      "tags": ["agent-skills", "engineering-workflow", "qa", "security", "code-review"],
+      "skills": "./skills",
+      "strict": false,
+      "repository": "https://github.com/mo-hawary/hawary-workflow-skills",
+      "homepage": "https://github.com/mo-hawary/hawary-workflow-skills",
+      "license": "MIT"
+    }
+  ]
+}

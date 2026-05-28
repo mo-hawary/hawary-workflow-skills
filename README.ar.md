@@ -28,7 +28,7 @@
 
 ## إحنا فين دلوقتي
 
-الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات واختبارات Python والـ whitespace.
+الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، [skills index](skills-index.json) قابل للقراءة آليًا، Claude Code marketplace metadata، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات والـ package metadata واختبارات Python والـ whitespace.
 
 ## استخدمه مع الـ agent بتاعك
 
@@ -43,6 +43,8 @@
 | Codex | [Install on Codex](docs/codex.md) | `.agents/skills` أو `~/.agents/skills` أو skills directory الخاص بـ Codex |
 | Claude | [Install on Claude](docs/claude.md) | `.claude/skills` أو `~/.claude/skills` أو Claude custom Skills upload |
 | OpenClaw و Qwen وأي agent متوافق | [Install on other agents](docs/compatible-agents.md) | أي folder متوافق مع Agent Skills |
+
+شوف [COMPATIBILITY.md](COMPATIBILITY.md) عشان تعرف tested/expected agents والقيود المعروفة.
 
 مثال سريع للنسخ:
 
@@ -86,6 +88,17 @@ npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-audi
 <div dir="rtl" lang="ar-EG">
 
 لو `npx skills` مش متاح أو مش شغال مع البيئة عندك، استخدم طريقة النسخ اللي فوق.
+
+Claude Code marketplace:
+
+</div>
+
+```bash
+claude plugin marketplace add mo-hawary/hawary-workflow-skills
+claude plugin install hawary-workflow-skills@hawary-workflow-skills
+```
+
+<div dir="rtl" lang="ar-EG">
 
 ## المهارات الموجودة
 
@@ -141,6 +154,8 @@ skills/
 
 لو developer وجهك للـ repo ده، اقرأ skill المناسبة من `skills/`، وبعدها افتح بس الملفات اللي محتاجها من `references/`. لو reference file مش موجود، قول إن فيه gap وكمل من `SKILL.md`. ما تفترضش private paths أو product names أو secrets أو rules خاصة بشركة. لو skill بتقول report-first أو approval-required، اسأل قبل ما تعدل implementation code.
 
+لو الـ agent بيفضل metadata قابلة للقراءة آليًا، يبدأ من [skills-index.json](skills-index.json). و Claude Code يقدر يقرأ [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) كـ marketplace adapter بيشاور على `skills/` الأساسي.
+
 ## إضافة skills جديدة
 
 كل skill جديدة تمشي بنفس workflow:
@@ -175,7 +190,7 @@ git diff --check
 
 <div dir="rtl" lang="ar-EG">
 
-الـ validator بيتأكد من frontmatter، طول description، naming، tracked references، لينكات Markdown المحلية، agent metadata، symlinks، وحاجات مهمة للنشر العام. CI بيثبت dependencies اختبارات Python من pins متحققة بالـ hashes في `requirements-dev.txt`.
+الـ validator بيتأكد من frontmatter، طول description، naming، tracked references، لينكات Markdown المحلية، agent metadata، `skills-index.json`، Claude Code marketplace metadata، symlinks، وحاجات مهمة لتجهيز package عام. CI بيثبت dependencies اختبارات Python من pins متحققة بالـ hashes في `requirements-dev.txt`.
 
 ## مراجع
 
@@ -189,6 +204,9 @@ git diff --check
 - [Examples](docs/examples.md)
 - [Roadmap](docs/roadmap.md)
 - [Skill authoring workflow](docs/skill-authoring.md)
+- [Compatibility matrix](COMPATIBILITY.md)
+- [Trust model](TRUST.md)
+- [Security model](SECURITY_MODEL.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
 - [Security](SECURITY.md)
