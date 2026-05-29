@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "name": "hawary-workflow-skills",
+  "description": "Public-safe workflow skills for coding agents that need source-backed planning, review, QA, audits, and dependency checks.",
+  "canonical_source": "skills/",
+  "compatible_agents": [
+    "codex",
+    "claude-code",
+    "claude-api",
+    "cursor",
+    "github-copilot",
+    "opencode",
+    "gemini-cli",
+    "windsurf",
+    "cline-roo"
+  ],
+  "install": {
+    "copy": "cp -R skills/<skill-name> /path/to/agent/skills/",
+    "skills_cli": "npx skills add mo-hawary/hawary-workflow-skills --skill <skill-name>",
+    "claude_code_marketplace": "claude plugin marketplace add mo-hawary/hawary-workflow-skills"
+  },
+  "skills": [
+    {
+      "name": "cross-layer-contract-audit",
+      "description": "Audit client, API, database, and docs for contract mismatches. Use for schema drift, auth/session/payment changes, migrations, or integration regressions.",
+      "path": "skills/cross-layer-contract-audit/SKILL.md",
+      "category": "audit",
+      "outputs": ["contract findings", "impact", "fix direction", "verification"],
+      "installable": true
+    },
+    {
+      "name": "dependency-security-auditor",
+      "description": "Audit dependency CVEs across Node, Python, Flutter/Dart, and mixed repos; design OSV/native audit hooks for pre-push and CI.",
+      "path": "skills/dependency-security-auditor/SKILL.md",
+      "category": "security",
+      "outputs": ["detected stacks", "CVE findings", "freshness risk", "hook or CI plan"],
+      "installable": true
+    },
+    {
+      "name": "feature-spec-delivery-pipeline",
+      "description": "Turn a feature request or bug cluster into a source-backed spec, impact map, acceptance criteria, and delivery plan before coding.",
+      "path": "skills/feature-spec-delivery-pipeline/SKILL.md",
+      "category": "planning",
+      "outputs": ["spec", "contract map", "implementation plan", "acceptance criteria"],
+      "installable": true
+    },
+    {
+      "name": "mobile-maestro-e2e-orchestrator",
+      "description": "Run evidence-driven mobile E2E tests with Maestro, device logs, checkpoints, and targeted retries for iOS or Android flows.",
+      "path": "skills/mobile-maestro-e2e-orchestrator/SKILL.md",
+      "category": "mobile-qa",
+      "outputs": ["checkpoint results", "evidence", "diagnosis", "residual risk"],
+      "installable": true
+    },
+    {
+      "name": "project-docs-cleanup",
+      "description": "Audit project docs for stale, duplicate, contradictory, or missing workflow artifacts before cleanup or handoff.",
+      "path": "skills/project-docs-cleanup/SKILL.md",
+      "category": "docs",
+      "outputs": ["doc health", "stale items", "archive candidates", "proposed edits"],
+      "installable": true
+    },
+    {
+      "name": "project-status-dashboard",
+      "description": "Build a read-only project health dashboard from git state, docs, CI hints, open work, branch drift, and likely next steps.",
+      "path": "skills/project-status-dashboard/SKILL.md",
+      "category": "status",
+      "outputs": ["repo state", "branch status", "verification hints", "next move"],
+      "installable": true
+    },
+    {
+      "name": "pull-request-review-loop",
+      "description": "Review pull requests with adversarial findings, fix validation, re-review loops, local artifacts, and source-backed proof before merge.",
+      "path": "skills/pull-request-review-loop/SKILL.md",
+      "category": "review",
+      "outputs": ["findings", "fix proof", "review rounds", "merge readiness"],
+      "installable": true
+    },
+    {
+      "name": "qa-bug-hunt-planner",
+      "description": "Run source-backed QA discovery, recommend audit tracks, build fix-ready bug-hunt plans, and define verification gates.",
+      "path": "skills/qa-bug-hunt-planner/SKILL.md",
+      "category": "qa",
+      "outputs": ["audit tracks", "findings matrix", "fix board", "test plan"],
+      "installable": true
+    },
+    {
+      "name": "repo-workflow-checker",
+      "description": "Check whether a repo has an agent workflow scaffold: instructions, work queues, specs, skills, verification commands, and archive conventions.",
+      "path": "skills/repo-workflow-checker/SKILL.md",
+      "category": "workflow",
+      "outputs": ["found assets", "gaps", "suggested scaffold", "verification map"],
+      "installable": true
+    }
+  ]
+}

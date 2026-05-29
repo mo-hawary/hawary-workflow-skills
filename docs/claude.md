@@ -57,6 +57,25 @@ npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-audi
 
 If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
 
+## Claude Code Marketplace Install
+
+Claude Code can also add this repository as a plugin marketplace and install the workflow skills as one plugin:
+
+```bash
+claude plugin marketplace add mo-hawary/hawary-workflow-skills
+claude plugin install hawary-workflow-skills@hawary-workflow-skills
+```
+
+> Note: The marketplace manifest validates with `claude plugin validate .`, but the install flow remains provisional until a real marketplace install is smoke-tested.
+
+Validate the marketplace locally before sharing a release candidate:
+
+```bash
+claude plugin validate .
+```
+
+The marketplace adapter lives at [../.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) and points at the canonical `skills/` directory.
+
 ## Claude Code Project Install
 
 Install skills into a project:

@@ -17,7 +17,7 @@ If these skills save you time, please star the repo. It helps other developers d
 
 ## Current State
 
-This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, examples, roadmap, changelog, and CI validation for skill metadata, links, Python tests, and whitespace.
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, a machine-readable [skills index](skills-index.json), Claude Code marketplace metadata, examples, roadmap, changelog, and CI validation for skill metadata, links, package metadata, Python tests, and whitespace.
 
 ## Use With Your Agent
 
@@ -28,6 +28,8 @@ Point your coding agent at this repository or copy individual folders from `skil
 | Codex | [Install on Codex](docs/codex.md) | `.agents/skills`, `~/.agents/skills`, or your Codex skills directory |
 | Claude | [Install on Claude](docs/claude.md) | `.claude/skills`, `~/.claude/skills`, or Claude custom Skills upload |
 | OpenClaw, Qwen, and compatible agents | [Install on other agents](docs/compatible-agents.md) | any Agent Skills-compatible directory |
+
+See [COMPATIBILITY.md](COMPATIBILITY.md) for the tested/expected agent matrix and known limitations.
 
 Quick copy example:
 
@@ -55,6 +57,15 @@ npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-audi
 ```
 
 If `npx skills` is not available in your environment or does not support this repository, use the copy method above.
+
+### Claude Code Marketplace
+
+```bash
+claude plugin marketplace add mo-hawary/hawary-workflow-skills
+claude plugin install hawary-workflow-skills@hawary-workflow-skills
+```
+
+> Note: The marketplace manifest validates with `claude plugin validate .`, but the install flow remains provisional until a real marketplace install is smoke-tested.
 
 ## Skills
 
@@ -106,6 +117,8 @@ skills/
 
 When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. If a referenced file is missing, report the gap and continue from the main `SKILL.md`. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
 
+Agents that prefer machine-readable package metadata can start with [skills-index.json](skills-index.json). Claude Code can read [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) as a marketplace adapter that exposes the canonical `skills/` directory.
+
 ## Adding Skills
 
 Use the same workflow for every new skill:
@@ -136,7 +149,7 @@ pytest
 git diff --check
 ```
 
-The validator checks skill frontmatter, description length, naming, tracked references, local Markdown links, agent metadata, symlinks, and common public-release hygiene patterns. CI installs Python test dependencies from hash-checked pins in `requirements-dev.txt`.
+The validator checks skill frontmatter, description length, naming, tracked references, local Markdown links, agent metadata, `skills-index.json`, Claude Code marketplace metadata, symlinks, and common public package hygiene patterns. CI installs Python test dependencies from hash-checked pins in `requirements-dev.txt`.
 
 ## References
 
@@ -150,6 +163,9 @@ The validator checks skill frontmatter, description length, naming, tracked refe
 - [Examples](docs/examples.md)
 - [Roadmap](docs/roadmap.md)
 - [Skill authoring workflow](docs/skill-authoring.md)
+- [Compatibility matrix](COMPATIBILITY.md)
+- [Trust model](TRUST.md)
+- [Security model](SECURITY_MODEL.md)
 - [Contributing](CONTRIBUTING.md)
 - [Support](SUPPORT.md)
 - [Security](SECURITY.md)
