@@ -33,6 +33,7 @@ Path: `skills/dependency-security-auditor/scripts/dependency_audit.py`
   - `pnpm outdated`
   - `dart pub outdated`
   - `flutter pub outdated`
+- Example: `osv-scanner` may query OSV.dev over HTTPS, while native package-manager audits may contact their package registry or advisory service.
 
 ### Command Execution
 

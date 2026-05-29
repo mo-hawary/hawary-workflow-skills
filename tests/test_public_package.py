@@ -32,6 +32,8 @@ def test_skills_index_matches_canonical_skill_folders():
     assert catalog["canonical_source"] == "skills/"
     assert "codex" in catalog["compatible_agents"]
     assert "claude-code" in catalog["compatible_agents"]
+    assert "claude-api" in catalog["compatible_agents"]
+    assert "claude-ai-api" not in catalog["compatible_agents"]
 
     for skill in catalog["skills"]:
         skill_file = ROOT / skill["path"]
@@ -77,6 +79,8 @@ def test_compatibility_matrix_covers_recommendation_targets():
     assert "Tested" in content
     assert "Expected" in content
     assert "Known Limitations" in content
+    assert "automatic selection are not equivalent to Claude Code" in content
+    assert "install flow should remain `Expected`" in content
 
 
 def test_trust_and_security_docs_are_present_and_specific():
@@ -88,6 +92,7 @@ def test_trust_and_security_docs_are_present_and_specific():
         "explicit approval",
         "No hidden credential collection",
         "No automatic package upgrades",
+        "review pull request changes before running them",
     ]:
         assert phrase in trust
 
@@ -97,5 +102,6 @@ def test_trust_and_security_docs_are_present_and_specific():
         "Write scope",
         "Network behavior",
         "Command execution",
+        "OSV.dev",
     ]:
         assert phrase in security_model

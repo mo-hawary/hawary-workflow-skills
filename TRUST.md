@@ -8,6 +8,7 @@ Hawary Workflow Skills is designed as a report-first workflow package for coding
 - Skills require explicit approval before implementation edits, dependency upgrades, lockfile changes, hook installation, CI changes, or destructive actions.
 - No hidden credential collection is part of any skill or bundled script.
 - No automatic package upgrades are performed by the dependency auditor.
+- Users adopting new skills or scripts should review pull request changes before running them, even in this package.
 - Scripts are helper tools, not hidden instructions; agents can still use the Markdown workflow without running scripts.
 - Documentation and examples must avoid customer data, local absolute paths, proprietary code, and sensitive project names.
 

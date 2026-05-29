@@ -6,7 +6,7 @@
   "compatible_agents": [
     "codex",
     "claude-code",
-    "claude-ai-api",
+    "claude-api",
     "cursor",
     "github-copilot",
     "opencode",

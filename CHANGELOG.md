@@ -18,7 +18,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Compatibility matrix, trust model, and security model for public agent adoption.
 - Machine-readable `skills-index.json` catalog for agent directories and package tooling.
 - Claude Code marketplace adapter at `.claude-plugin/marketplace.json`.
-- Package-surface tests for compatibility, trust docs, the skills catalog, and Claude marketplace metadata.
+- Package-surface tests for `COMPATIBILITY.md`, `TRUST.md`, `skills-index.json`, and `.claude-plugin/marketplace.json`.
 
 ### Changed
 

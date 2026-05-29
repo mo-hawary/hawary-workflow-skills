@@ -89,7 +89,7 @@ npx skills add mo-hawary/hawary-workflow-skills --skill dependency-security-audi
 
 لو `npx skills` مش متاح أو مش شغال مع البيئة عندك، استخدم طريقة النسخ اللي فوق.
 
-Claude Code marketplace:
+### Claude Code Marketplace
 
 </div>
 
@@ -99,6 +99,8 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 ```
 
 <div dir="rtl" lang="ar-EG">
+
+> ملاحظة: الـ marketplace manifest متحقق منه بأمر `claude plugin validate .`، لكن install flow لسه provisional لحد ما يتجرب كتثبيت حقيقي.
 
 ## المهارات الموجودة
 

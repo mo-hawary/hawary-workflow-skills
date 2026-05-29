@@ -66,6 +66,8 @@ claude plugin marketplace add mo-hawary/hawary-workflow-skills
 claude plugin install hawary-workflow-skills@hawary-workflow-skills
 ```
 
+> Note: The marketplace manifest validates with `claude plugin validate .`, but the install flow remains provisional until a real marketplace install is smoke-tested.
+
 Validate the marketplace locally before sharing a release candidate:
 
 ```bash
