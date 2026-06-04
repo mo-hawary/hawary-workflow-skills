@@ -67,6 +67,13 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 
 > Note: The marketplace manifest validates with `claude plugin validate .`, but the install flow remains provisional until a real marketplace install is smoke-tested.
 
+## Listed In
+
+| Registry | Skills Indexed |
+|---|---|
+| [![ClaudSkills](https://claudskills.com/badge/dependency-security-auditor.svg)](https://claudskills.com/skills/dependency-security-auditor/) | [dependency-security-auditor](https://claudskills.com/skills/dependency-security-auditor/) · [feature-spec-delivery-pipeline](https://claudskills.com/skills/feature-spec-delivery-pipeline/) · [cross-layer-contract-audit](https://claudskills.com/skills/cross-layer-contract-audit/) · [mobile-maestro-e2e-orchestrator](https://claudskills.com/skills/mobile-maestro-e2e-orchestrator/) · [repo-workflow-checker](https://claudskills.com/skills/repo-workflow-checker/) |
+| [Awesome Skills](https://www.awesomeskills.dev/es/skill/mo-hawary-hawary-workflow-skills) | Full repo · `npx add-skill mo-hawary/hawary-workflow-skills` |
+
 ## Skills
 
 | Skill | Use When | Output |
