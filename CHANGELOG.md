@@ -8,6 +8,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- `dev-secrets` for local-development env secret handling without exposing real values to agents.
+- Agent compatibility docs and Codex, Claude, and generic adapters for `dev-secrets`.
 - `dependency-security-auditor` for dependency CVE scans, freshness checks, and hook/CI audit design.
 - Prompt examples for `dependency-security-auditor`.
 - Fixture-backed bootcamp test matrix for dependency-auditor ecosystem coverage.

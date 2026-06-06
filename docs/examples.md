@@ -32,6 +32,20 @@ Use feature-spec-delivery-pipeline to turn this feature request into a source-ba
 Use cross-layer-contract-audit to check whether the UI, API, database, jobs, and docs agree for this feature.
 ```
 
+## Dev Secrets
+
+```text
+Use dev-secrets to help migrate local env-file values into a local vault without exposing real values to the agent.
+```
+
+Example flow:
+
+```text
+User: Move my .env.local into a safer local workflow.
+
+Agent: Give the required disclosure, inspect only safe signals such as file names, git tracking, and .gitignore, return a value-free plan, ask the user to choose the import target, and let only a compatible local CLI handle real values.
+```
+
 ## PR Review
 
 ```text

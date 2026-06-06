@@ -1,0 +1,70 @@
+# Dev Secrets Output Templates
+
+Use these canonical shapes for value-free generated outputs. Do not include real values, partial values, hashes, fingerprints, encrypted blobs, or passphrase hints.
+
+## `.env.example`
+
+```dotenv
+# Generated value-free example. Fill values through local vault workflow, not chat.
+DATABASE_URL=
+PUBLIC_APP_ORIGIN=
+FEATURE_FLAG_NAME=
+```
+
+Rules:
+
+- Include key names only.
+- Leave values blank.
+- Comments may describe purpose, environment, or required/optional status.
+- Public-prefixed keys are still reviewed; public exposure does not make a value safe.
+
+## `secrets.manifest.json`
+
+```json
+{
+  "version": 1,
+  "keys": [
+    {
+      "name": "DATABASE_URL",
+      "required": true,
+      "environment": "local",
+      "classification": "secret",
+      "description": "Local database connection"
+    },
+    {
+      "name": "PUBLIC_APP_ORIGIN",
+      "required": false,
+      "environment": "local",
+      "classification": "publicly_exposed",
+      "description": "Local app origin used by browser-visible code"
+    }
+  ]
+}
+```
+
+Allowed classifications:
+
+- `secret`
+- `publicly_exposed`
+- `needs_review`
+- `non_secret_config`
+
+## Value-Free Plan
+
+```txt
+Status: needs setup
+Safe evidence: 2 env files detected by name; no values read
+Warnings: compatible CLI was not detected; generated outputs must stay value-free
+Next step: install or implement a compatible local CLI before importing secrets
+Approval needed: import target selection and any file mutation
+```
+
+## Compatible CLI Plan
+
+```txt
+Status: needs user choice
+Safe evidence: 2 env files detected by name; no values read
+Warnings: choose one import target; generated outputs must stay value-free
+Next command: dev-secrets import .env --plan
+Approval needed: import target selection
+```

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Secrets"
+  short_description: "Keeps local env secrets out of agent context with value-free vault and run workflows."
+  default_prompt: "Use dev-secrets. Give the required disclosure first, then inspect only safe signals: file names, git tracking, and .gitignore. Do not read or print real env values under any circumstances."

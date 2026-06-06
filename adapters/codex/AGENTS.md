@@ -1,0 +1,28 @@
+# Codex Adapter For dev-secrets
+
+Codex uses `AGENTS.md`-style persistent guidance. Keep `skills/dev-secrets/SKILL.md` as the canonical source and route local env-secret tasks to that skill.
+
+## Routing
+
+Use `skills/dev-secrets/SKILL.md` when the user asks about:
+
+- `.env`, `.env.local`, `.env.development`, or `.env.test`
+- local secret migration
+- vault import
+- local secret scanning
+- env-file leak detection
+- rotation guidance
+- value-free dev run commands
+
+## Safety
+
+- Do not read real `.env*` values.
+- Do not show values, partial values, hashes, fingerprints, encrypted blobs, or passphrase hints.
+- Do not run broad secret-reading commands.
+- Inspect safe repo signals only: file names, tracking status, ignore rules, package scripts, examples, and manifests.
+- Output value-free plans when no compatible local CLI exists.
+- Ask approval before any mutation.
+
+## Expected Codex Response
+
+Return the skill's standard output shape: status, safe evidence, warnings, next command, and approval needed.

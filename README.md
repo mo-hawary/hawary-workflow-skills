@@ -83,6 +83,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | Docs, plans, backlog files, or specs may be stale. | Doc health, stale items, contradictions, archive candidates, proposed edits. |
 | [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | A feature or bug cluster needs a plan before coding. | Source-backed spec, decisions needed, contract changes, phases, acceptance criteria. |
 | [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | Client, API, database, jobs, or docs may disagree. | Severity-ranked contract mismatches with evidence, impact, fix direction, verification. |
+| [`dev-secrets`](skills/dev-secrets/SKILL.md) | Local env-file secrets need vaulting, value-free manifests, safe runs, scans, or rotation guidance. | Safe evidence, warnings, next command, approval gates, recovery steps. |
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
@@ -97,6 +98,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | "Which docs are stale?" | `project-docs-cleanup` |
 | "Plan this feature before implementation." | `feature-spec-delivery-pipeline` |
 | "Do these layers agree?" | `cross-layer-contract-audit` |
+| "How do I keep `.env` values away from agents?" | `dev-secrets` |
 | "Review this PR without posting comments." | `pull-request-review-loop` |
 | "What should we QA before fixing?" | `qa-bug-hunt-planner` |
 | "Prove this mobile flow works." | `mobile-maestro-e2e-orchestrator` |
@@ -168,6 +170,7 @@ The validator checks skill frontmatter, description length, naming, tracked refe
 ## Project Docs
 
 - [Examples](docs/examples.md)
+- [Agent compatibility](docs/agent-compatibility.md)
 - [Roadmap](docs/roadmap.md)
 - [Skill authoring workflow](docs/skill-authoring.md)
 - [Compatibility matrix](COMPATIBILITY.md)

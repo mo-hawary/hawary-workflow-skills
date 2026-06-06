@@ -105,3 +105,48 @@ def test_trust_and_security_docs_are_present_and_specific():
         "OSV.dev",
     ]:
         assert phrase in security_model
+
+
+def test_dev_secrets_examples_are_value_free_and_status_driven():
+    examples = (ROOT / "skills" / "dev-secrets" / "references" / "examples.md").read_text(
+        encoding="utf-8"
+    )
+    output_templates = (
+        ROOT / "skills" / "dev-secrets" / "references" / "output-templates.md"
+    ).read_text(encoding="utf-8")
+    combined = f"{examples}\n{output_templates}"
+
+    forbidden_example_commands = [
+        "cat .env",
+        "printenv",
+        "\nenv\n",
+    ]
+    for command in forbidden_example_commands:
+        assert command not in combined
+
+    for field in [
+        "Status:",
+        "Safe Evidence:",
+        "Warnings:",
+        "Approval Needed:",
+    ]:
+        assert field in examples
+
+    assert "compatible CLI was not detected" in combined
+    assert "If compatible CLI exists" in examples
+    assert "Next Command: dev-secrets import .env --plan" in examples
+    assert "Next step: install or implement a compatible local CLI" in output_templates
+
+
+def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():
+    recovery = (
+        ROOT / "skills" / "dev-secrets" / "references" / "recovery-playbook.md"
+    ).read_text(encoding="utf-8")
+
+    assert "If the repo is or was public" in recovery
+    assert "permanently exposed" in recovery
+    assert "git filter-repo" in recovery
+    assert "BFG" in recovery
+
+    lower = recovery.lower()
+    assert lower.index("rotate") < lower.index("history cleanup")
