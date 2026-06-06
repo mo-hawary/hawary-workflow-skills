@@ -11,3 +11,12 @@ node_modules/
 .env.*
 .agents/
 .claude/
+
+# Private planning artifacts
+docs/*-spec.md
+docs/*-impp.md
+docs/*-implementation-plan.md
+docs/*-plan.md
+specs/
+impp/
+plans/
