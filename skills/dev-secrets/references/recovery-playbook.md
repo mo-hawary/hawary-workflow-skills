@@ -26,7 +26,7 @@ Assume the value is permanently exposed. GitHub and similar hosts may retain cac
 7. Delete the temporary plaintext file after verification.
 8. Run a value-free scan for remaining exposure.
 9. Clear shell history if the value may have been typed into a command.
-10. If the old value was committed, follow repository history cleanup and assume the old value remains permanently exposed.
+10. If the old value was committed, use `git filter-repo` (preferred) or BFG Repo Cleaner to rewrite history, then force-push and notify all collaborators to re-clone. Assume the old value remains permanently exposed regardless of cleanup.
 
 ## Provider Rotation Patterns
 
@@ -45,11 +45,31 @@ Use history cleanup only after rotation. History rewrites do not make an exposed
 Common options:
 
 ```bash
-git filter-repo --path .env --invert-paths
+git filter-repo --path <leaked-env-file-path> --invert-paths
 ```
 
 ```bash
-bfg --delete-files .env
+bfg --delete-files <leaked-env-file-name>
+```
+
+Use the actual leaked env-file path for `git filter-repo`, for example `.env.local` or `apps/web/.env.development`. For BFG, use the leaked env-file name that matches the affected path, such as `.env.local` or `.env.development`; do not default cleanup commands to `.env` unless `.env` is the leaked file.
+
+Examples:
+
+```bash
+git filter-repo --path .env.local --invert-paths
+```
+
+```bash
+git filter-repo --path apps/web/.env.development --invert-paths
+```
+
+```bash
+bfg --delete-files .env.local
+```
+
+```bash
+bfg --delete-files .env.development
 ```
 
 After cleanup:

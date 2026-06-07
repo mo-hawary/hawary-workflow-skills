@@ -76,8 +76,11 @@ SKILL_FILES.each do |path|
     fail_with("#{path}: referenced file #{reference} is not tracked") unless tracked_file_set.include?(reference_relative)
   end
 
-  openai_metadata = File.join(File.dirname(path), "agents/openai.yaml")
-  fail_with("#{path}: missing agents/openai.yaml metadata") unless File.file?(openai_metadata)
+  agent_metadata = [
+    File.join(File.dirname(path), "agents/default.yaml"),
+    File.join(File.dirname(path), "agents/openai.yaml")
+  ]
+  fail_with("#{path}: missing agents/default.yaml or agents/openai.yaml metadata") unless agent_metadata.any? { |metadata_path| File.file?(metadata_path) }
 
   names[name] = path
   descriptions[name] = description

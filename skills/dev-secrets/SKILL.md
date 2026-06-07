@@ -87,7 +87,7 @@ Before inspecting a repo for env files or recommending import/run commands, tell
 ## Standard Workflow
 
 1. Give the required disclosure.
-2. Inspect only safe repo signals: tracked file names, `.gitignore`, package scripts, existing examples, and manifest presence.
+2. Inspect only safe repo signals: tracked file names, `.gitignore`, package script names, existing examples, and redacted manifest metadata. Do not inspect full package script command strings unless they come from a compatible local CLI or redacted manifest.
 3. If env files exist, ask which file or files the user wants to import. Do not read their contents.
 4. Recommend a value-free dry run before import.
 5. Require local interactive approval before importing values or changing project files.
@@ -105,6 +105,8 @@ Check whether a compatible `dev-secrets` CLI exists before recommending executab
 - If CLI status is unknown: return `Status: needs setup` and recommend `dev-secrets doctor` only as a command shape, not as something already run.
 
 ## Allowed Command Shape
+
+These commands assume the `dev-secrets` CLI is installed in the project. If no compatible CLI exists, treat these as planning output and report the workflow as a plan instead.
 
 Use these command shapes when a compatible CLI exists or is being implemented:
 

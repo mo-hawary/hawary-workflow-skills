@@ -41,7 +41,7 @@
       "description": "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: safe evidence, warnings, next command, recovery.",
       "path": "skills/dev-secrets/SKILL.md",
       "category": "security",
-      "outputs": ["safe evidence", "warnings", "next command", "recovery steps"],
+      "outputs": ["value-free manifest", "tracked-file warnings", "next safe command", "rotation guidance"],
       "installable": true
     },
     {

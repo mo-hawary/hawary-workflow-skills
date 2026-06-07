@@ -38,6 +38,10 @@ Use cross-layer-contract-audit to check whether the UI, API, database, jobs, and
 Use dev-secrets to help migrate local env-file values into a local vault without exposing real values to the agent.
 ```
 
+```text
+Use dev-secrets to vault my local env before running.
+```
+
 Example flow:
 
 ```text

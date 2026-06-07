@@ -140,8 +140,8 @@ Example aliases:
 
 ```txt
 Status: scan warning
-Safe evidence: `.env.local` exists, `.env.example` exists, manifest missing
-Warnings: one env file appears tracked; rotate affected values before treating migration as safe
+Safe evidence: `.env.local` exists, `.env.example` exists
+Warnings: one env file appears tracked; manifest missing; rotate affected values before treating migration as safe
 Next command: dev-secrets scan
 Approval needed: cleanup or history rewrite
 ```
