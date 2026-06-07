@@ -3,7 +3,7 @@
 ## Safe First Response
 
 ```txt
-This is for local-development secrets only, not production secret management. I will not print, summarize, expose, or directly read real `.env` values. Real values should go through local CLI or vault prompts. If multiple env files exist, you choose which ones to import. Any child process that receives secrets can still leak through logs or crashes, so rotate anything that may have been exposed.
+This is for local-development secrets only, not production secret management. I will not print, summarize, expose, or directly read real `.env` values. Real values should go through local CLI or vault prompts. If multiple env files exist, you choose which ones to import. Project-file edits are suggestions-only unless a dedicated local CLI command gets explicit approval. Any child process that receives secrets can still leak through logs or crashes, so rotate anything that may have been exposed.
 ```
 
 ## Copy-Ready Good Responses
@@ -28,7 +28,7 @@ I won't run broad secret-reading commands. Use value-free leak detection instead
 Status: needs setup
 Safe Evidence: no values read
 Warnings: broad secret searches can expose values to agent context
-Next Step: install or verify a compatible `dev-secrets` CLI before scanning
+Next Command: install or verify a compatible `dev-secrets` CLI before scanning
 Approval Needed: none yet
 ```
 
