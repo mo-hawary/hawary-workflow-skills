@@ -135,9 +135,14 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "compatible CLI was not detected" in combined
     assert "If compatible CLI exists" in examples
     assert "Next Command: dev-secrets import .env --plan" in examples
+    assert (
+        "Next Command: install or verify a compatible `dev-secrets` CLI before scanning"
+        in examples
+    )
     assert "Next Command: install or implement a compatible local CLI" in output_templates
     assert "Safe Evidence: 2 env files detected by name; no values read" in output_templates
     assert "Approval Needed: import target selection" in output_templates
+    assert "Next Command: dev-secrets scan" not in examples
     assert "Next Step:" not in combined
     assert "Safe evidence:" not in combined
     assert "Next command:" not in combined
@@ -181,11 +186,17 @@ def test_dev_secrets_limits_package_script_inspection_to_names_or_redacted_metad
     assert "full package script command strings" in combined
     assert "compatible local CLI or redacted manifest" in combined
     assert "redacted manifest metadata" in combined
+    assert "example file presence and key names" in combined
+    assert "example values" in combined
+    assert "manifest values" in combined
 
     unsafe_phrases = [
         "package scripts, existing examples",
         "package scripts, examples",
+        "package script names, existing examples",
+        "package script names, examples",
         "Inspect safe repo signals only: file names, tracking status, ignore rules, package scripts",
+        "Inspect safe repo signals only: file names, tracking status, ignore rules, package script names, examples",
     ]
     for phrase in unsafe_phrases:
         assert phrase not in combined

@@ -142,6 +142,6 @@ Example aliases:
 Status: scan warning
 Safe Evidence: `.env.local` exists, `.env.example` exists
 Warnings: one env file appears tracked; manifest missing; rotate affected values before treating migration as safe
-Next Command: dev-secrets scan
+Next Command: install or verify a compatible `dev-secrets` CLI before scanning
 Approval Needed: cleanup or history rewrite
 ```

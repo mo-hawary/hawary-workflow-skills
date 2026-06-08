@@ -21,3 +21,7 @@ Where the agent supports per-skill tool limits, use read/glob/bash-only access. 
 Route requests involving `.env*` files, local secret migration, vault import, local leak scanning, rotation guidance, or value-free dev run commands to `dev-secrets`.
 
 If no compatible local CLI exists, return a value-free setup plan with `Status: needs setup`.
+
+## Safe Inspection
+
+Agents may inspect file names, tracking status, ignore rules, package script names, example file presence and key names, and redacted manifest metadata. Do not inspect full package script command strings, example values, or manifest values unless they come from a compatible local CLI or redacted manifest.

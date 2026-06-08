@@ -24,6 +24,7 @@ Preserve the canonical safety model:
 - No real values read.
 - No hashes or fingerprints.
 - No broad secret commands.
+- Inspect package script names and redacted manifest metadata only; do not inspect full command strings unless a compatible local CLI or redacted manifest provides them.
 - Value-free outputs only.
 - Local CLI handles real values.
 - Fail closed when setup is unsafe.

@@ -87,7 +87,7 @@ Before inspecting a repo for env files or recommending import/run commands, tell
 ## Standard Workflow
 
 1. Give the required disclosure.
-2. Inspect only safe repo signals: tracked file names, `.gitignore`, package script names, existing examples, and redacted manifest metadata. Do not inspect full package script command strings unless they come from a compatible local CLI or redacted manifest.
+2. Inspect only safe repo signals: tracked file names, `.gitignore`, package script names, example file presence and key names, and redacted manifest metadata. Do not inspect full package script command strings, example values, or manifest values unless they come from a compatible local CLI or redacted manifest.
 3. If env files exist, ask which file or files the user wants to import. Do not read their contents.
 4. Recommend a value-free dry run before import.
 5. Require local interactive approval before importing values or changing project files.
