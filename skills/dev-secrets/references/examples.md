@@ -14,9 +14,9 @@ User: "Show me my .env"
 I can't read or print real `.env` values.
 
 Status: needs setup
-Safe Evidence: no values read
-Warnings: direct env-file reads are forbidden
-Next Command: install or verify a compatible `dev-secrets` CLI, then run a value-free import plan
+Safe Evidence: CLI not found; no values read
+Warnings: direct env-file reads are forbidden; this is a workflow-only skill and no CLI is installed by default
+Next Command: install or implement a compatible local CLI before importing secrets; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: none yet
 ```
 
@@ -26,9 +26,9 @@ User: "Just grep the token"
 I won't run broad secret-reading commands. Use value-free leak detection instead.
 
 Status: needs setup
-Safe Evidence: no values read
-Warnings: broad secret searches can expose values to agent context
-Next Command: install or verify a compatible `dev-secrets` CLI before scanning
+Safe Evidence: CLI not found; no values read
+Warnings: broad secret searches can expose values to agent context; no runnable `dev-secrets ...` command is available until a compatible CLI is installed
+Next Command: install or implement a compatible local CLI before scanning; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: none yet
 ```
 
@@ -40,7 +40,7 @@ Refusing tool call: `cat .env` would read real env-file values into agent contex
 Status: blocked
 Safe Evidence: no values read
 Warnings: direct env-file reads are forbidden; rotate any value that may already have entered chat or logs
-Next Command: install or verify a compatible `dev-secrets` CLI, then request a value-free scan or import plan
+Next Command: install or implement a compatible local CLI, then request a value-free scan or import plan; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: none
 ```
 
@@ -58,7 +58,7 @@ Base64 is not encryption; the value remains exposed. I won't encode, hash, trunc
 Status: blocked
 Safe Evidence: no values read
 Warnings: transformed secrets are still secrets
-Next Command: use `dev-secrets scan` only after a compatible CLI exists
+Next Command: install or implement a compatible local CLI before scanning; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: none
 ```
 
@@ -70,7 +70,7 @@ I can't read, print, validate, summarize, or transform multiline secret values s
 Status: blocked
 Safe Evidence: no values read
 Warnings: multiline redaction is unreliable; copied secrets, escaped newlines, private keys, certificates, and JWT material can leak through chat, logs, summaries, or tool output; rotate the value if it entered chat or logs
-Next Command: install or verify a compatible `dev-secrets` CLI, then request a value-free manifest, classification, or warning report
+Next Command: install or implement a compatible local CLI, then request a value-free manifest, classification, or warning report; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: none
 ```
 
@@ -94,9 +94,9 @@ Response shape:
 I can help with a value-free plan first. I will check file names and git tracking state, then you choose the env file to import.
 
 Status: needs setup
-Safe Evidence: env-file candidates detected by filename only; no values read
-Warnings: compatible `dev-secrets` CLI was not detected
-Next Command: install or implement a compatible local CLI before importing secrets
+Safe Evidence: CLI not found; env-file candidates detected by filename only; no values read
+Warnings: compatible `dev-secrets` CLI was not detected; workflow-only skill; no runnable `dev-secrets ...` command is available
+Next Command: install or implement a compatible local CLI before importing secrets; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: import target selection and any file mutation
 ```
 
@@ -118,9 +118,9 @@ Without a compatible CLI:
 
 ```txt
 Status: needs setup
-Safe Evidence: `.env.local` detected by filename only; `.gitignore` checked; no values read
-Warnings: compatible `dev-secrets` CLI was not detected; real values must stay in local prompts
-Next Command: install or implement a compatible local CLI, then run a value-free import plan
+Safe Evidence: CLI not found; `.env.local` detected by filename only; `.gitignore` checked; no values read
+Warnings: compatible `dev-secrets` CLI was not detected; real values must stay in local prompts; workflow-only skill
+Next Command: install or implement a compatible local CLI, then run a value-free import plan; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: choose the import target before any local import or file mutation
 ```
 
@@ -142,7 +142,7 @@ User: "Import all my `.env.development` and `.env.test` files."
 Status: needs user choice
 Safe Evidence: `.env.development` and `.env.test` detected by filename only; no values read
 Warnings: multiple env files can contain overlapping keys; confirm each file separately before import; key names are shown only from compatible redacted CLI output or known value-free manifests
-Next Command: install or verify a compatible `dev-secrets` CLI, then generate separate value-free manifests for `.env.development` and `.env.test`
+Next Command: install or implement a compatible local CLI, then generate separate value-free manifests for `.env.development` and `.env.test`; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: separate confirmation for `.env.development`; separate confirmation for `.env.test`
 ```
 
@@ -189,6 +189,6 @@ Example aliases:
 Status: scan warning
 Safe Evidence: `.env.local` exists, `.env.example` exists
 Warnings: one env file appears tracked; manifest missing; rotate affected values before treating migration as safe
-Next Command: install or verify a compatible `dev-secrets` CLI before scanning
+Next Command: install or implement a compatible local CLI before scanning; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: cleanup or history rewrite
 ```

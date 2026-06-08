@@ -131,7 +131,11 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     ]:
         assert field in examples
 
-    assert "compatible CLI was not detected" in combined
+    assert "compatible `dev-secrets` CLI was not detected" in combined
+    assert "CLI not found" in combined
+    assert "workflow-only skill" in combined
+    assert "No CLI is installed by default" in skill_text(ROOT / "skills" / "dev-secrets" / "SKILL.md")
+    assert "do not run `dev-secrets ...` until `command -v dev-secrets` succeeds" in combined
     assert "Refusing tool call: `cat .env`" in examples
     assert "multiline private key or cert" in examples
     assert "multiline redaction is unreliable" in examples
@@ -145,7 +149,7 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "dev-secrets import .env.local --plan" in examples
     assert "Next Command: dev-secrets import .env --plan" not in combined
     assert (
-        "Next Command: install or verify a compatible `dev-secrets` CLI before scanning"
+        "Next Command: install or implement a compatible local CLI before scanning"
         in examples
     )
     assert ".env.development" in examples
@@ -157,6 +161,7 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "Safe Evidence: 2 env files detected by name; no values read" in output_templates
     assert "Approval Needed: import target selection" in output_templates
     assert "Next Command: dev-secrets scan" not in examples
+    assert "Next Command: install or verify a compatible `dev-secrets` CLI" not in combined
     assert "Safe Evidence: manifest missing" not in examples
     assert "Next Step:" not in combined
     assert "Safe evidence:" not in combined
@@ -237,6 +242,18 @@ def test_dev_secrets_limits_safe_inspection_to_redacted_metadata():
         assert phrase in skill
     assert "## Reference Command Shapes" in skill
     assert "These are reference command shapes only; this repository does not implement the CLI." in skill
+    assert "These are pseudo-commands until `command -v dev-secrets` succeeds" in skill
+    assert "## Bootstrap Contract For Implementers" in skill
+    for command in [
+        "doctor",
+        "status",
+        "import <env-file> --plan",
+        "scan",
+        "run -- <command>",
+    ]:
+        assert command in skill
+    assert "stdout and stderr never include values" in skill
+    assert "doctor` is the smallest optional stub" in skill
     assert "package script names" in combined
     assert "full package script command strings" in combined
     assert "compatible local CLI or redacted manifest" in combined
@@ -271,6 +288,10 @@ def test_dev_secrets_limits_safe_inspection_to_redacted_metadata():
     ]
     for phrase in unsafe_phrases:
         assert phrase not in combined
+
+
+def skill_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
 def test_dev_secrets_index_uses_canonical_output_labels():

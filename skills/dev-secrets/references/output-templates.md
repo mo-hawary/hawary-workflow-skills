@@ -54,9 +54,9 @@ Allowed classifications:
 
 ```txt
 Status: needs setup
-Safe Evidence: 2 env files detected by name; no values read
-Warnings: compatible CLI was not detected; generated outputs must stay value-free
-Next Command: install or implement a compatible local CLI before importing secrets
+Safe Evidence: CLI not found; 2 env files detected by name; no values read
+Warnings: workflow-only skill; no CLI is installed by default; generated outputs must stay value-free
+Next Command: install or implement a compatible local CLI before importing secrets; do not run `dev-secrets ...` until `command -v dev-secrets` succeeds
 Approval Needed: import target selection and any file mutation
 ```
 
