@@ -93,7 +93,7 @@ If compatible CLI exists:
 Status: needs user choice
 Safe Evidence: env-file candidates detected by filename only; no values read
 Warnings: choose one import target before local CLI import
-Next Command: dev-secrets import .env --plan
+Next Command: confirm the import target, then run a compatible value-free import plan for the selected file
 Approval Needed: import target selection
 ```
 
@@ -117,7 +117,7 @@ With a compatible CLI:
 Status: needs user choice
 Safe Evidence: `.env.local` detected by filename only; `.gitignore` checked; no values read
 Warnings: child processes can still leak secrets through logs or crashes
-Next Command: dev-secrets import .env.local --plan
+Next Command: confirm `.env.local` as the selected import target, then run a compatible value-free import plan for `.env.local`
 Approval Needed: confirm `.env.local` is the import target
 ```
 
@@ -139,7 +139,7 @@ If compatible CLI exists and produces redacted manifest output:
 Status: needs user choice
 Safe Evidence: separate value-free manifest for `.env.development`; separate value-free manifest for `.env.test`; no values read
 Warnings: overlap detected between env-specific manifests; unclassified — review before import; confirm each file separately
-Next Command: dev-secrets import .env.development --plan
+Next Command: confirm `.env.development` as the selected import target, then run a compatible value-free import plan for `.env.development`
 Approval Needed: confirm `.env.development` first; confirm `.env.test` separately after reviewing its value-free manifest
 ```
 
@@ -148,7 +148,7 @@ Approval Needed: confirm `.env.development` first; confirm `.env.test` separatel
 Only show executable import commands after compatible CLI availability is established:
 
 ```bash
-dev-secrets import .env --plan
+dev-secrets import .env.local --plan
 ```
 
 ## Safe Alias Guidance

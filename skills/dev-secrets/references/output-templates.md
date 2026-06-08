@@ -66,6 +66,6 @@ Approval Needed: import target selection and any file mutation
 Status: needs user choice
 Safe Evidence: 2 env files detected by name; no values read
 Warnings: choose one import target; generated outputs must stay value-free
-Next Command: dev-secrets import .env --plan
+Next Command: confirm the import target, then run a compatible value-free import plan for the selected file
 Approval Needed: import target selection
 ```

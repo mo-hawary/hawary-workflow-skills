@@ -134,7 +134,12 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "compatible CLI was not detected" in combined
     assert "Refusing tool call: `cat .env`" in examples
     assert "If compatible CLI exists" in examples
-    assert "Next Command: dev-secrets import .env --plan" in examples
+    assert (
+        "Next Command: confirm the import target, then run a compatible value-free import plan for the selected file"
+        in combined
+    )
+    assert "dev-secrets import .env.local --plan" in examples
+    assert "Next Command: dev-secrets import .env --plan" not in combined
     assert (
         "Next Command: install or verify a compatible `dev-secrets` CLI before scanning"
         in examples
@@ -153,6 +158,10 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "Safe evidence:" not in combined
     assert "Next command:" not in combined
     assert "Approval needed:" not in combined
+    assert not re.search(
+        r"Status: needs user choice[\s\S]{0,240}dev-secrets import \.env --plan",
+        combined,
+    )
 
 
 def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():
