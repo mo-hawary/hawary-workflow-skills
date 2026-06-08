@@ -135,7 +135,9 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "compatible CLI was not detected" in combined
     assert "If compatible CLI exists" in examples
     assert "Next Command: dev-secrets import .env --plan" in examples
-    assert "Next step: install or implement a compatible local CLI" in output_templates
+    assert "Next Command: install or implement a compatible local CLI" in output_templates
+    assert "Safe Evidence: 2 env files detected by name; no values read" in output_templates
+    assert "Approval Needed: import target selection" in output_templates
 
 
 def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():
@@ -147,6 +149,39 @@ def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():
     assert "permanently exposed" in recovery
     assert "git filter-repo" in recovery
     assert "BFG" in recovery
+    assert "<leaked-env-file-path>" in recovery
+    assert "<leaked-env-file-name>" in recovery
+    assert ".env.local" in recovery
+    assert "apps/web/.env.development" in recovery
+    assert "bfg --delete-files .env.development" in recovery
+    recovery_lines = {line.strip() for line in recovery.splitlines()}
+    assert "git filter-repo --path .env --invert-paths" not in recovery_lines
+    assert "bfg --delete-files .env" not in recovery_lines
+    assert "do not default cleanup commands to `.env`" in recovery
 
     lower = recovery.lower()
     assert lower.index("rotate") < lower.index("history cleanup")
+
+
+def test_dev_secrets_limits_package_script_inspection_to_names_or_redacted_metadata():
+    paths = [
+        ROOT / "skills" / "dev-secrets" / "SKILL.md",
+        ROOT / "adapters" / "codex" / "AGENTS.md",
+        ROOT / "adapters" / "claude" / "README.md",
+        ROOT / "adapters" / "generic-agent.md",
+    ]
+
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+    assert "package script names" in combined
+    assert "full package script command strings" in combined
+    assert "compatible local CLI or redacted manifest" in combined
+    assert "redacted manifest metadata" in combined
+
+    unsafe_phrases = [
+        "package scripts, existing examples",
+        "package scripts, examples",
+        "Inspect safe repo signals only: file names, tracking status, ignore rules, package scripts",
+    ]
+    for phrase in unsafe_phrases:
+        assert phrase not in combined

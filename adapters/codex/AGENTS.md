@@ -19,7 +19,8 @@ Use `skills/dev-secrets/SKILL.md` when the user asks about:
 - Do not read real `.env*` values.
 - Do not show values, partial values, hashes, fingerprints, encrypted blobs, or passphrase hints.
 - Do not run broad secret-reading commands.
-- Inspect safe repo signals only: file names, tracking status, ignore rules, package scripts, examples, and manifests.
+- Inspect safe repo signals only: file names, tracking status, ignore rules, package script names, examples, and redacted manifest metadata.
+- Do not inspect full package script command strings unless they come from a compatible local CLI or redacted manifest.
 - Output value-free plans when no compatible local CLI exists.
 - Ask approval before any mutation.
 

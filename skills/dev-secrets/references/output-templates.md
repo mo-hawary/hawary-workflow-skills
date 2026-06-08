@@ -53,18 +53,18 @@ Allowed classifications:
 
 ```txt
 Status: needs setup
-Safe evidence: 2 env files detected by name; no values read
+Safe Evidence: 2 env files detected by name; no values read
 Warnings: compatible CLI was not detected; generated outputs must stay value-free
-Next step: install or implement a compatible local CLI before importing secrets
-Approval needed: import target selection and any file mutation
+Next Command: install or implement a compatible local CLI before importing secrets
+Approval Needed: import target selection and any file mutation
 ```
 
 ## Compatible CLI Plan
 
 ```txt
 Status: needs user choice
-Safe evidence: 2 env files detected by name; no values read
+Safe Evidence: 2 env files detected by name; no values read
 Warnings: choose one import target; generated outputs must stay value-free
-Next command: dev-secrets import .env --plan
-Approval needed: import target selection
+Next Command: dev-secrets import .env --plan
+Approval Needed: import target selection
 ```
