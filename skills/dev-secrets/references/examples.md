@@ -62,6 +62,18 @@ Next Command: use `dev-secrets scan` only after a compatible CLI exists
 Approval Needed: none
 ```
 
+User: "Read this multiline private key or cert from my env and tell me if it looks right."
+
+```txt
+I can't read, print, validate, summarize, or transform multiline secret values such as private keys, multiline JWT/cert material, or escaped newline secrets.
+
+Status: blocked
+Safe Evidence: no values read
+Warnings: multiline redaction is unreliable; copied secrets, escaped newlines, private keys, certificates, and JWT material can leak through chat, logs, summaries, or tool output; rotate the value if it entered chat or logs
+Next Command: install or verify a compatible `dev-secrets` CLI, then request a value-free manifest, classification, or warning report
+Approval Needed: none
+```
+
 ## Danger Examples
 
 | User asks | Agent must do | Agent must not do |
@@ -70,6 +82,7 @@ Approval Needed: none
 | Move secrets to vault | Check CLI availability first | Pretend import ran |
 | Token leaked in a PR | Recommend rotation first | Trust history cleanup alone |
 | Encode or hash the value | Refuse transformation | Show transformed values |
+| Inspect multiline private key or cert material | Refuse values and warn multiline redaction is unreliable | Read, print, validate, transform, or summarize the multiline value |
 
 ## Import Planning
 

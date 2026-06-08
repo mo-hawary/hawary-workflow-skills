@@ -5,7 +5,7 @@ allowed-tools:
   - Read
   - Glob
   - Bash
-description: "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: safe evidence, warnings, next command, recovery."
+description: "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: Safe Evidence, Warnings, Next Command, recovery."
 ---
 
 # Dev Secrets
@@ -60,7 +60,7 @@ Cannot do:
 
 ## When To Use
 
-Use this when asked to handle `.env`, `.env.local`, `.env.development`, `.env.test`, `.env.production`, framework env files, local secret migration, secret-safe dev commands, value-free env manifests, local vault workflows, redacted local runs, or suspected local env leaks. This remains local-development guidance; production-looking files require provider, platform, or deployment-secret rotation if exposed.
+Use this when asked to handle `.env`, `.env.local`, `.env.development`, `.env.test`, `.env.production`, `.envrc`, `doppler.yaml`, `op run` wrappers, shell-injected secret invocations, other local secret-injection wrappers, framework env files, local secret migration, secret-safe dev commands, value-free env manifests, local vault workflows, redacted local runs, or suspected local env leaks. This remains local-development guidance; production-looking files require provider, platform, or deployment-secret rotation if exposed.
 
 ## Required Disclosure
 
@@ -106,9 +106,9 @@ Check whether a compatible `dev-secrets` CLI exists before recommending executab
 - If no compatible CLI exists: return `Status: needs setup` and a next step to install or implement a compatible local CLI before importing secrets.
 - If CLI status is unknown: return `Status: needs setup` and recommend `dev-secrets doctor` only as a command shape, not as something already run.
 
-## Allowed Command Shape
+## Reference Command Shapes
 
-These commands assume the `dev-secrets` CLI is installed in the project. If no compatible CLI exists, treat these as planning output and report the workflow as a plan instead.
+These are reference command shapes only; this repository does not implement the CLI. If no compatible CLI exists, treat these as planning output and report the workflow as a plan instead.
 
 Use these command shapes when a compatible CLI exists or is being implemented:
 

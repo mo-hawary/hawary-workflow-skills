@@ -38,10 +38,10 @@
     },
     {
       "name": "dev-secrets",
-      "description": "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: safe evidence, warnings, next command, recovery.",
+      "description": "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: Safe Evidence, Warnings, Next Command, recovery.",
       "path": "skills/dev-secrets/SKILL.md",
       "category": "security",
-      "outputs": ["value-free manifest", "tracked-file warnings", "next safe command", "rotation guidance"],
+      "outputs": ["Safe Evidence", "Warnings", "Next Command", "rotation guidance"],
       "installable": true
     },
     {

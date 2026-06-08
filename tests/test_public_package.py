@@ -133,6 +133,10 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
 
     assert "compatible CLI was not detected" in combined
     assert "Refusing tool call: `cat .env`" in examples
+    assert "multiline private key or cert" in examples
+    assert "multiline redaction is unreliable" in examples
+    assert "private keys, multiline JWT/cert material, or escaped newline secrets" in examples
+    assert "rotate the value if it entered chat or logs" in examples
     assert "If compatible CLI exists" in examples
     assert (
         "Next Command: confirm the import target, then run a compatible value-free import plan for the selected file"
@@ -223,6 +227,16 @@ def test_dev_secrets_limits_safe_inspection_to_redacted_metadata():
     assert "production-looking files require provider, platform, or deployment-secret rotation" in skill
     assert "Key names can reveal vendors, architecture, data categories, and internal systems" in skill
     assert "Key names may be shown only for manifest, classification, warning, or planning purposes" in skill
+    for phrase in [
+        ".envrc",
+        "doppler.yaml",
+        "op run",
+        "shell-injected secret invocations",
+        "other local secret-injection wrappers",
+    ]:
+        assert phrase in skill
+    assert "## Reference Command Shapes" in skill
+    assert "These are reference command shapes only; this repository does not implement the CLI." in skill
     assert "package script names" in combined
     assert "full package script command strings" in combined
     assert "compatible local CLI or redacted manifest" in combined
@@ -257,3 +271,15 @@ def test_dev_secrets_limits_safe_inspection_to_redacted_metadata():
     ]
     for phrase in unsafe_phrases:
         assert phrase not in combined
+
+
+def test_dev_secrets_index_uses_canonical_output_labels():
+    catalog = json.loads((ROOT / "skills-index.json").read_text(encoding="utf-8"))
+    dev_secrets = next(skill for skill in catalog["skills"] if skill["name"] == "dev-secrets")
+
+    assert "Safe Evidence" in dev_secrets["description"]
+    assert "next command" not in dev_secrets["description"]
+    assert "safe evidence" not in dev_secrets["description"]
+    assert "Safe Evidence" in dev_secrets["outputs"]
+    assert "Warnings" in dev_secrets["outputs"]
+    assert "Next Command" in dev_secrets["outputs"]
