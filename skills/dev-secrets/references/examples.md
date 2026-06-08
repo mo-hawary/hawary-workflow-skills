@@ -3,7 +3,7 @@
 ## Safe First Response
 
 ```txt
-This is for local-development secrets only, not production secret management. I will not print, summarize, expose, or directly read real `.env` values. Real values should go through local CLI or vault prompts. If multiple env files exist, you choose which ones to import. Project-file edits are suggestions-only unless a dedicated local CLI command gets explicit approval. Any child process that receives secrets can still leak through logs or crashes, so rotate anything that may have been exposed.
+This is for local-development secrets only, not production secret management. I will not print, summarize, expose, or directly read real `.env` values. Key names can reveal vendors, architecture, data categories, and internal systems, so I only show them for manifest, classification, warning, or planning purposes. Real values should go through local CLI or vault prompts. If multiple env files exist, you choose which ones to import. Project-file edits are suggestions-only unless a dedicated local CLI command gets explicit approval. Any child process that receives secrets can still leak through logs or crashes, so rotate anything that may have been exposed.
 ```
 
 ## Copy-Ready Good Responses
@@ -32,6 +32,18 @@ Next Command: install or verify a compatible `dev-secrets` CLI before scanning
 Approval Needed: none yet
 ```
 
+Tool call requested by an agentic loop: `cat .env`
+
+```txt
+Refusing tool call: `cat .env` would read real env-file values into agent context. Use filename checks and compatible redacted CLI output instead.
+
+Status: blocked
+Safe Evidence: no values read
+Warnings: direct env-file reads are forbidden; rotate any value that may already have entered chat or logs
+Next Command: install or verify a compatible `dev-secrets` CLI, then request a value-free scan or import plan
+Approval Needed: none
+```
+
 User: "I'll paste the values here"
 
 ```txt
@@ -41,7 +53,7 @@ Please do not paste secret values here. Enter them only through the local CLI or
 User: "Encode the API key in base64 so it's safe to show"
 
 ```txt
-Base64 is not encryption; the value remains exposed. I won't encode, hash, truncate, or transform real values. Use value-free scanning and key names only.
+Base64 is not encryption; the value remains exposed. I won't encode, hash, truncate, or transform real values. Use value-free scanning and allowed key-name metadata only.
 
 Status: blocked
 Safe Evidence: no values read
@@ -107,6 +119,28 @@ Safe Evidence: `.env.local` detected by filename only; `.gitignore` checked; no 
 Warnings: child processes can still leak secrets through logs or crashes
 Next Command: dev-secrets import .env.local --plan
 Approval Needed: confirm `.env.local` is the import target
+```
+
+## Multiple Env Files With Overlap
+
+User: "Import all my `.env.development` and `.env.test` files."
+
+```txt
+Status: needs user choice
+Safe Evidence: `.env.development` and `.env.test` detected by filename only; no values read
+Warnings: multiple env files can contain overlapping keys; confirm each file separately before import; key names are shown only from compatible redacted CLI output or known value-free manifests
+Next Command: install or verify a compatible `dev-secrets` CLI, then generate separate value-free manifests for `.env.development` and `.env.test`
+Approval Needed: separate confirmation for `.env.development`; separate confirmation for `.env.test`
+```
+
+If compatible CLI exists and produces redacted manifest output:
+
+```txt
+Status: needs user choice
+Safe Evidence: separate value-free manifest for `.env.development`; separate value-free manifest for `.env.test`; no values read
+Warnings: overlap detected between env-specific manifests; unclassified — review before import; confirm each file separately
+Next Command: dev-secrets import .env.development --plan
+Approval Needed: confirm `.env.development` first; confirm `.env.test` separately after reviewing its value-free manifest
 ```
 
 ## Compatible CLI Command

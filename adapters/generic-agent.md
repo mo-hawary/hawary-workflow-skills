@@ -24,4 +24,4 @@ If no compatible local CLI exists, return a value-free setup plan with `Status: 
 
 ## Safe Inspection
 
-Agents may inspect file names, tracking status, ignore rules, package script names, example file presence and key names, and redacted manifest metadata. Do not inspect full package script command strings, example values, or manifest values unless they come from a compatible local CLI or redacted manifest.
+Agents may inspect file names, tracking status, ignore rules, package script names, example file presence only, and redacted manifest metadata. Show key names only for manifest, classification, warning, or planning purposes, and only when obtained from compatible redacted CLI output or a known value-free manifest. Never inspect full package script command strings, example-file values, copied secrets, encrypted blobs, hashes, fingerprints, partial values, transformed values, or manifest values unless they come from a compatible local CLI or redacted manifest.

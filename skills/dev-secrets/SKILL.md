@@ -29,11 +29,11 @@ AI coding agents can accidentally pull real `.env` values into chat, diffs, summ
 Can see:
 
 - File names.
-- Key names.
+- Key names only when obtained from compatible redacted CLI output or a known value-free manifest.
 - Counts.
 - Classifications.
 - Warnings.
-- Value-free manifests and examples.
+- Known value-free manifests and example file presence.
 
 Cannot see:
 
@@ -60,7 +60,7 @@ Cannot do:
 
 ## When To Use
 
-Use this when asked to handle `.env`, `.env.local`, `.env.development`, `.env.test`, framework env files, local secret migration, secret-safe dev commands, value-free env manifests, local vault workflows, redacted local runs, or suspected local env leaks.
+Use this when asked to handle `.env`, `.env.local`, `.env.development`, `.env.test`, `.env.production`, framework env files, local secret migration, secret-safe dev commands, value-free env manifests, local vault workflows, redacted local runs, or suspected local env leaks. This remains local-development guidance; production-looking files require provider, platform, or deployment-secret rotation if exposed.
 
 ## Required Disclosure
 
@@ -69,10 +69,11 @@ Before inspecting a repo for env files or recommending import/run commands, tell
 1. This is for local-development secrets only, not production secret management.
 2. You will not print, summarize, expose, or directly read real secret values.
 3. Real values must be handled through local CLI or vault prompts, not chat.
-4. If multiple env files exist, the user chooses which file to import.
-5. Project-file edits are suggestions-only unless a dedicated local CLI command gets explicit approval.
-6. Any child process receiving secrets can still leak through logs, crashes, telemetry, snapshots, or subprocesses.
-7. If a value may have leaked, rotate it.
+4. Key names can reveal vendors, architecture, data categories, and internal systems. Key names may be shown only for manifest, classification, warning, or planning purposes.
+5. If multiple env files exist, the user chooses which file to import.
+6. Project-file edits are suggestions-only unless a dedicated local CLI command gets explicit approval.
+7. Any child process receiving secrets can still leak through logs, crashes, telemetry, snapshots, or subprocesses.
+8. If a value may have leaked, rotate it.
 
 ## Non-Negotiable Rules
 
@@ -80,15 +81,16 @@ Before inspecting a repo for env files or recommending import/run commands, tell
 - Do not open, preview, summarize, transform, echo, export, copy, or paste real env-file values.
 - Do not run broad secret-reading commands such as `cat .env`, `printenv`, `env`, or recursive searches for token-like names.
 - Do not show values, partial values, transformed values, hashes, fingerprints, encrypted blobs, passphrase hints, or provider tokens.
-- Allowed user-facing data: file names, key names, counts, classifications, reasons, locations, warnings, and next steps.
+- Key names can reveal vendors, architecture, data categories, and internal systems. Show key names only for manifest, classification, warning, or planning purposes, and only when they come from compatible redacted CLI output or a known value-free manifest.
+- Allowed user-facing data: file names, counts, classifications, reasons, locations, warnings, next steps, and key names under the key-name sensitivity rule above.
 - No plaintext fallback: if encryption, permissions, or backend setup fails, fail closed with setup instructions.
 - Never delete, overwrite, truncate, or rewrite real `.env*` files without explicit approval.
 
 ## Standard Workflow
 
 1. Give the required disclosure.
-2. Inspect only safe repo signals: tracked file names, `.gitignore`, package script names, example file presence and key names, and redacted manifest metadata. Do not inspect full package script command strings, example values, or manifest values unless they come from a compatible local CLI or redacted manifest.
-3. If env files exist, ask which file or files the user wants to import. Do not read their contents.
+2. Inspect only safe repo signals: tracked file names, `.gitignore`, package script names, example file presence only, and redacted manifest metadata. Key names are allowed only when obtained from compatible redacted CLI output or a known value-free manifest. Never inspect full package script command strings, example-file values, copied secrets, encrypted blobs, hashes, fingerprints, partial values, transformed values, or manifest values unless they come from a compatible local CLI or redacted manifest.
+3. If env files exist, ask which file or files the user wants to import. Do not read their contents. If the user says "all files" and multiple `.env*` files exist with potentially overlapping keys, warn about key collisions and ask for separate confirmation per file before proceeding.
 4. Recommend a value-free dry run before import.
 5. Require local interactive approval before importing values or changing project files.
 6. Generate or review value-free outputs only: `.env.example`, `secrets.manifest.json`, warnings, classifications, and alias proposals.
@@ -123,7 +125,7 @@ dev-secrets lock
 dev-secrets add-alias
 ```
 
-The `run` command injects values into the requested child process environment, never into command arguments. The child process remains trusted code and can still leak values.
+The `run` command injects values into the requested child process environment, never into command arguments. The child process remains trusted code and can still leak values. Do not recommend wrapping unfamiliar, downloaded, generated, or externally sourced commands without warning that the child process is not audited and can leak secrets through logs, crashes, telemetry, subprocesses, network calls, or artifacts.
 
 ## Before Any Code Is Written
 
@@ -142,8 +144,8 @@ The `run` command injects values into the requested child process environment, n
 Return:
 
 - **Status:** ready, blocked, needs setup, needs user choice, imported, locked, scan warning, or rotation needed.
-- **Safe Evidence:** file names, key names, counts, tracked env-file status, ignore status, and manifest/example presence.
-- **Warnings:** leak boundaries, missing backend, unsafe tracked env files, duplicate env files, public-prefixed risky keys, multiline redaction limits.
+- **Safe Evidence:** file names, counts, tracked env-file status, ignore status, manifest presence, example file presence, and key names only when allowed by the key-name sensitivity rule.
+- **Warnings:** leak boundaries, missing backend, unsafe tracked env files, duplicate env files, public-prefixed risky keys, unknown classifications, key-name sensitivity, multiline redaction limits.
 - **Next Command:** the smallest value-safe command the user can run locally.
 - **Approval Needed:** any import, alias addition, file mutation, cleanup, or rotation action.
 
@@ -161,4 +163,5 @@ Return:
 - All outputs are value-free.
 - Local-development scope is explicit.
 - Any file mutation or cleanup waits for approval.
+- No `.env*` file was deleted, overwritten, truncated, or rewritten without explicit approval.
 - Rotation is recommended whenever exposure cannot be ruled out.

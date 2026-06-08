@@ -6,7 +6,7 @@ Codex uses `AGENTS.md`-style persistent guidance. Keep `skills/dev-secrets/SKILL
 
 Use `skills/dev-secrets/SKILL.md` when the user asks about:
 
-- `.env`, `.env.local`, `.env.development`, or `.env.test`
+- `.env`, `.env.local`, `.env.development`, `.env.test`, or `.env.production`
 - local secret migration
 - vault import
 - local secret scanning
@@ -19,8 +19,9 @@ Use `skills/dev-secrets/SKILL.md` when the user asks about:
 - Do not read real `.env*` values.
 - Do not show values, partial values, hashes, fingerprints, encrypted blobs, or passphrase hints.
 - Do not run broad secret-reading commands.
-- Inspect safe repo signals only: file names, tracking status, ignore rules, package script names, example file presence and key names, and redacted manifest metadata.
-- Do not inspect full package script command strings, example values, or manifest values unless they come from a compatible local CLI or redacted manifest.
+- Inspect safe repo signals only: file names, tracking status, ignore rules, package script names, example file presence only, and redacted manifest metadata.
+- Show key names only for manifest, classification, warning, or planning purposes, and only when obtained from compatible redacted CLI output or a known value-free manifest.
+- Never inspect full package script command strings, example-file values, copied secrets, encrypted blobs, hashes, fingerprints, partial values, transformed values, or manifest values unless they come from a compatible local CLI or redacted manifest.
 - Output value-free plans when no compatible local CLI exists.
 - Ask approval before any mutation.
 

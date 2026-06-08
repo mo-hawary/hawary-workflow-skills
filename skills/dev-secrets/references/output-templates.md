@@ -13,7 +13,7 @@ FEATURE_FLAG_NAME=
 
 Rules:
 
-- Include key names only.
+- Include key names only when generated from compatible redacted CLI output or a known value-free manifest.
 - Leave values blank.
 - Comments may describe purpose, environment, or required/optional status.
 - Public-prefixed keys are still reviewed; public exposure does not make a value safe.
@@ -48,6 +48,7 @@ Allowed classifications:
 - `publicly_exposed`
 - `needs_review`
 - `non_secret_config`
+- `unclassified — review before import`
 
 ## Value-Free Plan
 

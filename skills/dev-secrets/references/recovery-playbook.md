@@ -19,7 +19,7 @@ Assume the value is permanently exposed. GitHub and similar hosts may retain cac
 
 1. Treat the value as exposed.
 2. Regenerate the value in the provider or service that issued it.
-3. Put the replacement in an ignored owner-only temporary env file.
+3. Put the replacement in an ignored owner-only temporary env file (`chmod 600`).
 4. Import the replacement through the local CLI.
 5. Run the affected app or tool through the local wrapper.
 6. Verify the workflow that depends on the value.
@@ -35,6 +35,8 @@ Assume the value is permanently exposed. GitHub and similar hosts may retain cac
 - Supabase local development values: rotate database credentials or service credentials in the project dashboard where supported, update local vault entries, verify local app startup, then remove stale plaintext files.
 - Stripe test-mode values: create replacement restricted keys where possible, update local vault entries, verify local payment flows in test mode, then revoke the old key.
 - Database connection strings: rotate the database user password or create a replacement local-only user, update the vault, verify migrations/app startup, then revoke the old credential.
+
+After provider regeneration, update any affected CI/CD platform secret stores and deployment dashboards, such as GitHub Actions, Vercel, Railway, Netlify, Render, Fly.io, cloud secret stores, and deployment dashboards.
 
 Keep provider-specific discussion value-free. Name the service and key label only; do not paste old or new values.
 
