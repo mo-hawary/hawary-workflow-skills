@@ -37,6 +37,14 @@
       "installable": true
     },
     {
+      "name": "dev-secrets",
+      "description": "Use when asked to handle .env files, local secrets, vault workflows, or risks exposing real values to an AI agent. Outputs: Safe Evidence, Warnings, Next Command, recovery.",
+      "path": "skills/dev-secrets/SKILL.md",
+      "category": "security",
+      "outputs": ["Safe Evidence", "Warnings", "Next Command", "rotation guidance"],
+      "installable": true
+    },
+    {
       "name": "feature-spec-delivery-pipeline",
       "description": "Turn a feature request or bug cluster into a source-backed spec, impact map, acceptance criteria, and delivery plan before coding.",
       "path": "skills/feature-spec-delivery-pipeline/SKILL.md",

@@ -105,3 +105,202 @@ def test_trust_and_security_docs_are_present_and_specific():
         "OSV.dev",
     ]:
         assert phrase in security_model
+
+
+def test_dev_secrets_examples_are_value_free_and_status_driven():
+    examples = (ROOT / "skills" / "dev-secrets" / "references" / "examples.md").read_text(
+        encoding="utf-8"
+    )
+    output_templates = (
+        ROOT / "skills" / "dev-secrets" / "references" / "output-templates.md"
+    ).read_text(encoding="utf-8")
+    combined = f"{examples}\n{output_templates}"
+
+    forbidden_example_commands = [
+        "printenv",
+        "\nenv\n",
+    ]
+    for command in forbidden_example_commands:
+        assert command not in combined
+
+    for field in [
+        "Status:",
+        "Safe Evidence:",
+        "Warnings:",
+        "Approval Needed:",
+    ]:
+        assert field in examples
+
+    assert "compatible `dev-secrets` CLI was not detected" in combined
+    assert "CLI not found" in combined
+    assert "workflow-only skill" in combined
+    assert "No CLI is installed by default" in skill_text(ROOT / "skills" / "dev-secrets" / "SKILL.md")
+    assert "do not run `dev-secrets ...` until `command -v dev-secrets` succeeds" in combined
+    assert "Refusing tool call: `cat .env`" in examples
+    assert "multiline private key or cert" in examples
+    assert "multiline redaction is unreliable" in examples
+    assert "private keys, multiline JWT/cert material, or escaped newline secrets" in examples
+    assert "rotate the value if it entered chat or logs" in examples
+    assert "If compatible CLI exists" in examples
+    assert (
+        "Next Command: confirm the import target, then run a compatible value-free import plan for the selected file"
+        in combined
+    )
+    assert "dev-secrets import .env.local --plan" in examples
+    assert "Next Command: dev-secrets import .env --plan" not in combined
+    assert (
+        "Next Command: install or implement a compatible local CLI before scanning"
+        in examples
+    )
+    assert ".env.development" in examples
+    assert ".env.test" in examples
+    assert "separate value-free manifest for `.env.development`" in examples
+    assert "separate value-free manifest for `.env.test`" in examples
+    assert "overlap detected between env-specific manifests" in examples
+    assert "Next Command: install or implement a compatible local CLI" in output_templates
+    assert "Safe Evidence: 2 env files detected by name; no values read" in output_templates
+    assert "Approval Needed: import target selection" in output_templates
+    assert "Next Command: dev-secrets scan" not in examples
+    assert "Next Command: install or verify a compatible `dev-secrets` CLI" not in combined
+    assert "Safe Evidence: manifest missing" not in examples
+    assert "Next Step:" not in combined
+    assert "Safe evidence:" not in combined
+    assert "Next command:" not in combined
+    assert "Approval needed:" not in combined
+    assert not re.search(
+        r"Status: needs user choice[\s\S]{0,240}dev-secrets import \.env --plan",
+        combined,
+    )
+
+
+def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():
+    recovery = (
+        ROOT / "skills" / "dev-secrets" / "references" / "recovery-playbook.md"
+    ).read_text(encoding="utf-8")
+
+    assert "If the repo is or was public" in recovery
+    assert "permanently exposed" in recovery
+    assert "git filter-repo" in recovery
+    assert "BFG" in recovery
+    assert "<leaked-env-file-path>" in recovery
+    assert "<leaked-env-file-name>" in recovery
+    assert ".env.local" in recovery
+    assert "apps/web/.env.development" in recovery
+    assert "bfg --delete-files .env.development" in recovery
+    assert "chmod 600" in recovery
+    assert "CI/CD platform secret stores" in recovery
+    for platform in [
+        "GitHub Actions",
+        "Vercel",
+        "Railway",
+        "Netlify",
+        "Render",
+        "Fly.io",
+        "cloud secret stores",
+        "deployment dashboards",
+    ]:
+        assert platform in recovery
+    recovery_lines = {line.strip() for line in recovery.splitlines()}
+    assert "git filter-repo --path .env --invert-paths" not in recovery_lines
+    assert "bfg --delete-files .env" not in recovery_lines
+    assert "do not default cleanup commands to `.env`" in recovery
+
+    lower = recovery.lower()
+    assert lower.index("rotate") < lower.index("history cleanup")
+
+
+def test_dev_secrets_limits_safe_inspection_to_redacted_metadata():
+    paths = [
+        ROOT / "skills" / "dev-secrets" / "SKILL.md",
+        ROOT / "adapters" / "codex" / "AGENTS.md",
+        ROOT / "adapters" / "claude" / "README.md",
+        ROOT / "adapters" / "generic-agent.md",
+    ]
+
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+    skill = (ROOT / "skills" / "dev-secrets" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    threat_model = (
+        ROOT / "skills" / "dev-secrets" / "references" / "threat-model.md"
+    ).read_text(encoding="utf-8")
+    output_templates = (
+        ROOT / "skills" / "dev-secrets" / "references" / "output-templates.md"
+    ).read_text(encoding="utf-8")
+
+    assert ".env.production" in skill
+    assert "production-looking files require provider, platform, or deployment-secret rotation" in skill
+    assert "Key names can reveal vendors, architecture, data categories, and internal systems" in skill
+    assert "Key names may be shown only for manifest, classification, warning, or planning purposes" in skill
+    for phrase in [
+        ".envrc",
+        "doppler.yaml",
+        "op run",
+        "shell-injected secret invocations",
+        "other local secret-injection wrappers",
+    ]:
+        assert phrase in skill
+    assert "## Reference Command Shapes" in skill
+    assert "These are reference command shapes only; this repository does not implement the CLI." in skill
+    assert "These are pseudo-commands until `command -v dev-secrets` succeeds" in skill
+    assert "## Bootstrap Contract For Implementers" in skill
+    for command in [
+        "doctor",
+        "status",
+        "import <env-file> --plan",
+        "scan",
+        "run -- <command>",
+    ]:
+        assert command in skill
+    assert "stdout and stderr never include values" in skill
+    assert "doctor` is the smallest optional stub" in skill
+    assert "package script names" in combined
+    assert "full package script command strings" in combined
+    assert "compatible local CLI or redacted manifest" in combined
+    assert "redacted manifest metadata" in combined
+    assert "example file presence only" in combined
+    assert "known value-free manifest" in combined
+    assert "copied secrets" in combined
+    assert "example-file values" in combined
+    assert "manifest values" in combined
+    assert (
+        'If the user says "all files" and multiple `.env*` files exist with potentially overlapping keys'
+        in skill
+    )
+    assert "separate confirmation per file" in skill
+    assert "unfamiliar, downloaded, generated, or externally sourced commands" in skill
+    assert "no `.env*` file was deleted, overwritten, truncated, or rewritten without explicit approval" in skill.lower()
+    assert "Key names revealing sensitive context | Partially" in threat_model
+    assert "unclassified — review before import" in threat_model
+    assert "unclassified — review before import" in output_templates
+    assert "never treat it as safe by default" in threat_model
+    assert "surface it in Warnings" in threat_model
+
+    unsafe_phrases = [
+        "example file presence and key names",
+        "package scripts, existing examples",
+        "package scripts, examples",
+        "package script names, existing examples",
+        "package script names, examples",
+        "Inspect safe repo signals only: file names, tracking status, ignore rules, package scripts",
+        "Inspect safe repo signals only: file names, tracking status, ignore rules, package script names, examples",
+        "Agents may inspect file names, tracking status, ignore rules, package script names, example file presence and key names",
+    ]
+    for phrase in unsafe_phrases:
+        assert phrase not in combined
+
+
+def skill_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def test_dev_secrets_index_uses_canonical_output_labels():
+    catalog = json.loads((ROOT / "skills-index.json").read_text(encoding="utf-8"))
+    dev_secrets = next(skill for skill in catalog["skills"] if skill["name"] == "dev-secrets")
+
+    assert "Safe Evidence" in dev_secrets["description"]
+    assert "next command" not in dev_secrets["description"]
+    assert "safe evidence" not in dev_secrets["description"]
+    assert "Safe Evidence" in dev_secrets["outputs"]
+    assert "Warnings" in dev_secrets["outputs"]
+    assert "Next Command" in dev_secrets["outputs"]
