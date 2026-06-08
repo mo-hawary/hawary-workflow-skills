@@ -16,7 +16,7 @@ I can't read or print real `.env` values.
 Status: needs setup
 Safe Evidence: no values read
 Warnings: direct env-file reads are forbidden
-Next Step: install or verify a compatible `dev-secrets` CLI, then run a value-free import plan
+Next Command: install or verify a compatible `dev-secrets` CLI, then run a value-free import plan
 Approval Needed: none yet
 ```
 
@@ -46,7 +46,7 @@ Base64 is not encryption; the value remains exposed. I won't encode, hash, trunc
 Status: blocked
 Safe Evidence: no values read
 Warnings: transformed secrets are still secrets
-Next Step: use `dev-secrets scan` only after a compatible CLI exists
+Next Command: use `dev-secrets scan` only after a compatible CLI exists
 Approval Needed: none
 ```
 
@@ -71,7 +71,7 @@ I can help with a value-free plan first. I will check file names and git trackin
 Status: needs setup
 Safe Evidence: env-file candidates detected by filename only; no values read
 Warnings: compatible `dev-secrets` CLI was not detected
-Next Step: install or implement a compatible local CLI before importing secrets
+Next Command: install or implement a compatible local CLI before importing secrets
 Approval Needed: import target selection and any file mutation
 ```
 
@@ -95,7 +95,7 @@ Without a compatible CLI:
 Status: needs setup
 Safe Evidence: `.env.local` detected by filename only; `.gitignore` checked; no values read
 Warnings: compatible `dev-secrets` CLI was not detected; real values must stay in local prompts
-Next Step: install or implement a compatible local CLI, then run a value-free import plan
+Next Command: install or implement a compatible local CLI, then run a value-free import plan
 Approval Needed: choose the import target before any local import or file mutation
 ```
 
@@ -140,8 +140,8 @@ Example aliases:
 
 ```txt
 Status: scan warning
-Safe evidence: `.env.local` exists, `.env.example` exists
+Safe Evidence: `.env.local` exists, `.env.example` exists
 Warnings: one env file appears tracked; manifest missing; rotate affected values before treating migration as safe
-Next command: dev-secrets scan
-Approval needed: cleanup or history rewrite
+Next Command: dev-secrets scan
+Approval Needed: cleanup or history rewrite
 ```

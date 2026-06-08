@@ -138,6 +138,10 @@ def test_dev_secrets_examples_are_value_free_and_status_driven():
     assert "Next Command: install or implement a compatible local CLI" in output_templates
     assert "Safe Evidence: 2 env files detected by name; no values read" in output_templates
     assert "Approval Needed: import target selection" in output_templates
+    assert "Next Step:" not in combined
+    assert "Safe evidence:" not in combined
+    assert "Next command:" not in combined
+    assert "Approval needed:" not in combined
 
 
 def test_dev_secrets_recovery_prioritizes_rotation_before_history_cleanup():

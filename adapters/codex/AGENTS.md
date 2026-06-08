@@ -26,4 +26,4 @@ Use `skills/dev-secrets/SKILL.md` when the user asks about:
 
 ## Expected Codex Response
 
-Return the skill's standard output shape: status, safe evidence, warnings, next command, and approval needed.
+Return the skill's standard output shape: Status, Safe Evidence, Warnings, Next Command, and Approval Needed.
