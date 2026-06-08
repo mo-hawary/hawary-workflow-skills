@@ -60,10 +60,10 @@ Issue: `ArticleBody` still renders a markdown link label as a plain string inste
 Evidence:
 
 - `app/components/labs/ArticleBody.tsx:245` returns `{label}` inside the `<a>`.
-- `app/content/labs/neural-network-architecture-families.md:143` and following Reading Path entries use labels like `[**Spatial and Structured Architectures**](/labs/feedforward-spatial-architectures)`.
+- `app/content/labs/neural-network-architecture-families.md:143` and following Reading Path entries use labels like `\[**Spatial and Structured Architectures**\]\(/labs/feedforward-spatial-architectures\)`.
 - The existing GitHub review comment `discussion_r3349126618` flagged the same issue at reviewed commit `7f8ba7ced3`, and the latest head still contains the same renderer behavior.
 
-Recommended fix: render the link label through a safe inline-label renderer, or strip supported inline markers before display. Add a focused test that would fail on `[**Label**](/path)` by asserting the visible label does not contain `**`.
+Recommended fix: render the link label through a safe inline-label renderer, or strip supported inline markers before display. Add a focused test that would fail on `\[**Label**\]\(/path\)` by asserting the visible label does not contain `**`.
 
 Status: unresolved.
 
