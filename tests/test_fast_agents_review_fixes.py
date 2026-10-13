@@ -890,6 +890,10 @@ def test_progress_event_snapshots_are_coalesced_but_terminal_status_is_durable(t
         task_dir, _, _ = make_task(tmp_path)
         supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "unused")
         supervisor.role_by_thread["thread"] = "worker0"
+        supervisor.status["roles"]["worker0"].update({
+            "state": "running", "turn_id": "turn", "turn_start_state": "acknowledged",
+            "turn_status": "inProgress",
+        })
         counter = []
         real_writer = app_server.atomic_write_json
 
