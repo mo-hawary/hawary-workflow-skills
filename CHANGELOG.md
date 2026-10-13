@@ -8,6 +8,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- Codex-only skill metadata and runtime checks; fixture-tested CLI release registry, versioned schema fixture archives, and a Codex upgrade runbook.
+- Authenticated main/nightly Codex smoke workflow for Linux/macOS (requires configured credential), metadata-only transcript recorder and review-gated real golden replay suite; no unverified real transcript committed.
+- Bounded control IPC, steering duplicate rejection, finite app-server timeouts, limits on approval requests and team sizes, and explicit parent-exit/cancellation semantics.
+- Automatic routing to direct Codex exec for a single bounded independent role; app-server for multi-role/dependent or complex tasks, without silent backend fallback.
 - Bounded read-only Git scope snapshots for Codex writer tasks, clearly separated from test/acceptance verification; explicit limits for nested workspaces, pre-existing dirtiness, and concurrent edits.
 - Cross-platform regression cases for launch snapshots, recovery classification, approval reply races, progress persistence, and scope auditing.
 - Repeatable Fast ON/OFF benchmarking protocol with paired runs, correctness gates, and tier-evidence separation.
