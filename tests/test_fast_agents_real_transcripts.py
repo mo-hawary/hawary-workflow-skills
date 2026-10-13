@@ -42,3 +42,40 @@ def test_recorded_live_codex_transcript(path):
     for forbidden in ("OPENAI_API_KEY", "Authorization:", "auth.json",
                       "developerInstructions", "clientSecret"):
         assert forbidden not in raw
+
+def test_live_capture_scrubs_commands_prompts_credentials_and_turn_identifiers():
+    import sys
+    script_dir = str(ROOT / "tests")
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+    from live_codex_smoke import scrub
+    raw = {
+        "threadId": "private-thread-id",
+        "turnId": "private-turn-id",
+        "model": "gpt-6-luna",
+        "serviceTier": "priority",
+        "developerInstructions": "do not publish this",
+        "command": "read all secrets",
+        "item": {"type": "agentMessage", "text": "raw model output"},
+    }
+    record = scrub("event", "turn/completed", raw)
+    assert record["thread"].startswith("id-")
+    assert record["turn"].startswith("id-")
+    assert record["model"] == "gpt-6-luna"
+    assert record["service_tier"] == "priority"
+    encoded = json.dumps(record)
+    assert "private-thread-id" not in encoded
+    assert "private-turn-id" not in encoded
+    assert "do not publish" not in encoded
+    assert "read all secrets" not in encoded
+    assert "raw model output" not in encoded
+
+
+def test_live_workflow_is_non_pr_and_requires_authentication():
+    workflow = (ROOT / ".github" / "workflows" / "codex-live-smoke.yml").read_text(encoding="utf-8")
+    assert "workflow_dispatch:" in workflow
+    assert "schedule:" in workflow
+    assert "branches: [main]" in workflow
+    assert "pull_request:" not in workflow
+    assert "CODEX_SMOKE_API_KEY" in workflow
+    assert "@openai/codex@0.162.1" in workflow

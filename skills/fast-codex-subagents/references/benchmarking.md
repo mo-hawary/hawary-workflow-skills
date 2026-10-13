@@ -36,3 +36,24 @@ Also record median, p95, sample size, failure rate, and paired differences acros
 ## Interpretation limits
 
 An observed latency difference is not a causal claim without repeated, controlled runs. Compare task completion and correctness **before** throughput or token-cost claims. The historical October 13, 2026 single Fast ON/OFF trial is exploratory evidence only; its result is not a benchmark for all repositories, models, or platforms.
+
+## Coordinator overhead: fake Codex, no model calls
+
+Run this diagnostic on a host with Python and the fake CLI fixtures:
+
+```bash
+python tests/benchmark_codex_backends.py --pairs 10 --output /tmp/codex-backend-overhead.json
+```
+
+It executes matched, counterbalanced fake `exec` and app-server tasks and records
+end-to-end startup/process overhead (median and p95). It is a **local harness
+overhead** measurement only: fake workers make no inference, have different
+process communication paths, and the result does not predict the speed of a
+real Codex model turn. CI runs three pairs on Ubuntu for diagnostic regressions.
+
+The routing threshold is functional, not an arbitrary milliseconds claim:
+default `auto` chooses `exec` for one bounded independent worker when no
+interactive steering/approval-reply control is required; it chooses app-server
+for multi-role, dependent, or complex work. An explicit backend always wins.
+If real paired measurements establish a better threshold, update and test the
+heuristic without silently switching a running task's backend.
