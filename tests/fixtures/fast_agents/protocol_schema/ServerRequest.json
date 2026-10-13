@@ -1,1 +1,0 @@
-{"oneOf":[{"properties":{"method":{"enum":["item/commandExecution/requestApproval"]}}},{"properties":{"method":{"enum":["item/fileChange/requestApproval"]}}},{"properties":{"method":{"enum":["item/permissions/requestApproval"]}}},{"properties":{"method":{"enum":["item/tool/requestUserInput"]}}},{"properties":{"method":{"enum":["mcpServer/elicitation/request"]}}}]}
