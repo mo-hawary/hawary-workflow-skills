@@ -1101,7 +1101,14 @@ class AppServerSupervisor:
                 # Do not kill an app-server on error. Its owned stdio is allowed to close naturally.
                 if self.client.process.stdin and not self.client.process.stdin.is_closing():
                     self.client.process.stdin.close()
-                await self.client.process.wait()
+                try:
+                    await asyncio.wait_for(self.client.process.wait(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    self.status["state"] = "recovery_required"
+                    self.status["action"] = "App-server did not exit after supervisor failure; reconcile process identity before retry"
+                    self.status["manager"]["state"] = "recovery_required"
+                    self.status.setdefault("server", {})["state"] = "lost"
+                    self._save_status()
             if self.control:
                 await self.control.close()
             if self.lock_descriptor is not None:

@@ -1125,3 +1125,22 @@ def test_auto_backend_prefers_bounded_exec_but_never_changes_explicit_routing(tm
         source([writer], concurrency=9)
     with pytest.raises(common.FastAgentsError, match="at most 32"):
         source([writer] + [{**reviewer, "name": f"role{n}", "depends_on": []} for n in range(32)])
+
+def test_control_write_backpressure_has_a_finite_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from fast_agents_ipc import ControlServer
+    import fast_agents_ipc as ipc
+    from unittest.mock import AsyncMock
+
+    async def check():
+        never = asyncio.Event()
+        class Writer:
+            def __init__(self): self.messages = []
+            def is_closing(self): return False
+            def write(self, message): self.messages.append(message)
+            async def drain(self): await never.wait()
+        writer = Writer()
+        monkeypatch.setattr(ipc, "CONTROL_WRITE_TIMEOUT", 0.01)
+        await asyncio.wait_for(ControlServer._reply(writer, {"ok": True}), 1)
+        assert writer.messages and b'"ok":true' in writer.messages[0]
+
+    asyncio.run(check())

@@ -240,7 +240,10 @@ class AppServerClient:
                 self.on_started(self.process.pid)
             except Exception:
                 self.process.stdin.close()
-                await self.process.wait()
+                try:
+                    await asyncio.wait_for(self.process.wait(), SHUTDOWN_WAIT_TIMEOUT_SECONDS)
+                except asyncio.TimeoutError:
+                    pass  # No unsafe kill or duplicate re-launch; identity must be reconciled.
                 raise
         self.reader_task = asyncio.create_task(self._read_messages())
         self.stderr_task = asyncio.create_task(self._drain_stderr())

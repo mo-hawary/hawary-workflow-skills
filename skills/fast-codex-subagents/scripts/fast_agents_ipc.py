@@ -16,6 +16,8 @@ from fast_agents_common import FastAgentsError, atomic_write_json, read_json
 MAX_CONTROL_LINE = 128 * 1024
 MAX_ACTIVE_CONTROLS = 24
 CONTROL_HANDLER_TIMEOUT = 45.0
+CONTROL_WRITE_TIMEOUT = 5.0
+CONTROL_CLOSE_TIMEOUT = 3.0
 ControlHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
@@ -121,7 +123,7 @@ class ControlServer:
             self.active_connections -= 1
             writer.close()
             try:
-                await writer.wait_closed()
+                await asyncio.wait_for(writer.wait_closed(), CONTROL_CLOSE_TIMEOUT)
             except OSError:
                 pass
 
@@ -137,8 +139,8 @@ class ControlServer:
                     "error": "control response exceeds the byte limit; use paginated events or inspect private task artifacts",
                 })
             writer.write(encoded)
-            await writer.drain()
-        except OSError:
+            await asyncio.wait_for(writer.drain(), CONTROL_WRITE_TIMEOUT)
+        except (OSError, asyncio.TimeoutError):
             return
 
     async def close(self) -> None:
