@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
 import re
 import tempfile
+import time
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, TypeVar
 
 
 SCHEMA_VERSION = 1
@@ -44,6 +47,9 @@ WINDOWS_DEVICE_NAMES = {
     *(f"lpt{index}" for index in range(1, 10)),
 }
 ROLE_ARTIFACT_STEMS = {"agents", "events", "exit", "final", "manifest", "prompt", "server", "status", "stderr"}
+_WINDOWS_SHARING_VIOLATIONS = frozenset({5, 32, 33})
+_WINDOWS_SHARING_RETRY_DELAYS = (0.02, 0.04, 0.08, 0.16, 0.32)
+_Result = TypeVar("_Result")
 
 
 class FastAgentsError(ValueError):
@@ -95,6 +101,33 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _is_windows_host() -> bool:
+    return os.name == "nt"
+
+
+def _retry_windows_sharing_violation(
+    operation: Callable[[], _Result], *, retry_unmapped_access_denied: bool = False
+) -> _Result:
+    """Retry only bounded Windows file-sharing conflicts around the supplied I/O call."""
+    if not _is_windows_host():
+        return operation()
+
+    for delay in _WINDOWS_SHARING_RETRY_DELAYS:
+        try:
+            return operation()
+        except OSError as error:
+            winerror = getattr(error, "winerror", None)
+            retry = winerror in _WINDOWS_SHARING_VIOLATIONS
+            # Path.read_text on Windows can report a sharing denial as EACCES without winerror.
+            if winerror is None and retry_unmapped_access_denied:
+                retry = error.errno == errno.EACCES
+            if not retry:
+                raise
+            time.sleep(delay)
+
+    return operation()
+
+
 def atomic_write_bytes(path: Path, content: bytes, mode: int = 0o600) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     from fast_agents_platform import protect_private_path
@@ -109,7 +142,7 @@ def atomic_write_bytes(path: Path, content: bytes, mode: int = 0o600) -> None:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        _retry_windows_sharing_violation(lambda: os.replace(temporary, path))
         protect_private_path(path, directory=False)
     except BaseException:
         try:
@@ -127,7 +160,10 @@ def atomic_write_json(path: Path, value: Any, mode: int = 0o600) -> None:
 
 def read_json(path: Path) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = _retry_windows_sharing_violation(
+            lambda: path.read_text(encoding="utf-8"), retry_unmapped_access_denied=True
+        )
+        value = json.loads(raw)
     except FileNotFoundError:
         raise
     except (OSError, json.JSONDecodeError) as error:
