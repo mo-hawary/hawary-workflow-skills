@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install --require-hashes -r requirements-dev.txt -r requirements-windows.txt
 
       - name: Run fake Fast Codex Subagents tests without Codex CLI or model calls
-        run: pytest -q tests/test_fast_agents.py tests/test_fast_agents_review_fixes.py tests/test_fast_agents_atomic_io.py
+        run: pytest -q tests/test_fast_agents.py tests/test_fast_agents_review_fixes.py tests/test_fast_agents_atomic_io.py tests/test_fast_agents_real_transcripts.py
 
   skills:
     name: Skill validation
@@ -54,6 +54,9 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Compare fake Codex backend startup overhead (no model calls)
+        run: python tests/benchmark_codex_backends.py --pairs 3
 
       - name: Check whitespace
         run: |
