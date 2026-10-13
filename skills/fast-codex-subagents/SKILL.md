@@ -1,6 +1,6 @@
 ---
 name: fast-codex-subagents
-description: Codex-only: Coordinate scoped Codex CLI/app-server workers with role, dependency, approvals, and Fast-tier evidence. Use for delegated Codex execution.
+description: "Codex-only: Coordinate scoped Codex CLI/app-server workers with role, dependency, approvals, and Fast-tier evidence. Use for delegated Codex execution."
 agents: ["codex"]
 ---
 
