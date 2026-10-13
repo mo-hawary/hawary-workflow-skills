@@ -16,7 +16,11 @@ from fast_agents_common import FastAgentsError
 from fast_agents_platform import codex_argv, protect_private_path
 
 
-APP_SERVER_VERSION = "0.162.1"
+# Version families are candidates, not permission to execute an untested CLI.
+# Add a release only after its protocol fixtures and live smoke are verified.
+APP_SERVER_VERSION = "0.162.1"  # currently fixture-backed
+CANDIDATE_CODEX_RANGE = ">=0.162.1,<0.163.0"
+TESTED_CODEX_VERSIONS = frozenset({"0.162.1"})
 MAX_PROTOCOL_LINE = 8 * 1024 * 1024
 EventHandler = Callable[[dict[str, Any]], Awaitable[None] | None]
 ProcessHandler = Callable[[int], None]
@@ -31,6 +35,19 @@ class AppServerRpcError(AppServerError):
         self.method = method
         self.error = error
         super().__init__(f"app-server {method} failed: {error.get('message', 'unknown RPC error')}")
+
+
+def tested_version_error(version: str) -> str | None:
+    if version in TESTED_CODEX_VERSIONS:
+        return None
+    tested = ", ".join(sorted(TESTED_CODEX_VERSIONS))
+    return (
+        f"Codex CLI {version} has no verified protocol fixtures. Tested: {tested}; "
+        f"candidate family: {CANDIDATE_CODEX_RANGE}. Follow the upgrade runbook: "
+        "capture a sanitized real transcript, add versioned schema fixtures, "
+        "run replay and live smoke tests, and explicitly add the release to "
+        "TESTED_CODEX_VERSIONS. No fallback or untested version is used."
+    )
 
 
 def request_id_key(value: str | int) -> str:
@@ -72,8 +89,8 @@ def _method_variants(schema: dict[str, Any]) -> set[str]:
 
 
 def verify_schema_directory(schema_root: Path, version: str) -> ProtocolSchemaReport:
-    if version != APP_SERVER_VERSION:
-        return ProtocolSchemaReport(False, version, (), (), f"app-server adapter supports only {APP_SERVER_VERSION}")
+    if (error := tested_version_error(version)) is not None:
+        return ProtocolSchemaReport(False, version, (), (), error)
     try:
         v2 = schema_root / "v2"
         client = json.loads((schema_root / "ClientRequest.json").read_text(encoding="utf-8"))
@@ -123,8 +140,8 @@ def verify_schema_directory(schema_root: Path, version: str) -> ProtocolSchemaRe
 
 
 def generate_and_verify_schema(executable: str, version: str, timeout: float = 20.0) -> ProtocolSchemaReport:
-    if version != APP_SERVER_VERSION:
-        return ProtocolSchemaReport(False, version, (), (), f"app-server adapter supports only {APP_SERVER_VERSION}")
+    if (error := tested_version_error(version)) is not None:
+        return ProtocolSchemaReport(False, version, (), (), error)
     with tempfile.TemporaryDirectory(prefix="fast-agents-schema-") as temporary:
         target = Path(temporary)
         try:

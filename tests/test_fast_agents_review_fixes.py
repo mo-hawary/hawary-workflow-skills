@@ -983,3 +983,17 @@ def test_codex_only_manifest_scope_is_machine_validatable():
     entry = next(item for item in catalog["skills"] if item["name"] == "fast-codex-subagents")
     assert 'agents: ["codex"]' in skill
     assert entry["agents"] == ["codex"]
+
+def test_tested_codex_version_policy_is_fail_closed():
+    from fast_agents_protocol import (
+        TESTED_CODEX_VERSIONS, CANDIDATE_CODEX_RANGE,
+        tested_version_error, verify_schema_directory,
+    )
+    assert TESTED_CODEX_VERSIONS == {"0.162.1"}
+    assert CANDIDATE_CODEX_RANGE.startswith(">=0.162.1")
+    assert tested_version_error("0.162.1") is None
+    for version in ("0.162.0", "0.162.2", "0.163.0-alpha.5", "unknown"):
+        message = tested_version_error(version)
+        assert "no verified protocol fixtures" in message
+        assert "upgrade runbook" in message
+        assert verify_schema_directory(Path("does-not-exist"), version).verified is False

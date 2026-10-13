@@ -25,6 +25,8 @@ from fast_agents_common import (
 from fast_agents_platform import codex_argv, platform_coverage_label, protect_private_path
 from fast_agents_protocol import (
     APP_SERVER_VERSION,
+    TESTED_CODEX_VERSIONS,
+    tested_version_error,
     catalog_efforts,
     catalog_tiers,
     generate_and_verify_schema,
@@ -167,7 +169,7 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
         identity = {"available": False, "platform": None, "limitation": str(error)}
     catalog: list[dict[str, Any]] = []
     catalog_error: str | None = None
-    if version == APP_SERVER_VERSION and schema.verified:
+    if version in TESTED_CODEX_VERSIONS and schema.verified:
         try:
             with tempfile.TemporaryDirectory(prefix="fast-agents-doctor-") as temporary:
                 private_temp = Path(temporary)
@@ -187,8 +189,8 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
         except (FastAgentsError, OSError, subprocess.SubprocessError, asyncio.TimeoutError) as error:
             catalog_error = str(error)
     else:
-        catalog_error = "model/list requires the verified 0.162.1 app-server adapter"
-    version_supported = version == APP_SERVER_VERSION
+        catalog_error = tested_version_error(version) or "model/list requires a verified app-server schema"
+    version_supported = tested_version_error(version) is None
     return {
         "available": bool(
             version_result.returncode == 0
@@ -246,8 +248,8 @@ def _format_doctor_report(report: dict[str, Any], as_json: bool, backend: str) -
     if not report["available"]:
         if backend == "app-server":
             reasons = []
-            if report.get("version") != APP_SERVER_VERSION:
-                reasons.append(f"requires Codex CLI {APP_SERVER_VERSION}; installed {report.get('version', 'unknown')}")
+            if (version_error := tested_version_error(str(report.get("version", "unknown")))) is not None:
+                reasons.append(version_error)
             options = report.get("app_server_options", {})
             missing_options = [name for name in ("listen", "stdio", "schema_generator") if not options.get(name)]
             if missing_options:
@@ -359,6 +361,8 @@ def _launch(args: argparse.Namespace) -> int:
     codex = _find_codex(args.codex)
     _print_lines(summary)
     capabilities = _codex_capabilities(codex, manifest.backend)
+    if (version_error := tested_version_error(str(capabilities.get("version", "unknown")))) is not None:
+        raise FastAgentsError(version_error)
     if manifest.backend == "exec":
         required = {"-C", "-m", "-c", "--enable", "--approve-for-me", "-s read-only", "--json", "--color", "-o"}
         missing = [name for name in required if not capabilities.get("supported_flags", {}).get(name, False)]
@@ -371,8 +375,8 @@ def _launch(args: argparse.Namespace) -> int:
             raise FastAgentsError("Codex app-server stdio options are unavailable")
         if not capabilities.get("protocol", {}).get("verified"):
             raise FastAgentsError(capabilities.get("protocol", {}).get("error") or "app-server protocol schema is not verified")
-        if capabilities.get("version") != APP_SERVER_VERSION:
-            raise FastAgentsError(f"app-server adapter supports Codex CLI {APP_SERVER_VERSION}; installed {capabilities.get('version')}")
+        if (version_error := tested_version_error(str(capabilities.get("version")))) is not None:
+            raise FastAgentsError(version_error)
         by_model = {item.get("id"): item for item in capabilities.get("model_catalog", []) if isinstance(item, dict)}
         for role in manifest.roles:
             model = by_model.get(role.model)
