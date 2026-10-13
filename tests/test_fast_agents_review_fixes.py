@@ -1091,3 +1091,37 @@ def test_uncertain_steering_is_not_retried(tmp_path: Path):
         saved = common.read_json(task_dir / "status.json")
         assert saved["roles"]["worker0"]["steer_history"][0]["state"] == "delivery_uncertain"
     asyncio.run(check())
+
+def test_auto_backend_prefers_bounded_exec_but_never_changes_explicit_routing(tmp_path: Path):
+    root = tmp_path / "workspace"
+    root.mkdir()
+    def source(roles, complexity="bounded", backend=None, concurrency=None):
+        data = {
+            "schema_version": 1, "workspace": str(root), "objective": "task",
+            "shared_contract": "contract", "complexity": complexity, "roles": roles,
+            "fast_selection": {"mode": "none"},
+        }
+        if backend is not None:
+            data["backend"] = backend
+        if concurrency is not None:
+            data["max_concurrency"] = concurrency
+        path = tmp_path / "manifest.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return common.load_manifest(path, defaults_path=tmp_path / "missing-defaults.json")
+    writer = {
+        "name": "one", "access": "writer", "owns": ["one.py"],
+        "outcome": "implement", "depends_on": [],
+    }
+    reviewer = {
+        "name": "review", "access": "reviewer", "owns": [],
+        "outcome": "review", "depends_on": ["one"],
+    }
+    assert source([writer]).backend == "exec"
+    assert source([writer], backend="app-server").backend == "app-server"
+    assert source([writer], complexity="complex").backend == "app-server"
+    assert source([writer, reviewer]).backend == "app-server"
+    assert source([writer, reviewer], backend="exec").backend == "exec"
+    with pytest.raises(common.FastAgentsError, match="between 1 and 8"):
+        source([writer], concurrency=9)
+    with pytest.raises(common.FastAgentsError, match="at most 32"):
+        source([writer] + [{**reviewer, "name": f"role{n}", "depends_on": []} for n in range(32)])

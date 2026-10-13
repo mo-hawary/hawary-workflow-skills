@@ -1126,7 +1126,7 @@ def test_managed_instruction_routes_substantive_execution_and_preserves_foregrou
     assert "only in clients configured to load" in managed
     skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     assert "Do not use native agent spawning, Rust helpers, or nested delegation" in skill
-    assert "Use the app-server backend by default" in skill
+    assert "Select Codex `exec` automatically" in skill
     assert "only when the user or project explicitly selects that fallback" in skill
 
 

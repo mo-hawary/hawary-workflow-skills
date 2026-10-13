@@ -345,13 +345,23 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
     raw_roles = raw.get("roles")
     if not isinstance(raw_roles, list) or not raw_roles:
         raise FastAgentsError("roles must be a non-empty array")
+    if len(raw_roles) > 32:
+        raise FastAgentsError("one task supports at most 32 Codex roles")
 
-    backend = raw.get("backend", "app-server")
-    if backend not in {"app-server", "exec"}:
-        raise FastAgentsError("backend must be app-server or exec")
     complexity = raw.get("complexity", "bounded")
     if complexity not in {"bounded", "complex", "ambiguous"}:
         raise FastAgentsError("complexity must be bounded, complex, or ambiguous")
+    backend_selection = raw.get("backend", "auto")
+    if backend_selection not in {"auto", "app-server", "exec"}:
+        raise FastAgentsError("backend must be auto, app-server, or exec")
+    # Auto-routing is a documented choice made before preflight, never a
+    # fallback after a failed launch. Explicit backend selections always win.
+    trivial = (
+        complexity == "bounded" and len(raw_roles) == 1
+        and isinstance(raw_roles[0], dict)
+        and not raw_roles[0].get("depends_on")
+    )
+    backend = ("exec" if trivial else "app-server") if backend_selection == "auto" else backend_selection
     project_settings = raw.get("project_settings", {})
     if not isinstance(project_settings, dict):
         raise FastAgentsError("project_settings must be an object")
@@ -359,8 +369,8 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
     max_concurrency = raw.get("max_concurrency")
     if max_concurrency is None:
         max_concurrency = min(3, len(raw_roles))
-    if not isinstance(max_concurrency, int) or isinstance(max_concurrency, bool) or max_concurrency < 1:
-        raise FastAgentsError("max_concurrency must be a positive integer")
+    if not isinstance(max_concurrency, int) or isinstance(max_concurrency, bool) or not 1 <= max_concurrency <= 8:
+        raise FastAgentsError("max_concurrency must be an integer between 1 and 8")
 
     roles: list[Role] = []
     names: set[str] = set()
