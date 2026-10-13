@@ -737,10 +737,12 @@ def test_reconcile_restores_dependent_only_after_upstream_is_verified(tmp_path: 
         manifest = common.read_json(task_dir / "manifest.json")
         writer = manifest["roles"][0]
         manifest["roles"].append({**writer, "name": "dependent", "access": "reviewer", "owns": [], "depends_on": ["worker0"]})
+        manifest["roles"].append({**writer, "name": "grandchild", "access": "reviewer", "owns": [], "depends_on": ["dependent"]})
         common.atomic_write_json(task_dir / "manifest.json", manifest)
         status = common.read_json(task_dir / "status.json")
         status["roles"]["dependent"] = {**status["roles"]["worker0"]}
         status["roles"]["dependent"].update({"state": "blocked", "error": "a dependency did not complete successfully"})
+        status["roles"]["grandchild"] = {**status["roles"]["dependent"]}
         status["roles"]["worker0"].update({
             "state": "unknown", "thread_id": "t-1", "turn_id": "u-1",
             "turn_start_state": "acknowledged", "turn_status": "inProgress",
@@ -766,6 +768,7 @@ def test_reconcile_restores_dependent_only_after_upstream_is_verified(tmp_path: 
         assert supervisor.status["roles"]["worker0"]["state"] == "completed"
         assert supervisor.status["roles"]["dependent"]["state"] == "waiting"
         assert supervisor.status["roles"]["dependent"]["error"] is None
+        assert supervisor.status["roles"]["grandchild"]["state"] == "waiting"
         assert started == [True]
 
     asyncio.run(exercise())

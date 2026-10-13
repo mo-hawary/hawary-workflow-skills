@@ -838,16 +838,28 @@ class AppServerSupervisor:
                 unresolved.append(f"{name}: worker state cannot be reconciled")
 
         if not unresolved:
-            # A dependency may have been marked blocked while its upstream
-            # submission was unknown. Restore only dependency-derived blocks
-            # after all prerequisites have been proven completed.
-            for name, role in self.roles.items():
-                role_state = self.status["roles"][name]
-                if (role_state.get("state") == "blocked"
-                        and role_state.get("error") == "a dependency did not complete successfully"
-                        and all(self.status["roles"][dependency].get("state") == "completed"
-                                for dependency in role.depends_on)):
-                    role_state.update({"state": "waiting", "error": None, "finished_at": None, "exit_code": None})
+            # A blocked dependent may itself have blocked descendants while
+            # its upstream turn was uncertain. Requeue the entire recoverable
+            # chain, not just direct dependents. The ordinary scheduler still
+            # waits for every prerequisite to finish.
+            for _ in range(len(self.roles)):
+                changed = False
+                for name, role in self.roles.items():
+                    role_state = self.status["roles"][name]
+                    if (role_state.get("state") != "blocked"
+                            or role_state.get("error") != "a dependency did not complete successfully"):
+                        continue
+                    dependency_states = [
+                        self.status["roles"][dependency].get("state") for dependency in role.depends_on
+                    ]
+                    if all(value in {"completed", "waiting", "starting", "running"}
+                            for value in dependency_states):
+                        role_state.update({
+                            "state": "waiting", "error": None, "finished_at": None, "exit_code": None,
+                        })
+                        changed = True
+                if not changed:
+                    break
         if unresolved:
             for pending in self.pending_requests.values():
                 pending["state"] = "recovery_required"
