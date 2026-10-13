@@ -94,12 +94,14 @@ def _existing_install_status(destination: Path, source_hashes: dict[str, str]) -
 
 
 def install_preview(agents_home: Path | None, claude_home: Path | None) -> list[dict[str, str]]:
-    homes = [("agents", agents_home), ("claude", claude_home)]
-    selected = [(kind, _normalize_skill_home(path)) for kind, path in homes if path is not None]
-    if not selected:
-        raise FastAgentsError("choose --agents-home and/or --claude-home explicitly")
-    if len({str(path) for _, path in selected}) != len(selected):
-        raise FastAgentsError("agents and claude skill homes must be different paths")
+    if claude_home is not None:
+        raise FastAgentsError(
+            "fast-codex-subagents is Codex-only; --claude-home installation is unsupported. "
+            "Use --agents-home to install for Codex. Legacy Claude installs can only be rolled back."
+        )
+    if agents_home is None:
+        raise FastAgentsError("Codex-only install requires --agents-home")
+    selected = [("agents", _normalize_skill_home(agents_home))]
     source = _skill_source()
     source_hashes = _tree_hashes(source, exclude_marker=False)
     preview = []

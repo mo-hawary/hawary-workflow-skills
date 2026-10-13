@@ -7,17 +7,17 @@ Run `scripts/fast_agents.py` from the installed skill folder. Setup commands are
 Preview the selected skill homes, then rerun with `--apply` after reviewing the destinations and collision state:
 
 ```bash
-python3 scripts/fast_agents.py install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills
-python3 scripts/fast_agents.py install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills --apply
+python3 scripts/fast_agents.py install --agents-home /path/to/codex/agents/skills
+python3 scripts/fast_agents.py install --agents-home /path/to/codex/agents/skills --apply
 ```
 
-Installation copies the complete `fast-codex-subagents` folder and records hashes for rollback. Existing unmanaged, modified, or outdated targets stop the install. Preview rollback before applying it:
+This skill is **Codex-only**: `install --claude-home` fails without modifying files. Existing helper-owned legacy installations in a Claude skill directory may be removed using `rollback install --claude-home` after review; no new Claude installation is supported. Installation copies the complete `fast-codex-subagents` folder and records hashes for rollback. Existing unmanaged, modified, or outdated targets stop the install. Preview rollback before applying it:
 
 The renamed skill uses a new destination. Existing `fast-agents` skill folders are left untouched; this installer neither adopts nor removes prior folders.
 
 ```bash
-python3 scripts/fast_agents.py rollback install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills
-python3 scripts/fast_agents.py rollback install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills --apply
+python3 scripts/fast_agents.py rollback install --agents-home /path/to/codex/agents/skills
+python3 scripts/fast_agents.py rollback install --agents-home /path/to/codex/agents/skills --apply
 ```
 
 ## Save Defaults

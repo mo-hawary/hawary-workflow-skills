@@ -1133,30 +1133,31 @@ def test_managed_instruction_routes_substantive_execution_and_preserves_foregrou
 def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_rollback(tmp_path: Path):
     agents_home = tmp_path / ".agents" / "skills"
     claude_home = tmp_path / ".claude" / "skills"
-    preview = setup.install_skill(agents_home, claude_home, apply=False)
+    with pytest.raises(common.FastAgentsError, match="Codex-only"):
+        setup.install_skill(agents_home, claude_home, apply=False)
+    preview = setup.install_skill(agents_home, None, apply=False)
     destination = agents_home / "fast-codex-subagents"
     claude_destination = claude_home / "fast-codex-subagents"
     assert "Preview only" in preview[-1]
     assert not destination.exists()
     assert not claude_destination.exists()
 
-    applied = setup.install_skill(agents_home, claude_home, apply=True)
-    for installed in (destination, claude_destination):
-        assert installed.joinpath("SKILL.md").is_file()
-        assert "name: fast-codex-subagents" in installed.joinpath("SKILL.md").read_text(encoding="utf-8")
-        assert installed.joinpath("scripts", "fast_agents.py").is_file()
-        assert installed.joinpath("scripts", "fast_agents_runtime.py").is_file()
-        assert installed.joinpath("references", "manifest-guide.md").is_file()
-    repeated = setup.install_skill(agents_home, claude_home, apply=True)
+    applied = setup.install_skill(agents_home, None, apply=True)
+    assert destination.joinpath("SKILL.md").is_file()
+    assert "name: fast-codex-subagents" in destination.joinpath("SKILL.md").read_text(encoding="utf-8")
+    assert destination.joinpath("scripts", "fast_agents.py").is_file()
+    assert destination.joinpath("scripts", "fast_agents_runtime.py").is_file()
+    assert destination.joinpath("references", "manifest-guide.md").is_file()
+    assert not claude_destination.exists()
+    repeated = setup.install_skill(agents_home, None, apply=True)
     assert "already installed unchanged" in repeated[0]
-    assert "already installed unchanged" in repeated[1]
-    assert len(applied) == 4
+    assert len(applied) == 2
 
     (destination / "SKILL.md").write_text("user modification\n", encoding="utf-8")
     with pytest.raises(common.FastAgentsError, match="preserve modified files"):
-        setup.rollback_skill(agents_home, claude_home, apply=True)
+        setup.rollback_skill(agents_home, None, apply=True)
     assert (destination / "SKILL.md").read_text(encoding="utf-8") == "user modification\n"
-    assert claude_destination.exists()
+    assert not claude_destination.exists()
 
     collision_home = tmp_path / "collision"
     collision = collision_home / "fast-codex-subagents"
@@ -1167,13 +1168,11 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     assert (collision / "keep.txt").read_text(encoding="utf-8") == "unmanaged"
 
     clean_agents_home = tmp_path / "clean-agents" / "skills"
-    clean_claude_home = tmp_path / "clean-claude" / "skills"
-    setup.install_skill(clean_agents_home, clean_claude_home, apply=True)
-    rollback_preview = setup.rollback_skill(clean_agents_home, clean_claude_home, apply=False)
+    setup.install_skill(clean_agents_home, None, apply=True)
+    rollback_preview = setup.rollback_skill(clean_agents_home, None, apply=False)
     assert "Preview only" in rollback_preview[-1]
-    setup.rollback_skill(clean_agents_home, clean_claude_home, apply=True)
+    setup.rollback_skill(clean_agents_home, None, apply=True)
     assert not (clean_agents_home / "fast-codex-subagents").exists()
-    assert not (clean_claude_home / "fast-codex-subagents").exists()
 
 
 def test_defaults_preview_confirmation_precedence_and_rollback_protect_modifications(tmp_path: Path):
