@@ -14,6 +14,8 @@ from fast_agents_common import FastAgentsError, atomic_write_json, read_json
 
 
 MAX_CONTROL_LINE = 128 * 1024
+MAX_ACTIVE_CONTROLS = 24
+CONTROL_HANDLER_TIMEOUT = 45.0
 ControlHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
@@ -57,11 +59,12 @@ class ControlServer:
         self.read_token = secrets.token_urlsafe(32)
         self.control_token = secrets.token_urlsafe(32)
         self.server: asyncio.AbstractServer | None = None
+        self.active_connections = 0
         self.discovery_path = task_dir / "discovery.json"
         self.capability_path = task_dir / "capabilities.json"
 
     async def start(self) -> None:
-        self.server = await asyncio.start_server(self._accept, host="127.0.0.1", port=0, limit=MAX_CONTROL_LINE)
+        self.server = await asyncio.start_server(self._accept, host="127.0.0.1", port=0, limit=MAX_CONTROL_LINE, backlog=32)
         sockets = self.server.sockets or []
         if not sockets:
             raise FastAgentsError("could not bind local control IPC")
@@ -81,6 +84,11 @@ class ControlServer:
         )
 
     async def _accept(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.active_connections >= MAX_ACTIVE_CONTROLS:
+            await self._reply(writer, {"ok": False, "error": "control endpoint is at capacity; retry read-only polling later; do not replay uncertain control actions"})
+            writer.close()
+            return
+        self.active_connections += 1
         try:
             raw = await asyncio.wait_for(reader.readline(), timeout=5.0)
             if not raw or len(raw) > MAX_CONTROL_LINE or not raw.endswith(b"\n"):
@@ -102,12 +110,15 @@ class ControlServer:
                 await self._reply(writer, {"ok": False, "error": "not authorized"})
                 return
             request.pop("token", None)
-            result = await self.handler(request)
+            result = await asyncio.wait_for(self.handler(request), timeout=CONTROL_HANDLER_TIMEOUT)
             result = _control_projection(command, result, request)
             await self._reply(writer, {"ok": True, "result": result})
+        except asyncio.TimeoutError:
+            await self._reply(writer, {"ok": False, "error": "control action timed out; delivery may be uncertain; inspect status before any new action"})
         except Exception as error:
             await self._reply(writer, {"ok": False, "error": str(error)})
         finally:
+            self.active_connections -= 1
             writer.close()
             try:
                 await writer.wait_closed()

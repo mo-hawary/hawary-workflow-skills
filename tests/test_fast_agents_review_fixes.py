@@ -1015,3 +1015,34 @@ def test_codex_runtime_guard_fails_early_for_wrong_host(tmp_path: Path, monkeypa
         cli.require_codex_runtime_environment()
     (home / "config.toml").write_text("# configured\n", encoding="utf-8")
     assert cli.require_codex_runtime_environment() == home
+
+def test_protocol_timeout_is_finite_and_refuses_unbounded_request(tmp_path: Path):
+    from fast_agents_protocol import AppServerClient, AppServerError
+    async def ignore(_): pass
+    async def check():
+        client = AppServerClient("fake", tmp_path, tmp_path / "stderr", ignore, ignore, ignore)
+        for timeout in (None, 0, -1, 1000, float("inf")):
+            with pytest.raises(AppServerError, match="timeout must be finite"):
+                await client.request("model/list", timeout=timeout)
+    asyncio.run(check())
+
+
+def test_control_endpoint_rejects_excess_connections_without_servicing_commands(tmp_path: Path):
+    from fast_agents_ipc import ControlServer, MAX_ACTIVE_CONTROLS
+    async def check():
+        calls = []
+        async def handler(req):
+            calls.append(req)
+            return {"ok": True}
+        server = ControlServer(tmp_path, handler)
+        server.active_connections = MAX_ACTIVE_CONTROLS
+        try:
+            from unittest.mock import AsyncMock
+            reader = asyncio.StreamReader()
+            writer = SimpleNamespace(write=lambda value: calls.append(value), drain=AsyncMock(),
+                                     close=lambda: None, is_closing=lambda: False)
+            await server._accept(reader, writer)
+            assert calls and b"at capacity" in calls[0]
+        finally:
+            server.active_connections = 0
+    asyncio.run(check())

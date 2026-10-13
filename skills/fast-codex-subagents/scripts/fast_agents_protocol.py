@@ -22,6 +22,9 @@ APP_SERVER_VERSION = "0.162.1"  # currently fixture-backed
 CANDIDATE_CODEX_RANGE = ">=0.162.1,<0.163.0"
 TESTED_CODEX_VERSIONS = frozenset({"0.162.1"})
 MAX_PROTOCOL_LINE = 8 * 1024 * 1024
+MAX_RPC_TIMEOUT_SECONDS = 120.0
+STDIO_WRITE_TIMEOUT_SECONDS = 15.0
+SHUTDOWN_WAIT_TIMEOUT_SECONDS = 30.0
 EventHandler = Callable[[dict[str, Any]], Awaitable[None] | None]
 ProcessHandler = Callable[[int], None]
 
@@ -247,7 +250,9 @@ class AppServerClient:
         )
         await self.notify("initialized")
 
-    async def request(self, method: str, params: dict[str, Any] | None = None, timeout: float | None = 30.0) -> dict[str, Any]:
+    async def request(self, method: str, params: dict[str, Any] | None = None, timeout: float = 30.0) -> dict[str, Any]:
+        if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or not 0 < timeout <= MAX_RPC_TIMEOUT_SECONDS:
+            raise AppServerError("app-server RPC timeout must be finite and within 120 seconds")
         if self.process is None or self.process.stdin is None or self.closed.is_set():
             raise AppServerError("app-server transport is not available")
         self.sequence += 1
@@ -261,7 +266,7 @@ class AppServerClient:
             message["params"] = params
         try:
             await self._write_message(message)
-            response = await asyncio.wait_for(future, timeout) if timeout is not None else await future
+            response = await asyncio.wait_for(future, timeout)
         except (asyncio.TimeoutError, OSError, BrokenPipeError) as error:
             self.pending_responses.pop(key, None)
             if not future.done():
@@ -303,7 +308,10 @@ class AppServerClient:
         line = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
         async with self.write_lock:
             self.process.stdin.write(line)
-            await self.process.stdin.drain()
+            try:
+                await asyncio.wait_for(self.process.stdin.drain(), STDIO_WRITE_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError as error:
+                raise AppServerError("app-server stdio write timed out; request delivery is uncertain") from error
 
     async def _read_messages(self) -> None:
         assert self.process is not None and self.process.stdout is not None
@@ -398,7 +406,10 @@ class AppServerClient:
                 await self.process.stdin.wait_closed()
             except (OSError, AttributeError):
                 pass
-        return await self.process.wait()
+        try:
+            return await asyncio.wait_for(self.process.wait(), SHUTDOWN_WAIT_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as error:
+            raise AppServerError("app-server process did not exit after closing stdin; process ownership remains uncertain") from error
 
 
 async def _call_handler(handler: EventHandler, message: dict[str, Any]) -> None:
