@@ -1,3 +1,4 @@
+supported_agents: ["codex"]
 interface:
   display_name: "Fast Codex Subagents"
   short_description: "Coordinate scoped Codex work with clear roles and safe approvals."

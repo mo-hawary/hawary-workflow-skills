@@ -1,9 +1,12 @@
 ---
 name: fast-codex-subagents
-description: Coordinate scoped Codex subagents with role, dependency, and Fast-tier evidence. Use for substantive implementation, review, or other work that needs delegated execution.
+description: Codex-only: Coordinate scoped Codex CLI/app-server workers with role, dependency, approvals, and Fast-tier evidence. Use for delegated Codex execution.
+agents: ["codex"]
 ---
 
 # Fast Codex Subagents
+
+**Codex-only.** This skill is executable only using a verified Codex CLI/app-server runtime. The `agents: ["codex"]` metadata marks its intended host; other agent installers may still display the skill but must not execute it. A terminal can invoke the helper after configuring Codex, but the helper cannot cryptographically identify the invoking chat UI.
 
 Use this workflow for Codex CLI and Codex app when the loaded instructions expose this skill. It coordinates scoped subagents, including a single bounded worker when that is the smallest useful team. The bundled helper launches Codex CLI's app-server; the instruction installer cannot verify that Codex app loaded the same instruction file. Other agents can read the workflow but cannot launch this Codex-specific runtime.
 

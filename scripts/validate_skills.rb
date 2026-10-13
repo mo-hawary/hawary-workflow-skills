@@ -65,6 +65,9 @@ SKILL_FILES.each do |path|
   fail_with("#{path}: duplicate skill name #{name}") if names.key?(name)
   fail_with("#{path}: missing description") if description.to_s.empty?
   fail_with("#{path}: description exceeds 200 characters") if description.length > 200
+  if name == "fast-codex-subagents"
+    fail_with("#{path}: must be codex-only") unless data["agents"] == ["codex"]
+  end
 
   directory_name = File.basename(File.dirname(path))
   fail_with("#{path}: frontmatter name #{name.inspect} does not match directory #{directory_name.inspect}") unless name == directory_name
@@ -126,6 +129,9 @@ catalog_skills.each do |skill|
   fail_with("skills-index.json: #{name} category is missing") if skill["category"].to_s.empty?
   fail_with("skills-index.json: #{name} outputs must be a non-empty array") unless skill["outputs"].is_a?(Array) && !skill["outputs"].empty?
   fail_with("skills-index.json: #{name} must be installable") unless skill["installable"] == true
+  if name == "fast-codex-subagents"
+    fail_with("skills-index.json: fast-codex-subagents must be codex-only") unless skill["agents"] == ["codex"]
+  end
 end
 
 marketplace_path = File.join(ROOT, ".claude-plugin/marketplace.json")

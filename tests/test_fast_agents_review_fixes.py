@@ -976,3 +976,10 @@ def test_git_scope_audit_gracefully_degrades_without_git(tmp_path: Path):
     assert verification.audit_workspace_scope(workspace, baseline, [
         {"access": "reviewer", "owns": []},
     ])["state"] == "not_applicable"
+
+def test_codex_only_manifest_scope_is_machine_validatable():
+    skill = (ROOT / "skills" / "fast-codex-subagents" / "SKILL.md").read_text(encoding="utf-8")
+    catalog = json.loads((ROOT / "skills-index.json").read_text(encoding="utf-8"))
+    entry = next(item for item in catalog["skills"] if item["name"] == "fast-codex-subagents")
+    assert 'agents: ["codex"]' in skill
+    assert entry["agents"] == ["codex"]
