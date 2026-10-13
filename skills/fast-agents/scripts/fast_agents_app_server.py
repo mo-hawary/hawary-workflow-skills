@@ -662,6 +662,10 @@ class AppServerSupervisor:
                 role_state = self.status["roles"][name]
                 if role_state.get("state") != "waiting" or name in self.role_tasks:
                     continue
+                # A terminal notification may still need an asynchronous final-report read.
+                # Wait until the dependency coroutine settles before using its outcome.
+                if any(dependency in self.role_tasks for dependency in role.depends_on):
+                    continue
                 dependency_states = [self.status["roles"][dependency].get("state") for dependency in role.depends_on]
                 if any(state in {"failed", "blocked", "unknown", "interrupted"} for state in dependency_states):
                     role_state.update({"state": "blocked", "error": "a dependency did not complete successfully", "finished_at": _utc_now()})

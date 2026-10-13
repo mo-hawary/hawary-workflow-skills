@@ -451,6 +451,9 @@ def build_codex_argv(
     ]
     if role.fast_requested:
         arguments.extend(["-c", 'service_tier="fast"', "--enable", "fast_mode"])
+    else:
+        # Omitting overrides would inherit Fast from user or project configuration.
+        arguments.extend(["-c", 'service_tier="default"', "-c", "features.fast_mode=false"])
     if role.access == "reviewer":
         arguments.extend(["-s", "read-only"])
     else:
@@ -762,8 +765,6 @@ def _read_event_file(path: Path) -> tuple[list[dict[str, Any]], int]:
 
 
 def _fast_runtime_result(events: list[dict[str, Any]], requested: bool) -> tuple[str, dict[str, Any] | None]:
-    if not requested:
-        return "not_requested", None
     session_ids: set[str] = set()
     for event in events:
         if event.get("type") in {"thread.started", "session_meta"}:
@@ -787,7 +788,14 @@ def _fast_runtime_result(events: list[dict[str, Any]], requested: bool) -> tuple
             "fast_mode": fast_mode,
             "effective": True,
         }
-        if service_tier == "fast" and fast_mode is True:
+        if not requested:
+            if service_tier == "default":
+                return "confirmed", evidence
+            if isinstance(service_tier, str):
+                return "rejected", evidence
+            # A disabled feature alone does not prove the effective service route.
+            continue
+        if service_tier in {"fast", "priority"} and fast_mode is True:
             return "confirmed", evidence
         if service_tier is not None or fast_mode is False:
             return "rejected", evidence
@@ -949,11 +957,31 @@ def read_task_status(task_dir: Path) -> dict[str, Any]:
         progress = _event_progress(agent_dir)
         role_state["last_activity"] = progress["latest"]
         role_state["malformed_event_lines"] = progress["malformed"]
-        if status["fast"]["requested"]:
-            fast_state, evidence = _fast_runtime_result(progress["events"], True)
-            if fast_state in {"confirmed", "rejected"}:
-                status["fast"]["runtime"] = fast_state
-                status["fast"]["evidence"] = evidence
+        requested = bool(role.get("fast_requested", manifest.get("fast_requested", False)))
+        fast_state, evidence = _fast_runtime_result(progress["events"], requested)
+        effective_tier = evidence.get("service_tier") if evidence else None
+        role_state.setdefault("fast", {}).update(
+            {
+                "requested": requested,
+                "requested_tier": "priority" if requested else "default",
+                "runtime": fast_state,
+                "effective_tier": "priority" if effective_tier == "fast" else effective_tier,
+                "effective": "matched" if fast_state == "confirmed" else "different" if fast_state == "rejected" else "unverified",
+                "evidence": evidence,
+                "upstream": "unverified",
+            }
+        )
+
+    # A matching worker must not hide a different worker's rejected route.
+    worker_fast = [role.get("fast", {}) for role in status["roles"].values()]
+    rejected = next((item for item in worker_fast if item.get("runtime") == "rejected"), None)
+    if rejected is not None:
+        status["fast"].update({"runtime": "rejected", "evidence": rejected.get("evidence")})
+    elif worker_fast and all(item.get("runtime") == "confirmed" for item in worker_fast):
+        status["fast"].update({"runtime": "confirmed", "evidence": worker_fast[0].get("evidence")})
+    else:
+        # Preserve the legacy task-level request label, never as effective-tier proof.
+        status["fast"].update({"runtime": "unverified" if status["fast"]["requested"] else "not_requested", "evidence": None})
 
     role_values = [value["state"] for value in status["roles"].values()]
     if role_values and all(state == "completed" for state in role_values):

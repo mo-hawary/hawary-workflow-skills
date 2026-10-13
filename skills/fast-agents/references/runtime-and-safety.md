@@ -12,6 +12,10 @@ For each worker, status keeps three distinct facts: requested tier (`priority` f
 
 The task owns an authenticated loopback control endpoint bound to `127.0.0.1`. A protected discovery file identifies its port; separate random read and control capabilities live in a private file and are never printed. `status` and `events` use read-only access. `steer`, `interrupt`, `reply`, and `recover` require explicit commands and validate current IDs; each successful action returns an acknowledgement. The parent chat polls this endpoint through a tool or CLI and receives no unsolicited context injection. Reconnecting with `resume` talks to the existing supervisor and does not create a second writer or app-server.
 
+Live `status` and `resume` return a compact projection: `event_history` describes the retained event window instead of embedding `control_events`. The latest 20 guardian review summaries and their total count are included; private status and logs retain the full recorded data. Read history with `control events`; pass each page's `next_seq` as the next `--after-seq` while `has_more` is true. `latest_seq` is the current end of the retained stream, not the pagination cursor. Pages are bounded by serialized UTF-8 bytes as well as the requested count. Oversized single records return a bounded error directing the operator to private artifacts.
+
+A dependency's outcome is consumed only after its worker coroutine has settled, including any final-report read required after a completed-turn notification. A delayed report does not prematurely block dependent roles. A failed report read or a genuinely absent report still prevents dependents from starting; independent roles can continue.
+
 If the app-server or supervisor stops, reconcile the persisted logical thread and turn state before continuing. Recovery resumes saved threads, reads their history, and confirms whether each submitted turn is active, terminal, or uncertain. It never replays an uncertain turn or starts a duplicate thread. If state cannot be proven, the task remains blocked for a deliberate user decision. A worker failure is isolated to its role and dependent roles; independent ready roles may continue.
 
 ## Explicit exec fallback
@@ -22,7 +26,11 @@ Set `"backend": "exec"` only when the user or project selects the fallback. The 
 codex exec -C WORKSPACE -m MODEL -c model_reasoning_effort="max" -c service_tier="fast" --enable fast_mode --approve-for-me --json --color never -o FINAL_REPORT -
 ```
 
+For a worker that opts out of Fast, the helper replaces the Fast arguments with `-c service_tier="default" -c features.fast_mode=false`. This explicitly overrides inherited user/project Fast settings without changing those configuration files. Mixed teams receive a separate route selection for each worker.
+
 The helper substitutes the selected effort and report path and sends the prompt on stdin. Reviewers use `-s read-only` instead of `--approve-for-me`. CLI flags and `features list` show the requested configuration only. Effective/upstream Fast execution remains unverified unless the worker event stream contains correlated evidence. Exec fallback does not provide app-server steering or turn-scoped server-request replies. A rejected option or failed launch is reported without changing backend, tier, or sandbox.
+
+Exec status checks correlated effective-route evidence for opted-in and opted-out workers independently. A worker mismatch takes precedence over matching workers in the task summary. Per-worker `fast.effective` remains `unverified` without evidence; the legacy task-level `not_requested` label describes an opt-out, not verified standard execution. Upstream execution remains unverified without provider telemetry.
 
 ## Process ownership and private runtime
 

@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install --require-hashes -r requirements-dev.txt
 
       - name: Run fake fast-agents tests without Codex CLI or model calls
-        run: pytest -q tests/test_fast_agents.py
+        run: pytest -q tests/test_fast_agents.py tests/test_fast_agents_review_fixes.py
 
   skills:
     name: Skill validation

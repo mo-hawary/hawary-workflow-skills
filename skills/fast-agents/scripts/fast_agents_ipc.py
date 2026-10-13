@@ -17,6 +17,39 @@ MAX_CONTROL_LINE = 128 * 1024
 ControlHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
+def _encode_response(value: dict[str, Any]) -> bytes:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
+
+
+def _control_projection(command: str, result: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+    """Keep wire projections bounded without discarding the private event history."""
+    result = dict(result)
+    if command == "status":
+        history = result.pop("control_events", [])
+        result["event_history"] = {
+            "retained": len(history),
+            "oldest_seq": history[0]["seq"] if history else None,
+            "latest_seq": history[-1]["seq"] if history else 0,
+        }
+        reviews = result.get("guardian_reviews")
+        if isinstance(reviews, list):
+            result["guardian_review_count"] = len(reviews)
+            result["guardian_reviews"] = reviews[-20:]
+    elif command == "events":
+        events = list(result.get("events", []))
+        after = request.get("after_seq", 0)
+        latest = result.get("latest_seq", 0)
+        while True:
+            next_seq = events[-1]["seq"] if events else after
+            result.update({"events": events, "next_seq": next_seq, "has_more": next_seq < latest})
+            if len(_encode_response({"ok": True, "result": result})) <= MAX_CONTROL_LINE:
+                break
+            if len(events) <= 1:
+                raise FastAgentsError("event exceeds the control response limit; inspect the private event log")
+            events.pop()
+    return result
+
+
 class ControlServer:
     def __init__(self, task_dir: Path, handler: ControlHandler):
         self.task_dir = task_dir
@@ -70,6 +103,7 @@ class ControlServer:
                 return
             request.pop("token", None)
             result = await self.handler(request)
+            result = _control_projection(command, result, request)
             await self._reply(writer, {"ok": True, "result": result})
         except Exception as error:
             await self._reply(writer, {"ok": False, "error": str(error)})
@@ -85,7 +119,13 @@ class ControlServer:
         if writer.is_closing():
             return
         try:
-            writer.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n")
+            encoded = _encode_response(value)
+            if len(encoded) > MAX_CONTROL_LINE:
+                encoded = _encode_response({
+                    "ok": False,
+                    "error": "control response exceeds the byte limit; use paginated events or inspect private task artifacts",
+                })
+            writer.write(encoded)
             await writer.drain()
         except OSError:
             return
