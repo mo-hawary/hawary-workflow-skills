@@ -17,6 +17,7 @@ from typing import Any
 
 from fast_agents_common import (
     FastAgentsError,
+    TaskManifest,
     default_config_path,
     load_defaults,
     load_manifest,
@@ -33,6 +34,7 @@ from fast_agents_runtime import (
     capture_process_identity,
     default_runtime_root,
     launch_from_path,
+    launch_task,
     read_task_status,
     render_status,
     supervisor_main,
@@ -324,8 +326,10 @@ def _find_codex(value: str | None) -> str:
     return found
 
 
-def _launch_summary(manifest_path: Path, plan_mode: bool) -> tuple[str, list[str], Path, str]:
-    manifest = load_manifest(manifest_path)
+def _launch_summary(
+    manifest_path: Path, plan_mode: bool, resolved_manifest: TaskManifest | None = None
+) -> tuple[str, list[str], Path, str]:
+    manifest = resolved_manifest if resolved_manifest is not None else load_manifest(manifest_path)
     if plan_mode and manifest.has_writers:
         raise FastAgentsError("Plan Mode forbids writer roles; no worker was started")
     summary = [
@@ -348,9 +352,10 @@ def _launch_summary(manifest_path: Path, plan_mode: bool) -> tuple[str, list[str
 
 
 def _launch(args: argparse.Namespace) -> int:
-    objective, summary, _workspace, _unused = _launch_summary(args.manifest, args.plan_mode)
-    del objective
+    # Resolve the task once: the launched roles must match the validated/previewed roles.
     manifest = load_manifest(args.manifest)
+    objective, summary, _workspace, _unused = _launch_summary(args.manifest, args.plan_mode, manifest)
+    del objective
     codex = _find_codex(args.codex)
     _print_lines(summary)
     capabilities = _codex_capabilities(codex, manifest.backend)
@@ -391,7 +396,10 @@ def _launch(args: argparse.Namespace) -> int:
         raise FastAgentsError(
             f"process identity is unavailable; refusing launch: {capabilities['process_identity']['limitation']}"
         )
-    task_id, task_dir, manifest = launch_from_path(args.manifest, _runtime_root(args.runtime_root), Path(__file__), codex)
+    task_id, task_dir = launch_task(
+        manifest, _runtime_root(args.runtime_root), Path(__file__), codex,
+        enforce_plan_mode=args.plan_mode,
+    )
     print(f"Started task {task_id}; runtime: {task_dir}")
     print(f"Writers: {'yes' if manifest.has_writers else 'no'}; selected Fast workers: {', '.join(role.name for role in manifest.roles if role.fast_requested) or 'none'}")
     return 0

@@ -669,7 +669,10 @@ def launch_task(
     helper_script: Path,
     codex_executable: str,
     handshake_timeout: float = 15.0,
+    enforce_plan_mode: bool = False,
 ) -> tuple[str, Path]:
+    if (enforce_plan_mode or manifest.plan_mode) and manifest.has_writers:
+        raise FastAgentsError("Plan Mode forbids writer roles; no worker was started")
     runtime_root = _require_outside_workspace(runtime_root, manifest.workspace)
     runtime_root = _require_outside_git_repositories(runtime_root, "task runtime")
     task_id = str(uuid.uuid4())
@@ -679,6 +682,7 @@ def launch_task(
     private_mkdir(task_dir / "prompts")
     private_mkdir(task_dir / "monitors")
     private_manifest = _private_task_manifest(manifest)
+    private_manifest["plan_mode"] = bool(enforce_plan_mode or manifest.plan_mode)
     private_manifest["codex_executable"] = codex_executable
     atomic_write_json(task_dir / "manifest.json", private_manifest)
     status = _initial_status(task_id, manifest)
@@ -1639,6 +1643,18 @@ def _start_recovery_supervisor_locked(
             raise FastAgentsError("cannot prove the previous app-server stopped; recovery refused")
     elif status.get("server", {}).get("state") in {"starting", "running"}:
         raise FastAgentsError("previous app-server identity is missing; recovery refused")
+
+    # Re-run the same pinned app-server preflight before starting a replacement
+    # supervisor. The executable can have changed since the original task launch.
+    from fast_agents import _codex_capabilities
+
+    capabilities = _codex_capabilities(codex_executable, "app-server")
+    if not capabilities.get("available"):
+        details = capabilities.get("model_catalog_error") or capabilities.get("protocol", {}).get("error")
+        raise FastAgentsError(
+            f"recovery compatibility preflight failed for Codex {capabilities.get('version', 'unknown')}: "
+            f"{details or 'pinned CLI version, schema, model catalog, or process identity is unavailable'}"
+        )
 
     ready_path = task_dir / "ready.json"
     ready_path.unlink(missing_ok=True)

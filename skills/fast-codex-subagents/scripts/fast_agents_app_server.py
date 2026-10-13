@@ -109,7 +109,7 @@ class AppServerSupervisor:
         return {
             "request_id": pending.get("request_id"),
             "kind": pending.get("method"),
-            "action": "explicit reply required",
+            "action": "reply in progress" if pending.get("state") == "replying" else "explicit reply required",
             "thread_id": pending.get("thread_id"),
             "turn_id": pending.get("turn_id"),
         }
@@ -722,12 +722,13 @@ class AppServerSupervisor:
         if states and all(state == "completed" for state in states):
             self.status["state"] = "completed"
             self.status["action"] = "Review the final reports and verify the shared contract."
+        elif any(state == "unknown" for state in states):
+            # A dependent blocked by an uncertain turn is not proof of terminal failure.
+            self.status["state"] = "recovery_required"
+            self.status["action"] = "A thread or turn could not be proven terminal; reconcile it before starting more work."
         elif any(state in {"failed", "blocked", "interrupted"} for state in states):
             self.status["state"] = "failed"
             self.status["action"] = "Review the failed role and pending approvals before any explicit relaunch."
-        elif any(state == "unknown" for state in states):
-            self.status["state"] = "recovery_required"
-            self.status["action"] = "A thread or turn could not be proven terminal; reconcile it before starting more work."
         else:
             self.status["state"] = "completed"
             self.status["action"] = "All worker roles reached a terminal state."
@@ -803,6 +804,17 @@ class AppServerSupervisor:
             elif state.get("state") not in {"waiting", "completed", "failed", "blocked"}:
                 unresolved.append(f"{name}: worker state cannot be reconciled")
 
+        if not unresolved:
+            # A dependency may have been marked blocked while its upstream
+            # submission was unknown. Restore only dependency-derived blocks
+            # after all prerequisites have been proven completed.
+            for name, role in self.roles.items():
+                role_state = self.status["roles"][name]
+                if (role_state.get("state") == "blocked"
+                        and role_state.get("error") == "a dependency did not complete successfully"
+                        and all(self.status["roles"][dependency].get("state") == "completed"
+                                for dependency in role.depends_on)):
+                    role_state.update({"state": "waiting", "error": None, "finished_at": None, "exit_code": None})
         if unresolved:
             for pending in self.pending_requests.values():
                 pending["state"] = "recovery_required"
@@ -885,13 +897,26 @@ class AppServerSupervisor:
             raise FastAgentsError("server request is no longer pending")
         if request.get("thread_id") != pending.get("thread_id") or request.get("turn_id") != pending.get("turn_id"):
             raise FastAgentsError("thread or turn id does not match this pending request")
+        if pending.get("state") == "replying":
+            raise FastAgentsError("server request reply is already in progress")
         if not self._pending_is_current(key, pending):
             self._invalidate_pending("request is no longer bound to a live turn", role_name=pending.get("role"), turn_id=pending.get("turn_id"))
             raise FastAgentsError("server request is stale or no longer belongs to the current live turn")
         role = self.roles[pending["role"]]
         response = _validate_server_reply(pending, request, role, Path(self.manifest["workspace"]))
         assert self.client is not None
-        await self.client.respond(request_id, response)
+        # Claim the request synchronously before the first await. Even if the
+        # underlying stdio write is backpressured, a second control caller
+        # cannot send a conflicting approval response.
+        pending["state"] = "replying"
+        self._save_status()
+        try:
+            await self.client.respond(request_id, response)
+        except BaseException:
+            # A write failure/cancellation may have delivered bytes; never
+            # silently reopen this response for a duplicate attempt.
+            self._invalidate_pending("reply delivery uncertain", role_name=pending.get("role"), turn_id=pending.get("turn_id"))
+            raise
         self.pending_requests.pop(key, None)
         self._summary_event("control/server-request.ack", {"threadId": pending.get("thread_id"), "turnId": pending.get("turn_id"), "itemId": pending.get("item_id")}, pending.get("role"))
         self._save_status()
@@ -914,6 +939,8 @@ class AppServerSupervisor:
         request_id = request.get("request_id")
         key = self._request_key(request_id)
         pending = self.pending_requests.get(key)
+        if pending is not None and pending.get("state") == "replying":
+            raise FastAgentsError("server request reply is already in progress")
         if pending is None or not self._pending_is_current(key, pending):
             if pending is not None:
                 self._invalidate_pending("request is no longer bound to a live turn", role_name=pending.get("role"), turn_id=pending.get("turn_id"))

@@ -668,3 +668,199 @@ def test_unsupported_permission_reply_keeps_server_request_pending(tmp_path: Pat
         assert responses == []
 
     asyncio.run(exercise())
+
+# Launch, recovery, and approval concurrency regressions (review follow-up).
+def test_plan_mode_launch_uses_the_same_resolved_manifest_at_the_boundary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    import fast_agents as cli
+
+    _, writer_manifest, _ = make_task(tmp_path)
+    reviewer = replace(
+        writer_manifest.roles[0], name="reviewer", access="reviewer",
+        model="gpt-6.1-sol", effort="xhigh", owns=(),
+    )
+    reviewed = replace(writer_manifest, roles=(reviewer,), backend="exec", fast_requested=False)
+    changed = replace(writer_manifest, backend="exec")
+    reads = []
+    launched = []
+
+    def changing_manifest(_path):
+        reads.append(True)
+        return reviewed if len(reads) == 1 else changed
+
+    def fake_launch(manifest, runtime_root, helper_script, codex, **kwargs):
+        launched.append((manifest, kwargs))
+        return "task-id", tmp_path / "runtime" / "tasks" / "task-id"
+
+    monkeypatch.setattr(cli, "load_manifest", changing_manifest)
+    monkeypatch.setattr(cli, "_find_codex", lambda _: "fake-codex")
+    monkeypatch.setattr(cli, "launch_task", fake_launch)
+    monkeypatch.setattr(cli, "_codex_capabilities", lambda *_: {
+        "supported_flags": {flag: True for flag in
+            ("-C", "-m", "-c", "--enable", "--approve-for-me", "-s read-only", "--json", "--color", "-o")},
+        "process_identity": {"available": True},
+        "version": "0.162.1", "platform_coverage": "unit-test",
+    })
+    args = SimpleNamespace(manifest=tmp_path / "source.json", plan_mode=True, codex=None, runtime_root=str(tmp_path / "runtime"))
+    assert cli._launch(args) == 0
+    assert len(reads) == 1
+    assert launched[0][0] is reviewed
+    assert launched[0][1]["enforce_plan_mode"] is True
+
+    with pytest.raises(common.FastAgentsError, match="Plan Mode forbids writer"):
+        runtime.launch_task(changed, tmp_path / "never-created", tmp_path / "missing-helper.py", "fake", enforce_plan_mode=True)
+    assert not (tmp_path / "never-created").exists()
+
+
+def test_uncertain_worker_takes_precedence_over_blocked_dependent_and_keeps_recovery_alive():
+    async def exercise():
+        supervisor = app_server.AppServerSupervisor.__new__(app_server.AppServerSupervisor)
+        supervisor.status = {"roles": {"writer": {"state": "unknown"}, "dependent": {"state": "blocked"}}}
+        supervisor._save_status = lambda: None
+        supervisor.finished = asyncio.Event()
+
+        async def schedule():
+            supervisor._set_terminal_task_state()
+
+        supervisor._schedule = schedule
+        await supervisor._schedule_then_finish()
+        assert supervisor.status["state"] == "recovery_required"
+        assert not supervisor.finished.is_set()
+
+    asyncio.run(exercise())
+
+
+def test_reconcile_restores_dependent_only_after_upstream_is_verified(tmp_path: Path):
+    async def exercise():
+        task_dir, _, _ = make_task(tmp_path)
+        manifest = common.read_json(task_dir / "manifest.json")
+        writer = manifest["roles"][0]
+        manifest["roles"].append({**writer, "name": "dependent", "access": "reviewer", "owns": [], "depends_on": ["worker0"]})
+        common.atomic_write_json(task_dir / "manifest.json", manifest)
+        status = common.read_json(task_dir / "status.json")
+        status["roles"]["dependent"] = {**status["roles"]["worker0"]}
+        status["roles"]["dependent"].update({"state": "blocked", "error": "a dependency did not complete successfully"})
+        status["roles"]["worker0"].update({
+            "state": "unknown", "thread_id": "t-1", "turn_id": "u-1",
+            "turn_start_state": "acknowledged", "turn_status": "inProgress",
+        })
+        common.atomic_write_json(task_dir / "status.json", status)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "unused")
+        started = []
+
+        async def request(method, params):
+            if method == "thread/resume":
+                return {"model": "gpt-6-luna", "sandbox": "workspace-write",
+                        "approvalPolicy": "on-request", "approvalsReviewer": "auto_review", "serviceTier": "default"}
+            if method == "thread/read":
+                return {"thread": {"turns": [{"id": "u-1", "status": "completed",
+                    "items": [{"type": "agentMessage", "text": "verified prior turn"}]}]}}
+            pytest.fail(f"unexpected request: {method}")
+
+        supervisor.client = SimpleNamespace(closed=asyncio.Event(), request=request, server_requests={})
+        supervisor.connection_epoch = "test-epoch"
+        supervisor._start_scheduler = lambda: started.append(True)
+        result = await supervisor._reconcile()
+        assert result["reconciled"] is True
+        assert supervisor.status["roles"]["worker0"]["state"] == "completed"
+        assert supervisor.status["roles"]["dependent"]["state"] == "waiting"
+        assert supervisor.status["roles"]["dependent"]["error"] is None
+        assert started == [True]
+
+    asyncio.run(exercise())
+
+
+def test_simultaneous_approval_responses_have_one_wire_winner(tmp_path: Path):
+    from fast_agents_protocol import AppServerClient, AppServerError
+
+    async def ignore(_message):
+        return None
+
+    async def exercise():
+        client = AppServerClient("unused", tmp_path, tmp_path / "stderr", ignore, ignore, ignore)
+        request = {"id": "req", "method": "item/commandExecution/requestApproval", "params": {}}
+        client.server_requests = {"str:req": request}
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        emitted = []
+
+        async def blocked_write(message):
+            entered.set()
+            await release.wait()
+            emitted.append(message)
+
+        client._write_message = blocked_write
+        first = asyncio.create_task(client.respond("req", {"decision": "accept"}))
+        await asyncio.wait_for(entered.wait(), 2)
+        with pytest.raises(AppServerError, match="no longer pending"):
+            await client.respond("req", {"decision": "decline"})
+        release.set()
+        await asyncio.wait_for(first, 2)
+        assert emitted == [{"id": "req", "result": {"decision": "accept"}}]
+
+    asyncio.run(exercise())
+
+
+def test_supervisor_second_reply_fails_without_invalidating_in_flight_claim(tmp_path: Path):
+    from fast_agents_protocol import AppServerClient
+    async def ignore(_message):
+        return None
+
+    async def exercise():
+        task_dir, _, _ = make_task(tmp_path)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "unused")
+        supervisor.status["roles"]["worker0"].update({
+            "state": "running", "thread_id": "t-1", "turn_id": "u-1", "turn_status": "inProgress",
+        })
+        request = {"id": "req", "method": "item/commandExecution/requestApproval",
+                   "params": {"threadId": "t-1", "turnId": "u-1", "command": "echo hi"}}
+        client = AppServerClient("unused", tmp_path, tmp_path / "stderr", ignore, ignore, ignore)
+        client.server_requests = {"str:req": request}
+        entered, release = asyncio.Event(), asyncio.Event()
+        writes = []
+
+        async def slow_write(payload):
+            entered.set()
+            await release.wait()
+            writes.append(payload)
+
+        client._write_message = slow_write
+        supervisor.client = client
+        supervisor.connection_epoch = "test-epoch"
+        supervisor.pending_requests["str:req"] = {
+            "request_id": "req", "method": request["method"], "thread_id": "t-1", "turn_id": "u-1",
+            "role": "worker0", "transport_epoch": "test-epoch", "server_request": request, "state": "pending",
+            "params": request["params"],
+        }
+        reply = {"request_id": "req", "thread_id": "t-1", "turn_id": "u-1"}
+        first = asyncio.create_task(supervisor._reply_pending({**reply, "decision": "accept"}))
+        await asyncio.wait_for(entered.wait(), 2)
+        assert supervisor._public_pending(supervisor.pending_requests["str:req"])["action"] == "reply in progress"
+        with pytest.raises(common.FastAgentsError, match="already in progress"):
+            await supervisor._reply_pending({**reply, "decision": "decline"})
+        assert "str:req" in supervisor.pending_requests
+        release.set()
+        assert (await asyncio.wait_for(first, 2))["acknowledged"] is True
+        assert supervisor.pending_requests == {}
+        assert writes == [{"id": "req", "result": {"decision": "accept"}}]
+
+    asyncio.run(exercise())
+
+
+def test_recovery_rejects_changed_or_unverified_codex_before_starting_supervisor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import fast_agents as cli
+    task_dir, _, status = make_task(tmp_path)
+    status["manager"] = {"identity": {"pid": 654321}}
+    common.atomic_write_json(task_dir / "status.json", status)
+    sentinel = task_dir / "ready.json"
+    sentinel.write_text('{"ok":true}', encoding="utf-8")
+    monkeypatch.setattr(runtime, "inspect_process", lambda _: ("dead", None))
+    monkeypatch.setattr(cli, "_codex_capabilities", lambda *args: {
+        "available": False, "version": "0.163.0", "protocol": {"error": "schema incompatible"},
+    })
+    with pytest.raises(common.FastAgentsError, match="recovery compatibility preflight failed"):
+        runtime._start_recovery_supervisor_locked(
+            status["task_id"], tmp_path / "runtime", tmp_path / "helper.py", "codex-upgraded"
+        )
+    assert sentinel.exists()

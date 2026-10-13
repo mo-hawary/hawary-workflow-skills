@@ -268,17 +268,17 @@ class AppServerClient:
 
     async def respond(self, request_id: str | int, result: dict[str, Any]) -> None:
         key = request_id_key(request_id)
-        if key not in self.server_requests:
+        # Consume before the await: the serialized transport writer alone
+        # does not serialize callers competing for the same request id.
+        if self.server_requests.pop(key, None) is None:
             raise AppServerError("server request is no longer pending")
         await self._write_message({"id": request_id, "result": result})
-        self.server_requests.pop(key, None)
 
     async def reject_server_request(self, request_id: str | int, message: str) -> None:
         key = request_id_key(request_id)
-        if key not in self.server_requests:
+        if self.server_requests.pop(key, None) is None:
             raise AppServerError("server request is no longer pending")
         await self._write_message({"id": request_id, "error": {"code": -32601, "message": message}})
-        self.server_requests.pop(key, None)
 
     async def _write_message(self, value: dict[str, Any]) -> None:
         if self.process is None or self.process.stdin is None:
