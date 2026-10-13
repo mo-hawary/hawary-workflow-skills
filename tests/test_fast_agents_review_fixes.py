@@ -303,7 +303,7 @@ def test_mixed_worker_tier_mismatch_cannot_be_hidden_by_a_matching_worker(tmp_pa
 def test_windows_pytest_dependency_is_explicitly_pinned_and_hashed():
     from packaging.requirements import Requirement
 
-    requirements = (ROOT / "requirements-dev.txt").read_text(encoding="utf-8").replace("\\\n", " ")
+    requirements = (ROOT / "requirements-windows.txt").read_text(encoding="utf-8").replace("\\\n", " ")
     entries = [line for line in requirements.splitlines() if line.startswith("colorama==")]
     assert len(entries) == 1
     requirement = Requirement(entries[0].split("--hash=", 1)[0].strip())
