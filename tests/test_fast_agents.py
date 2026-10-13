@@ -1135,6 +1135,8 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     claude_home = tmp_path / ".claude" / "skills"
     with pytest.raises(common.FastAgentsError, match="Codex-only"):
         setup.install_skill(agents_home, claude_home, apply=False)
+    with pytest.raises(common.FastAgentsError, match="Codex-only"):
+        setup.install_skill(claude_home, None, apply=False)
     preview = setup.install_skill(agents_home, None, apply=False)
     destination = agents_home / "fast-codex-subagents"
     claude_destination = claude_home / "fast-codex-subagents"

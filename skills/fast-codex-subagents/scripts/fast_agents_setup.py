@@ -101,7 +101,10 @@ def install_preview(agents_home: Path | None, claude_home: Path | None) -> list[
         )
     if agents_home is None:
         raise FastAgentsError("Codex-only install requires --agents-home")
-    selected = [("agents", _normalize_skill_home(agents_home))]
+    selected_home = _normalize_skill_home(agents_home)
+    if any(part.casefold() == ".claude" for part in selected_home.parts):
+        raise FastAgentsError("Codex-only installation cannot target a .claude directory")
+    selected = [("agents", selected_home)]
     source = _skill_source()
     source_hashes = _tree_hashes(source, exclude_marker=False)
     preview = []
