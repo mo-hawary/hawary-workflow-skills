@@ -793,7 +793,7 @@ class AppServerSupervisor:
             elif not turn_id and state.get("turn_start_state") != "submitted":
                 thread_status = thread.get("status") if isinstance(thread, dict) else None
                 if isinstance(thread_status, dict) and thread_status.get("type") == "idle":
-                    state.update({"state": "waiting", "thread_start_state": "acknowledged"})
+                    state.update({"state": "waiting", "thread_start_state": "acknowledged", "recovery_required": False})
                 else:
                     unresolved.append(f"{name}: thread is not proven idle before its first turn")
                     continue
@@ -808,6 +808,9 @@ class AppServerSupervisor:
                     state["usage"] = usage
                 if turn_status in TERMINAL_TURN_STATES:
                     self._finish_from_turn(name, turn)
+                    # Execution has been proven terminal; any surviving missing
+                    # report is an output failure, not an uncertain submission.
+                    state["recovery_required"] = False
                 else:
                     unresolved.append(f"{name}: turn {turn_id} remains {turn_status or 'unknown'}")
             elif state.get("state") not in {"waiting", "completed", "failed", "blocked"}:
