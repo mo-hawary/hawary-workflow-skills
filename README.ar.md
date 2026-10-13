@@ -29,7 +29,7 @@
 
 ## إحنا فين دلوقتي
 
-الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، [skills index](skills-index.json) قابل للقراءة آليًا، Claude Code marketplace metadata، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات والـ package metadata واختبارات Python والـ whitespace. `fast-codex-subagents` فيها helper تجريبي اختياري لـ Codex CLI؛ التثبيت مش بيغيّر إعدادات عامة ومش بيشغّل model sessions.
+الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، [skills index](skills-index.json) قابل للقراءة آليًا، Claude Code marketplace metadata، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات والـ package metadata واختبارات Python والـ whitespace. `fast-codex-subagents` فيها helper تجريبي اختياري لـ Codex CLI؛ التثبيت مش بيغيّر إعدادات عامة ومش بيشغّل model sessions. الـ helper بيفصل بين اكتمال التنفيذ وإثبات الاختبارات، وبيسجل تغييرات Git الجديدة اللي برّه الملفات المحددة للـ writers من غير ما ينسبها للـ agent بشكل قاطع. للمقارنة بين Fast و Standard، شوف [دليل الاختبار المقارن](skills/fast-codex-subagents/references/benchmarking.md).
 
 ## استخدمه مع الـ agent بتاعك
 
@@ -153,6 +153,7 @@ skills/
     |   |-- fast_agents_platform.py
     |   |-- fast_agents_common.py
     |   |-- fast_agents_runtime.py
+    |   |-- fast_agents_verification.py
     |   `-- fast_agents_setup.py
     |-- agents/
     |   `-- openai.yaml

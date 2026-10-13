@@ -17,7 +17,7 @@ If these skills save you time, please star the repo. It helps other developers d
 
 ## Current State
 
-This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, a machine-readable [skills index](skills-index.json), Claude Code marketplace metadata, examples, roadmap, changelog, and CI validation for skill metadata, links, package metadata, Python tests, and whitespace. `fast-codex-subagents` includes an experimental, opt-in Codex CLI helper; setup does not install globally or start model sessions.
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, a machine-readable [skills index](skills-index.json), Claude Code marketplace metadata, examples, roadmap, changelog, and CI validation for skill metadata, links, package metadata, Python tests, and whitespace. `fast-codex-subagents` includes an experimental, opt-in Codex CLI helper; setup does not install globally or start model sessions. Its [runtime safety model](skills/fast-codex-subagents/references/runtime-and-safety.md) distinguishes execution, recovery, scope evidence, and unverified acceptance. For performance comparisons see the [paired benchmarking protocol](skills/fast-codex-subagents/references/benchmarking.md).
 
 ## Use With Your Agent
 
@@ -124,6 +124,7 @@ skills/
     |   |-- fast_agents_platform.py
     |   |-- fast_agents_common.py
     |   |-- fast_agents_runtime.py
+    |   |-- fast_agents_verification.py
     |   `-- fast_agents_setup.py
     |-- agents/
     |   `-- openai.yaml
