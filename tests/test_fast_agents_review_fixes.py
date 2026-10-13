@@ -864,3 +864,62 @@ def test_recovery_rejects_changed_or_unverified_codex_before_starting_supervisor
             status["task_id"], tmp_path / "runtime", tmp_path / "helper.py", "codex-upgraded"
         )
     assert sentinel.exists()
+
+def test_state_projection_distinguishes_recovery_from_missing_final_output():
+    classify = app_server.classify_task_roles
+    assert classify({
+        "writer": {"state": "unknown", "turn_status": "inProgress"},
+        "dependent": {"state": "blocked"},
+    })[0] == "recovery_required"
+    assert classify({
+        "writer": {"state": "unknown", "turn_status": "completed"},
+        "dependent": {"state": "blocked"},
+    })[0] == "failed"
+    assert classify({
+        "writer": {"state": "completed", "turn_status": "completed"},
+        "dependent": {"state": "waiting"},
+    })[0] == "running"
+    assert classify({
+        "writer": {"state": "completed"},
+        "dependent": {"state": "completed"},
+    })[0] == "completed"
+
+
+def test_progress_event_snapshots_are_coalesced_but_terminal_status_is_durable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    async def exercise():
+        task_dir, _, _ = make_task(tmp_path)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "unused")
+        supervisor.role_by_thread["thread"] = "worker0"
+        counter = []
+        real_writer = app_server.atomic_write_json
+
+        def counting_write(path, payload, *args, **kwargs):
+            counter.append(Path(path).name)
+            return real_writer(path, payload, *args, **kwargs)
+
+        monkeypatch.setattr(app_server, "atomic_write_json", counting_write)
+        for _ in range(16):
+            await supervisor._on_event({
+                "method": "item/started",
+                "params": {"threadId": "thread", "item": {"type": "commandExecution"}},
+            })
+        assert "status.json" not in counter
+        assert not (task_dir / "pending-requests.private.json").exists()
+        assert supervisor._progress_flush_task is not None
+        await asyncio.wait_for(supervisor._progress_flush_task, 2)
+        assert counter.count("status.json") == 1
+        assert counter.count("pending-requests.private.json") == 1
+
+        await supervisor._on_event({
+            "method": "turn/completed",
+            "params": {"threadId": "thread",
+                       "turn": {"id": "turn", "status": "completed",
+                                "items": [{"type": "agentMessage", "text": "ok"}]}},
+        })
+        assert counter.count("status.json") >= 2
+        # No needless rewrite of unchanged pending-request authority.
+        assert counter.count("pending-requests.private.json") == 1
+        persisted = common.read_json(task_dir / "status.json")
+        assert persisted["roles"]["worker0"]["state"] == "completed"
+
+    asyncio.run(exercise())

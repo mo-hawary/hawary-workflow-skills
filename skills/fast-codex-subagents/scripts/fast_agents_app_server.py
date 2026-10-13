@@ -29,6 +29,8 @@ from fast_agents_protocol import (
 
 
 MAX_CONTROL_EVENTS = 500
+PROGRESS_STATUS_FLUSH_SECONDS = 0.2
+PROGRESS_ONLY_EVENTS = frozenset({"item/started", "item/completed", "thread/tokenUsage/updated"})
 KNOWN_SERVER_REQUESTS = SUPPORTED_APP_SERVER_REQUESTS
 TERMINAL_TURN_STATES = {"completed", "failed", "interrupted"}
 
@@ -92,6 +94,8 @@ class AppServerSupervisor:
         self.transport_lost = asyncio.Event()
         self.recovery_lock = asyncio.Lock()
         self.finished = asyncio.Event()
+        self._progress_flush_task: asyncio.Task[None] | None = None
+        self._pending_snapshot: str | None = None
         self.scheduler_task: asyncio.Task[None] | None = None
         self.recovery_reason: str | None = None
 
@@ -100,9 +104,29 @@ class AppServerSupervisor:
         self.status["control_events"] = self.event_summaries[-MAX_CONTROL_EVENTS:]
         self.status["pending_requests"] = [self._public_pending(item) for item in self.pending_requests.values()]
         private_path = self.task_dir / "pending-requests.private.json"
-        atomic_write_json(private_path, {"requests": list(self.pending_requests.values())}, mode=0o600)
-        protect_private_path(private_path, directory=False)
+        pending = {"requests": list(self.pending_requests.values())}
+        serialized = json.dumps(pending, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        # Event progress must not fsync an unchanged approval authority file.
+        # The first save after startup always rewrites stale persisted requests.
+        if serialized != getattr(self, "_pending_snapshot", None) or not private_path.exists():
+            atomic_write_json(private_path, pending, mode=0o600)
+            protect_private_path(private_path, directory=False)
+            self._pending_snapshot = serialized
         atomic_write_json(self.task_dir / "status.json", self.status)
+
+    def _queue_progress_status(self) -> None:
+        scheduled = getattr(self, "_progress_flush_task", None)
+        if scheduled is None or scheduled.done():
+            self._progress_flush_task = asyncio.create_task(self._flush_progress_status())
+
+    async def _flush_progress_status(self) -> None:
+        await asyncio.sleep(PROGRESS_STATUS_FLUSH_SECONDS)
+        try:
+            self._save_status()
+        except (OSError, FastAgentsError) as error:
+            # Progress persistence failure cannot be silently ignored.
+            self.recovery_reason = f"progress status could not be persisted: {error}"
+            self.transport_lost.set()
 
     @staticmethod
     def _public_pending(pending: dict[str, Any]) -> dict[str, Any]:
@@ -221,7 +245,12 @@ class AppServerSupervisor:
                     self._finish_from_turn(role_name, turn)
             elif method == "error" and params.get("willRetry") is False:
                 role_state["error"] = _safe_text((params.get("error") or {}).get("message") if isinstance(params.get("error"), dict) else "Codex reported a non-retryable turn error")
-            self._save_status()
+            if method in PROGRESS_ONLY_EVENTS:
+                # Raw event history is appended immediately; only the snapshot
+                # used for polling is coalesced. Critical transitions still fsync.
+                self._queue_progress_status()
+            else:
+                self._save_status()
         if method == "serverRequest/resolved":
             self._save_status()
 
@@ -718,29 +747,9 @@ class AppServerSupervisor:
         self._set_terminal_task_state()
 
     def _set_terminal_task_state(self) -> None:
-        roles = list(self.status["roles"].values())
-        states = [item.get("state") for item in roles]
-        # A completed turn without a final report is an output failure, not an
-        # uncertain submission. Only an unproven turn/thread needs recovery.
-        uncertain = any(
-            role.get("recovery_required") is True
-            or (role.get("state") == "unknown"
-                and role.get("turn_status") not in TERMINAL_TURN_STATES)
-            for role in roles
-        )
-        if uncertain:
-            # A blocked dependent must not hide an upstream uncertain turn.
-            self.status["state"] = "recovery_required"
-            self.status["action"] = "A thread or turn could not be proven terminal; reconcile it before starting more work."
-        elif states and all(state == "completed" for state in states):
-            self.status["state"] = "completed"
-            self.status["action"] = "Review the final reports and verify the shared contract."
-        elif any(state in {"failed", "blocked", "interrupted", "unknown"} for state in states):
-            self.status["state"] = "failed"
-            self.status["action"] = "Review the failed role and pending approvals before any explicit relaunch."
-        else:
-            self.status["state"] = "completed"
-            self.status["action"] = "All worker roles reached a terminal state."
+        state, action = classify_task_roles(self.status["roles"])
+        self.status["state"] = state
+        self.status["action"] = action
         self._save_status()
 
     async def _reconcile(self) -> dict[str, Any]:
@@ -1083,6 +1092,28 @@ class AppServerSupervisor:
         await self._schedule()
         if self.status.get("state") != "recovery_required":
             self.finished.set()
+
+
+def classify_task_roles(roles: dict[str, dict[str, Any]]) -> tuple[str, str]:
+    """Pure execution-state projection; uncertainty outranks dependent failure."""
+    values = list(roles.values())
+    states = [value.get("state") for value in values]
+    uncertain = any(
+        role.get("recovery_required") is True
+        or (role.get("state") == "unknown"
+            and role.get("turn_status") not in TERMINAL_TURN_STATES)
+        for role in values
+    )
+    if uncertain:
+        return ("recovery_required",
+                "A thread or turn could not be proven terminal; reconcile it before starting more work.")
+    if states and all(state == "completed" for state in states):
+        return ("completed", "Review the final reports and verify the shared contract.")
+    if any(state in {"failed", "blocked", "interrupted", "unknown"} for state in states):
+        return ("failed", "Review the failed role and pending approvals before any explicit relaunch.")
+    if any(state in {"waiting", "starting", "running"} for state in states):
+        return ("running", "One or more worker roles are still active or queued.")
+    return ("completed", "All worker roles reached a terminal state.")
 
 
 async def _start_supervisor(task_dir: Path, runtime_root: Path, codex: str, recover: bool) -> int:
