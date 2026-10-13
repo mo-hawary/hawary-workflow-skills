@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fast Agents"
+  short_description: "Coordinates substantive Codex execution with scoped threads and safe approvals."
+  default_prompt: "Use fast-agents as the delegation master for this substantive execution task, choose the smallest useful team and resolved settings automatically, and preserve explicit user choices before launch."

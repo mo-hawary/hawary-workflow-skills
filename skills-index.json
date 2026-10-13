@@ -37,6 +37,14 @@
       "installable": true
     },
     {
+      "name": "fast-agents",
+      "description": "Coordinate safe Codex execution with scoped threads and Fast evidence. Use for substantive implementation or review, even for one bounded worker; keep brief answers and planning in the foreground.",
+      "path": "skills/fast-agents/SKILL.md",
+      "category": "orchestration",
+      "outputs": ["validated task manifest", "private task status", "agent reports", "fast-mode evidence"],
+      "installable": true
+    },
+    {
       "name": "feature-spec-delivery-pipeline",
       "description": "Turn a feature request or bug cluster into a source-backed spec, impact map, acceptance criteria, and delivery plan before coding.",
       "path": "skills/feature-spec-delivery-pipeline/SKILL.md",

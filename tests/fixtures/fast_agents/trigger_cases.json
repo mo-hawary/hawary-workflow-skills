@@ -1,0 +1,50 @@
+[
+  {
+    "kind": "explicit",
+    "request": "Use fast-agents to implement this bounded change and give it an independent read-only review. Run all workers in Fast mode.",
+    "complexity": "bounded",
+    "fast_selection": {"mode": "all", "workers": []},
+    "plan_mode": false,
+    "roles": ["writer", "reviewer"],
+    "expected_team": "one Luna low writer and one Sol xhigh read-only reviewer",
+    "routine_questions": [],
+    "native_agents": false,
+    "launch": true
+  },
+  {
+    "kind": "natural",
+    "request": "Split this implementation and independent review across the smallest useful Codex team. Give the writer its own files and keep the reviewer read-only.",
+    "complexity": "bounded",
+    "fast_selection": {"mode": "none", "workers": []},
+    "plan_mode": false,
+    "roles": ["writer", "reviewer"],
+    "expected_team": "one Luna low writer and one Sol xhigh read-only reviewer",
+    "routine_questions": [],
+    "native_agents": false,
+    "launch": true
+  },
+  {
+    "kind": "minimal",
+    "request": "Use fast-agents to fix this isolated bounded typo; one writer is enough and no review is needed.",
+    "complexity": "bounded",
+    "fast_selection": {"mode": "none", "workers": []},
+    "plan_mode": false,
+    "roles": ["writer"],
+    "expected_team": "one Luna low writer",
+    "routine_questions": [],
+    "native_agents": false,
+    "launch": true
+  },
+  {
+    "kind": "plan-mode",
+    "request": "In Plan Mode, outline a migration plan. Do not edit files or start implementation agents.",
+    "complexity": "complex",
+    "fast_selection": {"mode": "none", "workers": []},
+    "plan_mode": true,
+    "roles": [],
+    "expected_team": "no agent launch",
+    "routine_questions": [],
+    "native_agents": false,
+    "launch": false
+  }
+]

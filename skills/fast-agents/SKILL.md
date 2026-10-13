@@ -1,0 +1,22 @@
+---
+name: fast-agents
+description: Coordinate safe Codex execution with scoped threads and Fast evidence. Use for substantive implementation or review, even for one bounded worker; keep brief answers and planning in the foreground.
+---
+
+# Fast Agents
+
+Use this workflow for Codex CLI and Codex app when the loaded instructions expose this skill. The bundled helper launches Codex CLI's app-server; the instruction installer cannot verify that Codex app loaded the same instruction file. Other agents can read the workflow but cannot launch this Codex-specific runtime.
+
+## Workflow
+
+1. Inspect the request and applicable user/project instructions. Keep brief factual answers, conversation, and planning in the foreground; use this workflow as the delegation master for substantive execution, even when one bounded worker is sufficient. Treat an explicit user request as authorization to make the requested implementation changes; otherwise, get approval before modifying implementation code. Choose the smallest useful team automatically: one writer for one coherent change; add writers only for independent workstreams with disjoint files; add a Sol reviewer when independent review materially helps or the user asks for one. In Plan Mode, do not launch writers. Do not use native agent spawning, Rust helpers, or nested delegation.
+2. Resolve model, effort, Fast per worker, and backend in this order: explicit user choice, saved defaults where supported, project/user rules, recommendation. Resolve worker count and team composition automatically from the smallest useful team. Use Luna low for bounded coding and Luna max for complex or ambiguous coding. Use Sol xhigh for read-only review. Fast supports all, selected workers, or none; recommend none if the user has not chosen it. Ask only when applicable instructions conflict or a requested option is unavailable. Never override explicit user routing, backend, model, count, Fast, or approval choices. Never ask routine team/model/Fast setup questions.
+3. Inspect the repository contract, choose non-overlapping concrete writer ownership, agree on the shared interface, and stage dependent review after implementation. Keep shared context and dependency reports bounded. Read [the manifest guide](references/manifest-guide.md).
+4. Run `scripts/fast_agents.py doctor` before launch. It checks Codex CLI 0.162.1, the generated app-server schema, server options, process identity, and `model/list`; this performs no model inference. Show the selected team, ownership, dependencies, models, efforts, Fast choice, and effective configuration before starting.
+5. Use the app-server backend by default: one `codex app-server --listen stdio://` process hosts separate logical worker threads and histories. Threads use `on-request` approvals with `auto_review`; writers receive `workspace-write`, reviewers `read-only` with network disabled. Never blanket-approve server requests. Keep pending approval, user-input, and MCP requests visible for an explicit scoped reply. Use the exec backend only when the user or project explicitly selects that fallback; never retry another backend or tier silently.
+6. Poll `status` or `control status/events`. Steering, interrupting, and replying require explicit commands with the current thread/turn/request IDs. Status and watch are read-only. `resume` reconnects to the existing supervisor; use `resume --recover` only to reconcile saved thread/turn state. An uncertain submitted turn is never replayed automatically. Read [runtime and safety details](references/runtime-and-safety.md).
+7. Review private role reports and the workspace diff. Treat declared file ownership as a coordination boundary, not a per-file sandbox. Report effective Fast tier separately from upstream execution, which remains unverified without provider telemetry.
+
+## Setup
+
+Install, defaults, and shared Codex instruction changes are opt-in commands with previews. The managed instruction block targets both Codex CLI and Codex app only through clients that load the selected shared instruction file; verify app activation in Codex app itself. Read [setup and rollback](references/setup-and-rollback.md).

@@ -8,6 +8,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- `fast-agents` with a version-pinned Codex app-server supervisor, separate logical worker threads, smallest-team guidance, authenticated local control, and explicit requested/effective Fast-tier evidence.
+- Fake Codex CLI/app-server fixtures and cross-platform `test_fast_agents.py` coverage for protocol routing, approvals, IPC steering, recovery, process ownership, setup, and rollback without paid model calls.
 - `dependency-security-auditor` for dependency CVE scans, freshness checks, and hook/CI audit design.
 - Prompt examples for `dependency-security-auditor`.
 - Fixture-backed bootcamp test matrix for dependency-auditor ecosystem coverage.

@@ -23,12 +23,13 @@
 - تراجع PRs بشكل منظم.
 - تخطط QA bug hunts.
 - تشغل mobile E2E flows باستخدام Maestro.
+- تنسّق فريق Codex صغير للتنفيذ والمراجعة بصلاحيات وملفات محددة.
 
 لو المهارات دي وفرت عليك وقت، اعمل star للـ repo. ده بيساعد ناس أكتر تكتشفه.
 
 ## إحنا فين دلوقتي
 
-الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، [skills index](skills-index.json) قابل للقراءة آليًا، Claude Code marketplace metadata، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات والـ package metadata واختبارات Python والـ whitespace.
+الـ repo ده public، برخصة MIT، و `main` عليه protection والتغييرات بتدخل عن طريق pull requests. المصدر الأساسي للمهارات موجود في `skills/`، ومعاه README بالإنجليزي والمصري، أدلة تثبيت لـ Codex و Claude، [skills index](skills-index.json) قابل للقراءة آليًا، Claude Code marketplace metadata، ملاحظات للـ agents المتوافقة، أمثلة، roadmap، changelog، و CI validation للـ skill metadata واللينكات والـ package metadata واختبارات Python والـ whitespace. `fast-agents` فيها helper اختياري لـ Codex CLI؛ التثبيت مش بيغيّر إعدادات عامة ومش بيشغّل model sessions.
 
 ## استخدمه مع الـ agent بتاعك
 
@@ -115,6 +116,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | لما area محتاجة QA discovery وخطة bugs جاهزة للإصلاح. | audit tracks، findings matrix، fix board، impact gates، و test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | لما تحتاج mobile E2E proof باستخدام Maestro. | flow setup، checkpoint results، logs/screenshots/state evidence، diagnosis، و residual risk. |
 | [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | لما تحتاج dependency CVE scans أو freshness checks أو hook/CI audit design. | stack detection، scanner status، CVE findings، freshness risk، remediation، و CI plan. |
+| [`fast-agents`](skills/fast-agents/SKILL.md) | للتنفيذ أو المراجعة الجادة على Codex، حتى لو عامل واحد محدود هو الأنسب. | أصغر فريق مفيد، حالة تشغيل خاصة، تقارير محددة، ودليل requested/effective للـ Fast tier. |
 
 ## تختار أنهي skill؟
 
@@ -129,6 +131,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | "نختبر إيه قبل ما نصلح؟" | `qa-bug-hunt-planner` |
 | "اثبت إن mobile flow ده شغال." | `mobile-maestro-e2e-orchestrator` |
 | "هل dependencies عندنا فيها vulnerabilities؟" | `dependency-security-auditor` |
+| "استخدم fast-agents كمنسق للتنفيذ الجاد ده." | `fast-agents` |
 
 ## أمثلة
 
@@ -142,6 +145,15 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 skills/
 `-- skill-name/
     |-- SKILL.md
+    |-- scripts/
+    |   |-- fast_agents.py (CLI اختياري لـ Codex)
+    |   |-- fast_agents_app_server.py
+    |   |-- fast_agents_protocol.py
+    |   |-- fast_agents_ipc.py
+    |   |-- fast_agents_platform.py
+    |   |-- fast_agents_common.py
+    |   |-- fast_agents_runtime.py
+    |   `-- fast_agents_setup.py
     |-- agents/
     |   `-- openai.yaml
     `-- references/
@@ -150,7 +162,7 @@ skills/
 
 <div dir="rtl" lang="ar-EG">
 
-`SKILL.md` هو المصدر الأساسي اللي أي agent يقدر يقرأه. المهارات دي Markdown-first، و Ruby مستخدمة بس للتحقق من repo. مجلد `references/` فيه الأمثلة والـ checklists والـ templates بعيد عن جسم skill الأساسي. ملف `agents/openai.yaml` اختياري ومفيد كـ metadata لـ OpenAI/Codex، وأي agent تاني يقدر يتجاهله.
+`SKILL.md` هو المصدر الأساسي اللي أي agent يقدر يقرأه. التعليمات Markdown-first، ومعاها Python helpers اختيارية لبعض workflows، و Ruby للتحقق من package. مجلد `references/` فيه الأمثلة والـ checklists والـ templates بعيد عن جسم skill الأساسي. ملف `agents/openai.yaml` اختياري ومفيد كـ metadata لـ OpenAI/Codex، وأي agent تاني يقدر يتجاهله. helper بتاع `fast-agents` محتاج Python 3.10+ و Codex CLI. الـ app-server adapter تجريبي ومثبت على CLI 0.162.1؛ و `exec` بديل صريح، مش fallback تلقائي.
 
 ## تعليمات للـ AI agents
 

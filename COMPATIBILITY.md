@@ -21,6 +21,9 @@ This matrix documents how Hawary Workflow Skills should be installed and used ac
 - Some agents can read `SKILL.md` but do not auto-select skills from frontmatter descriptions.
 - Some agents ignore `references/`; in that case, point them at the relevant files manually.
 - Helper scripts are optional. Agents that cannot execute scripts can still use the report-first workflows.
+- `fast-agents` launches Codex CLI only. Its preferred backend is the experimental app-server adapter pinned to CLI 0.162.1; `exec` remains an explicit fallback. A real macOS doctor/schema/model-list probe succeeded without model inference. Fake protocol tests exercise behavior without a paid CLI call or model launch.
+- The fast-agents test workflow is configured for Linux, macOS, and Windows. This host provided a live macOS version/schema/options/model-list doctor probe only; worker execution is fake-server tested. Windows DACL/process behavior and platform launch variants are mocked locally, with native Linux and Windows runner execution left to CI.
+- Other agents may read the `fast-agents` skill and manifest guide, but they cannot run this Codex-specific helper. The helper records requested tier, effective thread tier, and upstream execution separately; upstream execution remains unverified without provider telemetry.
 - Claude Code marketplace validation requires Claude Code to be installed locally.
 - Claude Code marketplace command syntax is documented from CLI help and manifest validation, but install flow should remain `Expected` until a real marketplace install is smoke-tested.
 - The compatibility matrix distinguishes `Tested` from `Expected`; do not upgrade an agent to `Tested` without a reproducible install note.
