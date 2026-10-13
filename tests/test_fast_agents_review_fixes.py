@@ -691,7 +691,7 @@ def test_plan_mode_launch_uses_the_same_resolved_manifest_at_the_boundary(tmp_pa
 
     def fake_launch(manifest, runtime_root, helper_script, codex, **kwargs):
         launched.append((manifest, kwargs))
-        return "task-id", tmp_path / "runtime" / "tasks" / "task-id"
+        return "run-id", tmp_path / "runtime" / "tasks" / "run-id"
 
     monkeypatch.setattr(cli, "load_manifest", changing_manifest)
     monkeypatch.setattr(cli, "_find_codex", lambda _: "fake-codex")
