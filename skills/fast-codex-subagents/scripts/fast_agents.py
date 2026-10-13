@@ -317,6 +317,31 @@ def _runtime_root(value: str | None) -> Path:
     return Path(value).expanduser() if value else default_runtime_root()
 
 
+def require_codex_runtime_environment() -> Path:
+    """Guard active operations before creating a task or sending a control RPC."""
+    selected_agent = os.environ.get("HWS_AGENT", "").strip().casefold()
+    if selected_agent and selected_agent != "codex":
+        raise FastAgentsError(
+            f"fast-codex-subagents is Codex-only (HWS_AGENT={selected_agent!r}). "
+            "Run it through Codex CLI/Codex app instead. No task was started."
+        )
+    if os.environ.get("CLAUDECODE") == "1" or os.environ.get("GEMINI_CLI") == "1":
+        raise FastAgentsError("fast-codex-subagents is Codex-only; non-Codex agent environment detected")
+    home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
+    if not home.is_dir():
+        raise FastAgentsError(
+            f"Codex configuration home is unavailable at {home}. Install and sign in to "
+            "Codex or set CODEX_HOME to an existing Codex home. No task was started."
+        )
+    if not ((home / "config.toml").is_file() or (home / "auth.json").is_file()
+            or os.environ.get("OPENAI_API_KEY") or os.environ.get("CODEX_API_KEY")):
+        raise FastAgentsError(
+            f"Codex configuration is missing in {home}. Supply config.toml, signed-in "
+            "Codex credentials, or OPENAI_API_KEY/CODEX_API_KEY. No task was started."
+        )
+    return home
+
+
 def _find_codex(value: str | None) -> str:
     if value:
         if not Path(value).expanduser().exists():
@@ -354,6 +379,7 @@ def _launch_summary(
 
 
 def _launch(args: argparse.Namespace) -> int:
+    require_codex_runtime_environment()
     # Resolve the task once: the launched roles must match the validated/previewed roles.
     manifest = load_manifest(args.manifest)
     objective, summary, _workspace, _unused = _launch_summary(args.manifest, args.plan_mode, manifest)
@@ -416,6 +442,7 @@ def _status(args: argparse.Namespace, resume: bool = False) -> int:
     if status.get("backend") == "app-server":
         recover = bool(getattr(args, "recover", False))
         if resume and recover and status.get("state") == "recovery_required":
+            require_codex_runtime_environment()
             manager_identity_state = status.get("manager", {}).get("identity_state")
             if manager_identity_state == "alive":
                 result = send_control_request(task_dir, "recover")
@@ -454,6 +481,8 @@ def _recover_codex(task_dir: Path) -> str:
 
 
 def _control(args: argparse.Namespace) -> int:
+    if args.control_command not in {"status", "events"}:
+        require_codex_runtime_environment()
     task_dir = task_path(_runtime_root(args.runtime_root).expanduser().resolve(), args.task)
     payload: dict[str, Any] = {}
     if args.control_command == "events":

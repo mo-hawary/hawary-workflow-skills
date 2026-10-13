@@ -694,6 +694,7 @@ def test_plan_mode_launch_uses_the_same_resolved_manifest_at_the_boundary(tmp_pa
         return "run-id", tmp_path / "runtime" / "tasks" / "run-id"
 
     monkeypatch.setattr(cli, "load_manifest", changing_manifest)
+    monkeypatch.setattr(cli, "require_codex_runtime_environment", lambda: tmp_path)
     monkeypatch.setattr(cli, "_find_codex", lambda _: "fake-codex")
     monkeypatch.setattr(cli, "launch_task", fake_launch)
     monkeypatch.setattr(cli, "_codex_capabilities", lambda *_: {
@@ -997,3 +998,20 @@ def test_tested_codex_version_policy_is_fail_closed():
         assert "no verified protocol fixtures" in message
         assert "upgrade runbook" in message
         assert verify_schema_directory(Path("does-not-exist"), version).verified is False
+
+def test_codex_runtime_guard_fails_early_for_wrong_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import fast_agents as cli
+
+    home = tmp_path / "codex-home"
+    monkeypatch.setenv("CODEX_HOME", str(home))
+    monkeypatch.setenv("HWS_AGENT", "claude")
+    with pytest.raises(common.FastAgentsError, match="Codex-only"):
+        cli.require_codex_runtime_environment()
+    monkeypatch.setenv("HWS_AGENT", "codex")
+    with pytest.raises(common.FastAgentsError, match="configuration home"):
+        cli.require_codex_runtime_environment()
+    home.mkdir()
+    with pytest.raises(common.FastAgentsError, match="configuration is missing"):
+        cli.require_codex_runtime_environment()
+    (home / "config.toml").write_text("# configured\n", encoding="utf-8")
+    assert cli.require_codex_runtime_environment() == home

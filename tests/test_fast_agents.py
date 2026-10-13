@@ -54,7 +54,10 @@ class FakeCodex:
         env = os.environ.copy()
         env["FAST_AGENTS_CAPTURE_DIR"] = str(self.capture_dir)
         env["FAST_AGENTS_CONTROL_DIR"] = str(self.control_dir)
-        env["CODEX_HOME"] = str(self.control_dir / "codex-home")
+        codex_home = self.control_dir / "codex-home"
+        codex_home.mkdir(parents=True, exist_ok=True)
+        (codex_home / "config.toml").write_text("# fixture\n", encoding="utf-8")
+        env["CODEX_HOME"] = str(codex_home)
         env["XDG_STATE_HOME"] = str(self.control_dir / "xdg-state")
         env["LOCALAPPDATA"] = str(self.control_dir / "local-app-data")
         return env
@@ -71,11 +74,14 @@ class FakeAppServer:
 
     def env(self, **overrides: str) -> dict[str, str]:
         env = os.environ.copy()
+        codex_home = self.state_path.parent / "codex-home"
+        codex_home.mkdir(parents=True, exist_ok=True)
+        (codex_home / "config.toml").write_text("# fixture\n", encoding="utf-8")
         env.update(
             {
                 "FAST_APP_SERVER_STATE": str(self.state_path),
                 "FAST_APP_SERVER_SCHEMA_SOURCE": str(PROTOCOL_SCHEMA_FIXTURE),
-                "CODEX_HOME": str(self.state_path.parent / "codex-home"),
+                "CODEX_HOME": str(codex_home),
                 "XDG_STATE_HOME": str(self.state_path.parent / "xdg-state"),
                 "LOCALAPPDATA": str(self.state_path.parent / "local-app-data"),
             }
