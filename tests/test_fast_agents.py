@@ -2065,7 +2065,7 @@ def test_platform_adapters_cover_live_host_and_mocked_windows_launch_and_private
         "writer", "writer", "gpt-6-luna", "low", "outcome", ("src/writer.py",), (), (), "", False, {}
     )
     exec_argv = runtime.build_codex_argv(str(cmd), tmp_path, writer_role, False, tmp_path / "task")
-    assert exec_argv == [str(node), str(javascript.resolve()), "exec", "-C", str(tmp_path), "-m", "gpt-6-luna", "-c", 'model_reasoning_effort="low"', "--approve-for-me", "--json", "--color", "never", "-o", str(tmp_path / "task" / "agents" / "writer" / "final.md"), "-"]
+    assert exec_argv == [str(node), str(javascript.resolve()), "exec", "-C", str(tmp_path), "-m", "gpt-6-luna", "-c", 'model_reasoning_effort="low"', "-c", 'service_tier="default"', "-c", "features.fast_mode=false", "--approve-for-me", "--json", "--color", "never", "-o", str(tmp_path / "task" / "agents" / "writer" / "final.md"), "-"]
     with pytest.raises(common.FastAgentsError, match="refusing cmd.exe"):
         platform.codex_argv(str(tmp_path / "missing.cmd"), "--version", os_name="nt")
 

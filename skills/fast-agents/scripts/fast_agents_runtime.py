@@ -163,13 +163,32 @@ def _windows_process_identity(pid: int) -> dict[str, Any] | None:
         if error == 5:
             raise PermissionError(error, "OpenProcess access denied")
         raise OSError(error, "OpenProcess failed")
+
+    def process_exited() -> bool:
+        result = kernel32.WaitForSingleObject(handle, 0)
+        if result == 0:  # WAIT_OBJECT_0: the process object is signaled after exit.
+            return True
+        if result == 0x102:  # WAIT_TIMEOUT: the process is still nonsignaled.
+            return False
+        error = ctypes.get_last_error()
+        if error == 5:
+            raise PermissionError(error, "process wait access denied")
+        raise OSError(error or errno.EIO, "process exit state could not be established")
+
     try:
+        # An exited process can retain a handle while its executable image is gone.
+        # Prove exit before requiring image metadata, and recheck metadata failures
+        # for an exit that raced with these queries. Unknown failures stay closed.
+        if process_exited():
+            return None
         creation = FILETIME()
         exit_time = FILETIME()
         kernel_time = FILETIME()
         user_time = FILETIME()
         if not kernel32.GetProcessTimes(handle, ctypes.byref(creation), ctypes.byref(exit_time), ctypes.byref(kernel_time), ctypes.byref(user_time)):
             error = ctypes.get_last_error()
+            if process_exited():
+                return None
             if error == 5:
                 raise PermissionError(error, "GetProcessTimes access denied")
             raise OSError(error, "GetProcessTimes failed")
@@ -177,10 +196,12 @@ def _windows_process_identity(pid: int) -> dict[str, Any] | None:
         size = wintypes.DWORD(len(buffer))
         if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
             error = ctypes.get_last_error()
+            if process_exited():
+                return None
             if error == 5:
                 raise PermissionError(error, "QueryFullProcessImageName access denied")
             raise OSError(error, "QueryFullProcessImageName failed")
-        signaled = kernel32.WaitForSingleObject(handle, 0) == 0
+        signaled = process_exited()
         start_token = (creation.high << 32) | creation.low
         return {
             "pid": pid,
@@ -980,7 +1001,7 @@ def read_task_status(task_dir: Path) -> dict[str, Any]:
     elif worker_fast and all(item.get("runtime") == "confirmed" for item in worker_fast):
         status["fast"].update({"runtime": "confirmed", "evidence": worker_fast[0].get("evidence")})
     else:
-        # Preserve the legacy task-level request label, never as effective-tier proof.
+        # Preserve the legacy task request label, never as effective-tier proof.
         status["fast"].update({"runtime": "unverified" if status["fast"]["requested"] else "not_requested", "evidence": None})
 
     role_values = [value["state"] for value in status["roles"].values()]

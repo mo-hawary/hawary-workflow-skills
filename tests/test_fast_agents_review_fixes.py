@@ -312,3 +312,91 @@ def test_windows_pytest_dependency_is_explicitly_pinned_and_hashed():
     assert not requirement.marker.evaluate({"sys_platform": "darwin"})
     assert "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6" in entries[0]
     assert "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44" in entries[0]
+
+
+@pytest.mark.parametrize(
+    ("waits", "times_ok", "image_ok", "error_code", "expected"),
+    [
+        ([0], False, False, 31, "dead"),
+        ([0x102, 0], False, False, 31, "dead"),
+        ([0x102, 0], True, False, 31, "dead"),
+        ([0x102, 0x102], True, False, 31, "error"),
+        ([0x102, 0x102], True, False, 5, "permission"),
+        ([0x102, 0x102], False, False, 31, "error"),
+        ([0xFFFFFFFF], True, True, 6, "error"),
+        ([0x102, 0x102], True, True, 0, "alive"),
+        ([0x102, 0], True, True, 0, "exited"),
+    ],
+)
+def test_windows_identity_uses_exit_evidence_before_image_metadata(
+    monkeypatch: pytest.MonkeyPatch, waits, times_ok, image_ok, error_code, expected
+):
+    import ctypes
+
+    calls = []
+    wait_results = iter(waits)
+
+    class Function:
+        def __init__(self, name, implementation):
+            self.name = name
+            self.implementation = implementation
+
+        def __call__(self, *args):
+            calls.append(self.name)
+            return self.implementation(*args)
+
+    def get_times(handle, creation, *_args):
+        creation._obj.low = 123
+        creation._obj.high = 0
+        return times_ok
+
+    def get_image(handle, flags, buffer, size):
+        buffer.value = r"C:\tools\python.exe"
+        return image_ok
+
+    kernel = SimpleNamespace(
+        OpenProcess=Function("open", lambda *_args: 1),
+        GetProcessTimes=Function("times", get_times),
+        QueryFullProcessImageNameW=Function("image", get_image),
+        WaitForSingleObject=Function("wait", lambda *_args: next(wait_results)),
+        CloseHandle=Function("close", lambda *_args: True),
+    )
+    monkeypatch.setattr(ctypes, "WinDLL", lambda *_args, **_kwargs: kernel, raising=False)
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: error_code, raising=False)
+    if expected in {"error", "permission"}:
+        exception = PermissionError if expected == "permission" else OSError
+        with pytest.raises(exception):
+            runtime._windows_process_identity(12345)
+    else:
+        result = runtime._windows_process_identity(12345)
+        if expected == "dead":
+            assert result is None
+        else:
+            assert result["start_token"] == "123"
+            assert result["exited"] is (expected == "exited")
+    assert calls[:2] == ["open", "wait"]
+    assert calls[-1] == "close" and calls.count("close") == 1
+    if waits[0] in {0, 0xFFFFFFFF}:
+        assert "times" not in calls and "image" not in calls
+    if not times_ok:
+        assert "image" not in calls
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires a native Windows process handle")
+def test_windows_exited_child_is_dead_while_parent_retains_handle():
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import sys; sys.stdin.buffer.read(1)"],
+        stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        identity = runtime.capture_process_identity(process.pid)
+        assert identity and runtime.inspect_process(identity)[0] == "alive"
+        process.communicate(b"x", timeout=10)
+        # Popen retains its process HANDLE even after wait/communicate completes.
+        assert runtime.inspect_process(identity)[0] == "dead"
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
+        if process.stdin is not None:
+            process.stdin.close()

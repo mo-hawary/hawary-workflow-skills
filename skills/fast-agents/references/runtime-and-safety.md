@@ -30,7 +30,7 @@ For a worker that opts out of Fast, the helper replaces the Fast arguments with 
 
 The helper substitutes the selected effort and report path and sends the prompt on stdin. Reviewers use `-s read-only` instead of `--approve-for-me`. CLI flags and `features list` show the requested configuration only. Effective/upstream Fast execution remains unverified unless the worker event stream contains correlated evidence. Exec fallback does not provide app-server steering or turn-scoped server-request replies. A rejected option or failed launch is reported without changing backend, tier, or sandbox.
 
-Exec status checks correlated effective-route evidence for opted-in and opted-out workers independently. A worker mismatch takes precedence over matching workers in the task summary. Per-worker `fast.effective` remains `unverified` without evidence; the legacy task-level `not_requested` label describes an opt-out, not verified standard execution. Upstream execution remains unverified without provider telemetry.
+Exec status checks correlated effective-route evidence for opted-in and opted-out workers independently. A worker mismatch takes precedence over matching workers in the task summary. Per-worker `fast.effective` remains `unverified` without evidence; the legacy `not_requested` task label describes an opt-out, not verified standard execution. Upstream execution remains unverified without provider telemetry.
 
 ## Process ownership and private runtime
 
