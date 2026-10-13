@@ -923,3 +923,48 @@ def test_progress_event_snapshots_are_coalesced_but_terminal_status_is_durable(t
         assert persisted["roles"]["worker0"]["state"] == "completed"
 
     asyncio.run(exercise())
+
+def test_git_scope_audit_reports_new_paths_without_claiming_test_verification(tmp_path: Path):
+    import shutil
+    import fast_agents_verification as verification
+
+    if shutil.which("git") is None:
+        pytest.skip("Git unavailable")
+    workspace = tmp_path / "git-workspace"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "-q", str(workspace)], check=True)
+    (workspace / "preexisting.txt").write_text("already dirty", encoding="utf-8")
+    baseline = verification.snapshot_workspace(workspace)
+    assert baseline["state"] == "captured"
+    (workspace / "src").mkdir()
+    (workspace / "src" / "owned.py").write_text("pass", encoding="utf-8")
+    (workspace / "src" / "not-owned.py").write_text("needs review", encoding="utf-8")
+    scoped = verification.audit_workspace_scope(
+        workspace, baseline, [{"access": "writer", "owns": ["src/owned.py"]}]
+    )
+    assert scoped["state"] == "new_outside_declared_paths"
+    assert scoped["outside_declared_paths"] == ["src/not-owned.py"]
+    assert scoped["preexisting_dirty_count"] == 1
+    assert scoped["new_changed_count"] == 2
+    assert "preexisting.txt" not in scoped["new_changed_paths"]
+    assert verification.audit_workspace_scope(
+        workspace, baseline, [{"access": "writer", "owns": ["src"]}]
+    )["state"] == "within_declared_paths"
+    nested = verification.snapshot_workspace(workspace / "src")
+    assert nested["state"] == "unavailable"
+
+
+def test_git_scope_audit_gracefully_degrades_without_git(tmp_path: Path):
+    import fast_agents_verification as verification
+
+    workspace = tmp_path / "not-a-repository"
+    workspace.mkdir()
+    baseline = verification.snapshot_workspace(workspace)
+    assert baseline["state"] == "unavailable"
+    state = verification.audit_workspace_scope(
+        workspace, baseline, [{"access": "writer", "owns": ["src/owned.py"]}]
+    )
+    assert state["state"] == "inconclusive"
+    assert verification.audit_workspace_scope(workspace, baseline, [
+        {"access": "reviewer", "owns": []},
+    ])["state"] == "not_applicable"

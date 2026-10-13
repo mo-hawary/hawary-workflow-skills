@@ -745,6 +745,18 @@ class AppServerSupervisor:
             self._save_status()
             return
         self._set_terminal_task_state()
+        # Read-only scope check is best effort and cannot be mistaken for
+        # test/acceptance verification. Run Git off the asyncio event loop.
+        from fast_agents_verification import audit_workspace_scope
+
+        self.status["workspace_scope"] = await asyncio.to_thread(
+            audit_workspace_scope,
+            Path(self.manifest["workspace"]),
+            self.status.get("workspace_baseline"),
+            self.manifest["roles"],
+        )
+        self.status["verification_state"] = "not_run"
+        self._save_status()
 
     def _set_terminal_task_state(self) -> None:
         state, action = classify_task_roles(self.status["roles"])

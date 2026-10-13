@@ -686,6 +686,14 @@ def launch_task(
     private_manifest["codex_executable"] = codex_executable
     atomic_write_json(task_dir / "manifest.json", private_manifest)
     status = _initial_status(task_id, manifest)
+    from fast_agents_verification import snapshot_workspace
+
+    status["verification_state"] = "not_run"
+    status["workspace_scope"] = {"state": "not_checked"}
+    status["workspace_baseline"] = (
+        snapshot_workspace(manifest.workspace) if manifest.has_writers
+        else {"state": "not_applicable"}
+    )
     atomic_write_json(task_dir / "status.json", status)
 
     manager_log = (task_dir / "manager.log").open("ab")
@@ -1057,7 +1065,23 @@ def render_status(task_dir: Path, status: dict[str, Any] | None = None) -> str:
             detail += f" · {role['error']}"
         if role.get("state") == "running":
             detail += f" · {_format_age(role.get('started_at'))}"
+        fast = role.get("fast", {})
+        if data.get("backend") == "app-server" and fast:
+            detail += f" · tier {fast.get('requested_tier', '?')} / {fast.get('effective_tier') or 'unverified'}"
+        if role.get("thread_id"):
+            detail += f" · thread {role['thread_id']} / turn {role.get('turn_id') or 'pending'}"
         lines.append(detail)
+    pending = data.get("pending_requests") or []
+    if pending:
+        lines.append(f"Pending operator actions: {len(pending)}; inspect current request IDs with control status.")
+    if "workspace_scope" in data:
+        scope = data["workspace_scope"]
+        lines.append(
+            f"Verification: tests {data.get('verification_state', 'not_run')} · "
+            f"workspace scope {scope.get('state', 'not_checked')}"
+        )
+        if scope.get("outside_declared_count"):
+            lines.append(f"Review {scope['outside_declared_count']} newly dirty path(s) outside writer ownership.")
     if data.get("action"):
         lines.append(f"Next: {data['action']}")
     return "\n".join(lines)
@@ -1358,6 +1382,12 @@ def supervise(task_dir: Path, runtime_root: Path, codex_executable: str, *, reco
         exit_result = 1
     status["updated_at"] = utc_now()
     status["manager"]["state"] = "completed"
+    from fast_agents_verification import audit_workspace_scope
+
+    status["workspace_scope"] = audit_workspace_scope(
+        Path(manifest["workspace"]), status.get("workspace_baseline"), manifest["roles"]
+    )
+    status["verification_state"] = "not_run"
     atomic_write_json(task_dir / "status.json", status)
     if lock_record is not None:
         lock_record["manager_state"] = "completed"
