@@ -1127,7 +1127,7 @@ def test_managed_instruction_routes_substantive_execution_and_preserves_foregrou
     skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     assert "Do not use native agent spawning, Rust helpers, or nested delegation" in skill
     assert "Select Codex `exec` automatically" in skill
-    assert "only when the user or project explicitly selects that fallback" in skill
+    assert "A single bounded independent role also selects `exec`" in skill
 
 
 def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_rollback(tmp_path: Path):
