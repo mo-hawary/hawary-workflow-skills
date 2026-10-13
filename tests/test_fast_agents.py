@@ -23,7 +23,7 @@ SKILL = ROOT / "skills" / "fast-codex-subagents"
 SCRIPT = SKILL / "scripts" / "fast_agents.py"
 FAKE_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "fake_codex.py"
 FAKE_APP_SERVER_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "fake_app_server.py"
-PROTOCOL_SCHEMA_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "protocol_schema"
+PROTOCOL_SCHEMA_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "protocol_schema" / "0.162.1"
 SCRIPT_DIR = str(SCRIPT.parent)
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
