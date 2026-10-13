@@ -70,7 +70,7 @@ Natural-language trigger:
 Split this implementation and its review across a small Codex team. Give each writer separate files, agree on the shared API first, and keep the reviewer read-only.
 ```
 
-The skill chooses the smallest useful team and its recommended settings automatically. Resolve settings in this order: explicit user choice, saved defaults, project/user rules, then recommendation. Recommend Fast `none` when it was not specified, and ask only about unresolved conflicts or unavailable requested options. Read [the task manifest guide](../skills/fast-agents/references/manifest-guide.md), inspect the local CLI, and show the team and resolved settings before launching. `doctor` checks schema and model/service-tier availability without inference:
+The skill chooses the smallest useful team and its recommended settings automatically. Resolve settings in this order: explicit user choice, saved defaults, project/user rules, then recommendation. Use Fast for all workers when no setting was specified, and ask only about unresolved conflicts or unavailable requested options. Read [the task manifest guide](../skills/fast-agents/references/manifest-guide.md), inspect the local CLI, and show the team and resolved settings before launching. `doctor` checks schema and model/service-tier availability without inference:
 
 ```bash
 python3 skills/fast-agents/scripts/fast_agents.py doctor

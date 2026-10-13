@@ -89,6 +89,8 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
 | [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | You need dependency CVE scans, freshness checks, or hook/CI audit design. | Stack detection, scanner status, CVE findings, freshness risk, remediation and CI plan. |
 
+A dated [fast-agents live validation and fixture replay record](skills/fast-agents/references/live-validation-2026-10-13.md) documents one seeded trial and its limits.
+
 ## Choosing A Skill
 
 | If you are thinking... | Use |

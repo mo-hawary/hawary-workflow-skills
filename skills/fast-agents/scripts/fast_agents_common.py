@@ -16,6 +16,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 WRITER_MODEL = "gpt-6-luna"
 REVIEWER_MODEL = "gpt-6.1-sol"
+SUPPORTED_REASONING_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max", "ultra"})
 ROLE_NAME = re.compile(r"\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\Z")
 MAX_OBJECTIVE_CHARS = 4_000
 MAX_SHARED_CONTRACT_CHARS = 12_000
@@ -369,8 +370,9 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
         elif access == "reviewer":
             if model != REVIEWER_MODEL:
                 raise FastAgentsError(f"role {name}: read-only reviewers must use {REVIEWER_MODEL}")
-            if effort != "xhigh":
-                raise FastAgentsError(f"role {name}: reviewers must use xhigh reasoning effort")
+            if not isinstance(effort, str) or effort not in SUPPORTED_REASONING_EFFORTS:
+                choices = ", ".join(sorted(SUPPORTED_REASONING_EFFORTS))
+                raise FastAgentsError(f"role {name}: reviewers must use a supported reasoning effort ({choices})")
 
         owns_raw = _string_list(item.get("owns", []), f"role {name}.owns")
         if access == "writer" and not owns_raw:
@@ -414,7 +416,7 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
     resolved_fast = resolve_setting(
         explicit_fast,
         saved_fast,
-        resolve_setting(project_fast, None, {"mode": "none", "workers": []}),
+        resolve_setting(project_fast, None, {"mode": "all", "workers": []}),
     )
     selection = _fast_selection(resolved_fast, "fast selection", role_names)
     selected_names = role_names if selection["mode"] == "all" else set(selection["workers"])

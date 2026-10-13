@@ -1327,13 +1327,13 @@ def _validate_permission_grant(payload: Any, pending: dict[str, Any], role: Role
     if scope not in {"turn", "session"}:
         raise FastAgentsError("permissions reply scope must be turn or session")
     strict_auto_review = payload.get("strictAutoReview")
-    if strict_auto_review is False:
-        raise FastAgentsError("permission grants must retain automatic review")
     if strict_auto_review is not None and not isinstance(strict_auto_review, bool):
         raise FastAgentsError("strictAutoReview must be true, null, or omitted")
+    if strict_auto_review is True and scope != "turn":
+        raise FastAgentsError("strictAutoReview=true requires turn scope")
     result: dict[str, Any] = {"permissions": result_permissions, "scope": scope}
-    if strict_auto_review is True:
-        result["strictAutoReview"] = True
+    if strict_auto_review is not None:
+        result["strictAutoReview"] = strict_auto_review
     return result
 
 
@@ -1386,7 +1386,13 @@ def _validate_server_reply(
         if action not in {"accept", "decline", "cancel"}:
             raise FastAgentsError("MCP reply requires action accept, decline, or cancel")
         content = payload.get("content")
-        if action == "accept" and not isinstance(content, dict):
+        params = pending.get("params")
+        url_mode_without_schema = (
+            isinstance(params, dict)
+            and params.get("mode") == "url"
+            and "requestedSchema" not in params
+        )
+        if action == "accept" and not isinstance(content, dict) and not (url_mode_without_schema and content is None):
             raise FastAgentsError("accepted MCP elicitation requires structured content")
         if action != "accept" and content is not None:
             raise FastAgentsError("declined or cancelled MCP elicitation cannot include content")

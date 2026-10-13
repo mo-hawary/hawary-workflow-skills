@@ -32,7 +32,7 @@ DEFAULTS_OWNER_SUFFIX = ".fast-agents-owner.json"
 MANAGED_BLOCK = "\n".join(
     [
         "<!-- fast-agents:begin -->",
-        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-agents` skill as the delegation master for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; preserve explicit user routing and choices, ownership, sandbox, Plan Mode, and on-request approval rules, and avoid routine setup questions.",
+        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-agents` skill as the delegation master for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
         "This block is shared instruction text only; it applies only in clients configured to load the selected Codex home instruction file. The setup command cannot verify Codex app activation, so verify that inside the app.",
         "<!-- fast-agents:end -->",
     ]
@@ -308,14 +308,16 @@ def _resolve_instruction_target(value: Path | None) -> Path:
     if candidate.name not in {"AGENTS.md", "AGENTS.override.md"}:
         directory = candidate.resolve()
         override = directory / "AGENTS.override.md"
-        return override if override.is_file() else directory / "AGENTS.md"
-    if candidate.is_symlink():
+        target = override if override.is_file() else directory / "AGENTS.md"
+    else:
+        if candidate.is_symlink():
+            raise FastAgentsError("instruction target is a symlink; select its actual Codex home file explicitly")
+        candidate = candidate.resolve()
+        override = candidate.parent / "AGENTS.override.md"
+        target = override if candidate.name == "AGENTS.md" and override.is_file() else candidate
+    if target.is_symlink():
         raise FastAgentsError("instruction target is a symlink; select its actual Codex home file explicitly")
-    candidate = candidate.resolve()
-    override = candidate.parent / "AGENTS.override.md"
-    if candidate.name == "AGENTS.md" and override.is_file():
-        return override
-    return candidate
+    return target.resolve()
 
 
 def _instruction_owner_path(target: Path) -> Path:
@@ -397,8 +399,11 @@ def apply_instruction_preview(
     if plan.get("owner") != "hawary-fast-agents-instruction-plan" or plan.get("plan_id") != plan_id:
         raise FastAgentsError("instruction preview ownership could not be verified")
     target = Path(plan["target"])
-    if target.name == "AGENTS.md" and (target.parent / "AGENTS.override.md").is_file():
-        raise FastAgentsError("AGENTS.override.md became active after preview; no instruction file was changed")
+    active_target = _resolve_instruction_target(target)
+    if active_target != target:
+        if target.name == "AGENTS.md":
+            raise FastAgentsError("AGENTS.override.md became active after preview; no instruction file was changed")
+        raise FastAgentsError("selected instruction target changed after preview; no file was changed")
     current_exists = target.is_file()
     current_sha = sha256_file(target) if current_exists else "absent"
     if current_sha != plan["before_sha256"] or expected_before != plan["before_sha256"]:
@@ -445,12 +450,33 @@ def apply_instruction_preview(
 
 
 def rollback_instruction(target_arg: Path | None, apply: bool = False) -> list[str]:
-    target = _resolve_instruction_target(target_arg)
-    owner_path = _instruction_owner_path(target)
+    if target_arg is None:
+        requested_path = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser()
+    else:
+        requested_path = target_arg.expanduser()
+    explicit_target: Path | None = None
+    if requested_path.name in {"AGENTS.md", "AGENTS.override.md"}:
+        if requested_path.is_symlink():
+            raise FastAgentsError("instruction target is a symlink; select its actual Codex home file explicitly")
+        directory = requested_path.parent.resolve()
+        explicit_target = directory / requested_path.name
+    else:
+        directory = requested_path.resolve()
+    owner_path = directory / INSTRUCTION_OWNER
     if not owner_path.is_file():
-        raise FastAgentsError(f"no fast-agents instruction ownership record found for {target}")
+        raise FastAgentsError(f"no fast-agents instruction ownership record found for {directory}")
     owner = read_json(owner_path)
-    if owner.get("owner") != "hawary-fast-agents-instructions" or owner.get("target") != str(target):
+    recorded_target = owner.get("target")
+    if owner.get("owner") != "hawary-fast-agents-instructions" or not isinstance(recorded_target, str):
+        raise FastAgentsError("instruction rollback ownership could not be verified")
+    target = Path(recorded_target)
+    if (
+        not target.is_absolute()
+        or target.parent != directory
+        or target.name not in {"AGENTS.md", "AGENTS.override.md"}
+        or (explicit_target is not None and target != explicit_target)
+        or target.is_symlink()
+    ):
         raise FastAgentsError("instruction rollback ownership could not be verified")
     if not target.is_file() or sha256_file(target) != owner.get("after_sha256"):
         raise FastAgentsError("instruction file changed after setup; rollback refused to overwrite modified instructions")

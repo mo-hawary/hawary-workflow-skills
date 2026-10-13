@@ -489,7 +489,7 @@ def _defaults_show(args: argparse.Namespace) -> int:
         fast_selection = defaults.get("fast_selection")
         if fast_selection is None:
             legacy = defaults.get("fast_requested")
-            fast_selection = "all" if legacy is True else "none" if legacy is False else "recommended none"
+            fast_selection = "all" if legacy is True else "none" if legacy is False else "recommended all"
         print(f"Fast workers: {fast_selection}")
         writer = defaults.get("writer", {})
         reviewer = defaults.get("reviewer", {})

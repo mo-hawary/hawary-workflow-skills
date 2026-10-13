@@ -21,6 +21,7 @@ import fast_agents_app_server as app_server
 import fast_agents_common as common
 import fast_agents_ipc as ipc
 import fast_agents_runtime as runtime
+import fast_agents_setup as setup
 from fast_agents_protocol import AppServerRpcError
 
 
@@ -400,3 +401,270 @@ def test_windows_exited_child_is_dead_while_parent_retains_handle():
             process.wait(timeout=10)
         if process.stdin is not None:
             process.stdin.close()
+
+
+@pytest.mark.parametrize(
+    ("selected_name", "argument_kind"),
+    [
+        ("AGENTS.md", "directory"),
+        ("AGENTS.override.md", "directory"),
+        ("AGENTS.override.md", "ordinary-file"),
+    ],
+)
+def test_instruction_preview_rejects_the_selected_file_when_it_is_a_symlink(
+    tmp_path: Path, selected_name: str, argument_kind: str
+):
+    codex_home = tmp_path / "codex"
+    codex_home.mkdir()
+    agents = codex_home / "AGENTS.md"
+    agents.write_text("Base instructions\n", encoding="utf-8")
+    selected = codex_home / selected_name
+    external = tmp_path / "external-instructions.md"
+    external.write_text("Do not overwrite this target\n", encoding="utf-8")
+    selected.unlink(missing_ok=True)
+    selected.symlink_to(external)
+    target_arg = agents if argument_kind == "ordinary-file" else codex_home
+
+    with pytest.raises(common.FastAgentsError, match="instruction target is a symlink"):
+        setup.instruction_preview(target_arg, tmp_path / "runtime")
+
+    assert selected.is_symlink()
+    assert external.read_text(encoding="utf-8") == "Do not overwrite this target\n"
+
+
+def test_instruction_apply_rechecks_symlink_after_preview_and_preserves_symlinked_home(
+    tmp_path: Path,
+):
+    codex_home = tmp_path / "codex"
+    codex_home.mkdir()
+    agents = codex_home / "AGENTS.md"
+    original = "Base instructions\n"
+    agents.write_text(original, encoding="utf-8")
+    runtime_root = tmp_path / "runtime"
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(agents, runtime_root)
+    external = tmp_path / "external-instructions.md"
+    external.write_text(original, encoding="utf-8")
+    agents.unlink()
+    agents.symlink_to(external)
+
+    with pytest.raises(common.FastAgentsError, match="instruction target is a symlink"):
+        setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+    assert agents.is_symlink()
+    assert external.read_text(encoding="utf-8") == original
+
+    agents.unlink()
+    agents.write_text(original, encoding="utf-8")
+    linked_home = tmp_path / "codex-alias"
+    linked_home.symlink_to(codex_home, target_is_directory=True)
+    next_plan, selected, next_before, next_after = setup.instruction_preview(linked_home, runtime_root)
+    assert selected == agents
+    setup.apply_instruction_preview(runtime_root, next_plan, next_after, next_before)
+    assert agents.read_text(encoding="utf-8").startswith(original)
+    assert external.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize("argument_kind", ["home", "explicit-file"])
+def test_instruction_rollback_uses_owned_target_after_override_is_added(
+    tmp_path: Path, argument_kind: str
+):
+    codex_home = tmp_path / "codex"
+    codex_home.mkdir()
+    agents = codex_home / "AGENTS.md"
+    original = "Original shared instructions\n"
+    agents.write_text(original, encoding="utf-8")
+    runtime_root = tmp_path / "runtime"
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(agents, runtime_root)
+    setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+    override = codex_home / "AGENTS.override.md"
+    override.write_text("New active override stays untouched\n", encoding="utf-8")
+    target_arg = codex_home if argument_kind == "home" else agents
+
+    assert str(agents) in " ".join(setup.rollback_instruction(target_arg, apply=False))
+    setup.rollback_instruction(target_arg, apply=True)
+
+    assert agents.read_text(encoding="utf-8") == original
+    assert override.read_text(encoding="utf-8") == "New active override stays untouched\n"
+
+
+def test_instruction_rollback_still_refuses_tampered_owner_and_edited_target(tmp_path: Path):
+    codex_home = tmp_path / "codex"
+    codex_home.mkdir()
+    agents = codex_home / "AGENTS.md"
+    agents.write_text("Original instructions\n", encoding="utf-8")
+    runtime_root = tmp_path / "runtime"
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(agents, runtime_root)
+    setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner = json.loads(owner_path.read_text(encoding="utf-8"))
+    owner["target"] = str(tmp_path / "outside.md")
+    owner_path.write_text(json.dumps(owner), encoding="utf-8")
+
+    with pytest.raises(common.FastAgentsError, match="ownership could not be verified"):
+        setup.rollback_instruction(codex_home, apply=True)
+    assert setup.MANAGED_BLOCK in agents.read_text(encoding="utf-8")
+
+    owner["target"] = str(agents)
+    owner_path.write_text(json.dumps(owner), encoding="utf-8")
+    owner_path.write_text("{", encoding="utf-8")
+    with pytest.raises(common.FastAgentsError, match="cannot read valid JSON"):
+        setup.rollback_instruction(codex_home, apply=True)
+    owner_path.write_text(json.dumps(owner), encoding="utf-8")
+    agents.write_text(agents.read_text(encoding="utf-8") + "User edit\n", encoding="utf-8")
+    with pytest.raises(common.FastAgentsError, match="changed after setup"):
+        setup.rollback_instruction(agents, apply=True)
+    assert "User edit" in agents.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("content", ["omitted", None])
+def test_url_mcp_elicitation_accept_allows_optional_content(tmp_path: Path, content: Any):
+    pending = {
+        "method": "mcpServer/elicitation/request",
+        "params": {"mode": "url", "url": "https://example.invalid", "elicitationId": "elicitation-1"},
+    }
+    payload: dict[str, Any] = {"action": "accept"}
+    if content != "omitted":
+        payload["content"] = content
+
+    response = app_server._validate_server_reply(
+        pending, {"payload": payload}, SimpleNamespace(access="writer"), tmp_path
+    )
+
+    assert response == {"action": "accept", "content": None}
+
+
+def test_form_mcp_elicitation_requires_structured_content_and_accepts_valid_content(tmp_path: Path):
+    pending = {
+        "method": "mcpServer/elicitation/request",
+        "params": {
+            "mode": "form",
+            "requestedSchema": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"],
+            },
+        },
+    }
+
+    with pytest.raises(common.FastAgentsError, match="requires structured content"):
+        app_server._validate_server_reply(
+            pending, {"payload": {"action": "accept"}}, SimpleNamespace(access="writer"), tmp_path
+        )
+
+    content = {"name": "Ada"}
+    response = app_server._validate_server_reply(
+        pending,
+        {"payload": {"action": "accept", "content": content}},
+        SimpleNamespace(access="writer"),
+        tmp_path,
+    )
+    assert response == {"action": "accept", "content": content}
+
+
+def test_permission_grant_scope_strict_auto_review_combinations(tmp_path: Path):
+    pending = {
+        "method": "item/permissions/requestApproval",
+        "params": {"permissions": {"network": {"enabled": False}}},
+    }
+    role = SimpleNamespace(access="writer")
+
+    turn_strict = app_server._validate_server_reply(
+        pending,
+        {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "turn", "strictAutoReview": True}},
+        role,
+        tmp_path,
+    )
+    turn_non_strict = app_server._validate_server_reply(
+        pending,
+        {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "turn", "strictAutoReview": False}},
+        role,
+        tmp_path,
+    )
+    turn_null_flag = app_server._validate_server_reply(
+        pending,
+        {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "turn", "strictAutoReview": None}},
+        role,
+        tmp_path,
+    )
+    session_without_flag = app_server._validate_server_reply(
+        pending,
+        {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "session"}},
+        role,
+        tmp_path,
+    )
+    session_non_strict = app_server._validate_server_reply(
+        pending,
+        {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "session", "strictAutoReview": False}},
+        role,
+        tmp_path,
+    )
+
+    assert turn_strict["strictAutoReview"] is True
+    assert turn_non_strict["strictAutoReview"] is False
+    assert "strictAutoReview" not in turn_null_flag
+    assert session_without_flag["scope"] == "session"
+    assert "strictAutoReview" not in session_without_flag
+    assert session_non_strict == {
+        "permissions": {"network": {"enabled": False}},
+        "scope": "session",
+        "strictAutoReview": False,
+    }
+    with pytest.raises(common.FastAgentsError, match="strictAutoReview=true requires turn scope"):
+        app_server._validate_server_reply(
+            pending,
+            {"payload": {"permissions": {"network": {"enabled": False}}, "scope": "session", "strictAutoReview": True}},
+            role,
+            tmp_path,
+        )
+
+
+def test_unsupported_permission_reply_keeps_server_request_pending(tmp_path: Path):
+    async def exercise() -> None:
+        task_dir, _, _ = make_task(tmp_path)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "unused")
+        request_id = "permission-request"
+        key = supervisor._request_key(request_id)
+        server_request = {
+            "id": request_id,
+            "method": "item/permissions/requestApproval",
+            "params": {"permissions": {"network": {"enabled": False}}},
+        }
+        pending = {
+            "request_id": request_id,
+            "method": server_request["method"],
+            "params": server_request["params"],
+            "thread_id": "thread-1",
+            "turn_id": "turn-1",
+            "role": "worker0",
+            "item_id": "item-1",
+            "transport_epoch": "test-epoch",
+            "server_request": server_request,
+        }
+        supervisor.pending_requests[key] = pending
+        supervisor.connection_epoch = "test-epoch"
+        supervisor._pending_is_current = lambda _key, _pending: True
+        responses: list[tuple[str, dict[str, Any]]] = []
+
+        async def respond(reply_id: str, response: dict[str, Any]) -> None:
+            responses.append((reply_id, response))
+
+        supervisor.client = SimpleNamespace(
+            closed=asyncio.Event(), server_requests={key: server_request}, respond=respond
+        )
+        request = {
+            "request_id": request_id,
+            "thread_id": "thread-1",
+            "turn_id": "turn-1",
+            "payload": {
+                "permissions": {"network": {"enabled": False}},
+                "scope": "session",
+                "strictAutoReview": True,
+            },
+        }
+
+        with pytest.raises(common.FastAgentsError, match="strictAutoReview=true requires turn scope"):
+            await supervisor._reply_pending(request)
+
+        assert supervisor.pending_requests[key] is pending
+        assert responses == []
+
+    asyncio.run(exercise())

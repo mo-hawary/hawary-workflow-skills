@@ -324,6 +324,41 @@ def test_manifest_validation_enforces_ownership_dependencies_contract_and_routin
         common.load_manifest(manifest_path, defaults_path=tmp_path / "no-defaults.json")
 
 
+def test_reviewer_effort_respects_explicit_choice_and_supported_values(tmp_path: Path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    for effort in ("low", "xhigh"):
+        manifest_path = write_manifest(
+            tmp_path / f"reviewer-{effort}.json",
+            workspace,
+            [reviewer(effort=effort)],
+            fast_requested=False,
+        )
+        manifest = common.load_manifest(manifest_path, defaults_path=tmp_path / "no-defaults.json")
+        assert manifest.roles[0].model == "gpt-6.1-sol"
+        assert manifest.roles[0].effort == effort
+
+    wrong_model_manifest = write_manifest(
+        tmp_path / "reviewer-wrong-model.json",
+        workspace,
+        [reviewer(model="gpt-6-luna", effort="low")],
+        fast_requested=False,
+    )
+    with pytest.raises(common.FastAgentsError, match="read-only reviewers must use gpt-6.1-sol"):
+        common.load_manifest(wrong_model_manifest, defaults_path=tmp_path / "no-defaults.json")
+
+    for name, effort in (("unknown", "turbo"), ("list", ["low"]), ("object", {"value": "low"})):
+        invalid_effort_manifest = write_manifest(
+            tmp_path / f"reviewer-{name}-effort.json",
+            workspace,
+            [reviewer(effort=effort)],
+            fast_requested=False,
+        )
+        with pytest.raises(common.FastAgentsError, match="reviewers must use a supported reasoning effort"):
+            common.load_manifest(invalid_effort_manifest, defaults_path=tmp_path / "no-defaults.json")
+
+
 def test_plan_mode_rejects_writers_before_any_cli_process(tmp_path: Path, fake_codex: FakeCodex):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -1069,7 +1104,9 @@ def test_managed_instruction_routes_substantive_execution_and_preserves_foregrou
     assert "including a single bounded worker" in managed
     assert "brief factual answers, conversation, and planning in the foreground" in managed
     assert "model, effort, worker count, and per-worker Fast setting automatically" in managed
+    assert "use Fast for all workers by default" in managed
     assert "explicit user routing and choices" in managed
+    assert "saved and project Fast settings" in managed
     assert "Plan Mode" in managed and "on-request approval" in managed
     assert "only in clients configured to load" in managed
     skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
@@ -1154,6 +1191,26 @@ def test_defaults_preview_confirmation_precedence_and_rollback_protect_modificat
     with pytest.raises(common.FastAgentsError, match="changed after setup"):
         setup.rollback_defaults(absent, apply=True)
     assert absent.read_text(encoding="utf-8") == "modified by user"
+
+
+def test_defaults_generation_keeps_fast_unset_and_reports_all_as_recommendation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    defaults_path = tmp_path / "new-defaults.json"
+    _, preview, before_sha, after_sha = setup.defaults_preview(defaults_path, None, "low")
+    assert preview["fast_requested"] is None
+    setup.save_defaults(
+        defaults_path,
+        None,
+        "low",
+        apply=True,
+        confirm_sha=after_sha,
+        expected_before=before_sha or "absent",
+    )
+
+    assert common.load_defaults(defaults_path)["fast_requested"] is None
+    assert cli._defaults_show(SimpleNamespace(path=str(defaults_path), json=False)) == 0
+    assert "Fast workers: recommended all" in capsys.readouterr().out
 
 
 def test_instruction_preview_prefers_override_backs_up_exact_file_and_rolls_back_only_unchanged(tmp_path: Path):
@@ -1453,6 +1510,11 @@ def test_app_server_ipc_steer_ack_stale_turn_interrupt_and_read_only_token(
         ("user-input", None, {"answers": {"q1": {"answers": ["yes"]}}}),
         ("mcp", None, {"action": "decline"}),
         ("permissions", None, {"permissions": {"network": {"enabled": False}}, "scope": "turn"}),
+        (
+            "permissions",
+            None,
+            {"permissions": {"network": {"enabled": False}}, "scope": "session", "strictAutoReview": False},
+        ),
     ],
 )
 def test_pending_approval_user_input_and_mcp_requests_need_scoped_explicit_replies(
@@ -1921,6 +1983,42 @@ def test_disconnect_invalidates_pending_request_and_recovery_does_not_replay_it(
     assert stale_reply.returncode == 2
     assert "no longer pending" in stale_reply.stderr
     assert fake_app_server.state().get("server_responses", []) == []
+
+
+def test_omitted_fast_setting_routes_every_app_server_worker_to_priority(
+    tmp_path: Path, fake_app_server: FakeAppServer
+):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    manifest_path = write_manifest(
+        tmp_path / "task.json",
+        workspace,
+        [writer("write", ["src/write.py"]), reviewer("review", depends_on=["write"])],
+        backend="app-server",
+    )
+    raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+    raw.pop("fast_requested")
+    manifest_path.write_text(json.dumps(raw), encoding="utf-8")
+
+    resolved = common.load_manifest(manifest_path, defaults_path=tmp_path / "missing-defaults.json")
+    assert resolved.fast_selection == {"mode": "all", "workers": []}
+    assert all(role.fast_requested for role in resolved.roles)
+    assert all(role.setting_sources["fast"] == "recommended" for role in resolved.roles)
+
+    runtime_root = tmp_path / "runtime"
+    launched = launch_app_server(manifest_path, fake_app_server, runtime_root)
+    assert launched.returncode == 0, launched.stderr
+    task_id = task_id_from(launched)
+    status = wait_for_manager(runtime_root, task_id)
+    assert status["state"] == "completed"
+    assert all(status["roles"][name]["fast"]["requested_tier"] == "priority" for name in ("write", "review"))
+    turn_starts = [
+        item["params"]
+        for item in fake_app_server.state()["requests"]
+        if item.get("method") == "turn/start"
+    ]
+    assert len(turn_starts) == 2
+    assert {item["serviceTierForTurn"] for item in turn_starts} == {"priority"}
 
 
 @pytest.mark.parametrize(

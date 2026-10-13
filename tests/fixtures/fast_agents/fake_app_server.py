@@ -100,8 +100,8 @@ def _response_mismatch(method: str, params: dict[str, Any], result: Any) -> str 
             return "permissions response has an invalid scope"
         if result.get("strictAutoReview") is not None and not isinstance(result.get("strictAutoReview"), bool):
             return "permissions response has an invalid strictAutoReview value"
-        if result.get("strictAutoReview") is False:
-            return "permissions response disabled automatic review"
+        if result.get("strictAutoReview") is True and result.get("scope", "turn") == "session":
+            return "strictAutoReview=true requires turn scope"
         requested = params.get("permissions")
         granted = result["permissions"]
         if not isinstance(requested, dict) or set(granted) - set(requested) or set(granted) - {"fileSystem", "network"}:

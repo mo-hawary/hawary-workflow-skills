@@ -1,0 +1,45 @@
+import unittest
+
+from inventory import invoice_total, merge_items
+
+
+class InvoiceTotalTests(unittest.TestCase):
+    def test_multiplies_unit_price_by_quantity(self):
+        self.assertEqual(
+            invoice_total([
+                {"sku": "B", "unit_price_cents": 250, "quantity": 3},
+                {"sku": "A", "unit_price_cents": 125, "quantity": 2},
+            ]),
+            1000,
+        )
+
+    def test_empty_invoice_total_is_zero(self):
+        self.assertEqual(invoice_total([]), 0)
+
+
+class MergeItemsTests(unittest.TestCase):
+    def test_sorts_and_merges_duplicate_skus_by_quantity(self):
+        source = [
+            {"sku": "Z", "unit_price_cents": 400, "quantity": 1},
+            {"sku": "A", "unit_price_cents": 125, "quantity": 2},
+            {"sku": "Z", "unit_price_cents": 400, "quantity": 3},
+        ]
+        self.assertEqual(
+            merge_items(source),
+            [
+                {"sku": "A", "unit_price_cents": 125, "quantity": 2},
+                {"sku": "Z", "unit_price_cents": 400, "quantity": 4},
+            ],
+        )
+        self.assertEqual(source[0]["quantity"], 1)
+
+    def test_repeated_sku_with_different_prices_is_rejected(self):
+        with self.assertRaises(ValueError):
+            merge_items([
+                {"sku": "A", "unit_price_cents": 100, "quantity": 1},
+                {"sku": "A", "unit_price_cents": 200, "quantity": 1},
+            ])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -29,6 +29,8 @@ python3 scripts/fast_agents.py defaults set --fast-workers none
 python3 scripts/fast_agents.py defaults set --fast-workers implement,review
 ```
 
+When no saved Fast choice exists, `defaults show` reports `recommended all`. Existing saved `none`, selected-worker, and per-role choices remain in effect until changed.
+
 Apply only the displayed preview by supplying both hashes. Use `absent` when the preview says no defaults file exists:
 
 ```bash

@@ -12,7 +12,7 @@ Natural-language trigger:
 Split this implementation and its review across a small Codex team. Give each writer separate files, agree on the shared API first, and keep the reviewer read-only.
 ```
 
-Choose the smallest useful team automatically and show the resolved roles, ownership, model, effort, and per-worker Fast choice before launch. Resolve explicit user choices before saved defaults, project/user rules, and recommendations. Recommend Fast `none` when unspecified. Ask only about an unresolved conflict or unavailable requested option.
+Choose the smallest useful team automatically and show the resolved roles, ownership, model, effort, and per-worker Fast choice before launch. Resolve explicit user choices before saved defaults, project/user rules, and recommendations. Use Fast for all workers when unspecified. Ask only about an unresolved conflict or unavailable requested option.
 
 Inspect the local CLI without starting a model session:
 
