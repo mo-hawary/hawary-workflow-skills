@@ -718,15 +718,24 @@ class AppServerSupervisor:
         self._set_terminal_task_state()
 
     def _set_terminal_task_state(self) -> None:
-        states = [item.get("state") for item in self.status["roles"].values()]
-        if states and all(state == "completed" for state in states):
-            self.status["state"] = "completed"
-            self.status["action"] = "Review the final reports and verify the shared contract."
-        elif any(state == "unknown" for state in states):
-            # A dependent blocked by an uncertain turn is not proof of terminal failure.
+        roles = list(self.status["roles"].values())
+        states = [item.get("state") for item in roles]
+        # A completed turn without a final report is an output failure, not an
+        # uncertain submission. Only an unproven turn/thread needs recovery.
+        uncertain = any(
+            role.get("recovery_required") is True
+            or (role.get("state") == "unknown"
+                and role.get("turn_status") not in TERMINAL_TURN_STATES)
+            for role in roles
+        )
+        if uncertain:
+            # A blocked dependent must not hide an upstream uncertain turn.
             self.status["state"] = "recovery_required"
             self.status["action"] = "A thread or turn could not be proven terminal; reconcile it before starting more work."
-        elif any(state in {"failed", "blocked", "interrupted"} for state in states):
+        elif states and all(state == "completed" for state in states):
+            self.status["state"] = "completed"
+            self.status["action"] = "Review the final reports and verify the shared contract."
+        elif any(state in {"failed", "blocked", "interrupted", "unknown"} for state in states):
             self.status["state"] = "failed"
             self.status["action"] = "Review the failed role and pending approvals before any explicit relaunch."
         else:
