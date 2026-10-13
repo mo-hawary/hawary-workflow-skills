@@ -736,8 +736,9 @@ def test_reconcile_restores_dependent_only_after_upstream_is_verified(tmp_path: 
         task_dir, _, _ = make_task(tmp_path)
         manifest = common.read_json(task_dir / "manifest.json")
         writer = manifest["roles"][0]
-        manifest["roles"].append({**writer, "name": "dependent", "access": "reviewer", "owns": [], "depends_on": ["worker0"]})
+        # Reverse the dependency order to require more than one requeue pass.
         manifest["roles"].append({**writer, "name": "grandchild", "access": "reviewer", "owns": [], "depends_on": ["dependent"]})
+        manifest["roles"].append({**writer, "name": "dependent", "access": "reviewer", "owns": [], "depends_on": ["worker0"]})
         common.atomic_write_json(task_dir / "manifest.json", manifest)
         status = common.read_json(task_dir / "status.json")
         status["roles"]["dependent"] = {**status["roles"]["worker0"]}
