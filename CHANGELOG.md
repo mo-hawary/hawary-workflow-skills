@@ -32,7 +32,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Made app-server approval replies single-claim before any asynchronous write; duplicate concurrent decisions are rejected and uncertain delivery is never blindly retried.
 - Rechecked pinned Codex compatibility before launching a replacement supervisor during recovery.
 - Coalesced routine progress status writes while keeping submission, approval, and recovery boundaries durable; skipped redundant pending-authority file rewrites.
-- Extracted pure task-state classification and expanded compact status output with current turn IDs, tiers, operator actions, and separated workspace scope evidence.
+- Extracted pure execution-state classification and expanded compact status output with current turn IDs, tiers, operator actions, and separated workspace scope evidence.
 - Renamed the pre-release `fast-agents` skill to `fast-codex-subagents`; internal helper filenames and existing runtime-state and ownership identifiers remain stable.
 - Hardened `dependency-security-auditor` package-manager detection, partial-status reporting, pnpm audit parsing, and Python requirements evidence notes.
 - Added dependency-auditor setup hints and unsupported-tool handling for friendlier local installs.
