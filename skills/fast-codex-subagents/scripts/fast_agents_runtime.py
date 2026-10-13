@@ -70,7 +70,7 @@ def private_mkdir(path: Path) -> None:
 
 def task_path(runtime_root: Path, task_id: str) -> Path:
     if not SAFE_TASK_ID.fullmatch(task_id):
-        raise FastAgentsError("task id must be a fast-agents UUID")
+        raise FastAgentsError("task id must be a valid UUID")
     result = runtime_root / "tasks" / task_id
     if not result.is_dir():
         raise FastAgentsError(f"task not found: {task_id}")

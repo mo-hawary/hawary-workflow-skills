@@ -56,12 +56,12 @@ Use mobile-maestro-e2e-orchestrator to validate this mobile flow with checkpoint
 Use dependency-security-auditor to scan this repo's dependencies and recommend pre-push or CI security checks.
 ```
 
-## Fast Agents
+## Fast Codex Subagents
 
 Explicit invocation:
 
 ```text
-Use fast-agents to implement this bounded change with one writer and one read-only reviewer. Run all agents in fast mode.
+Use $fast-codex-subagents to implement this bounded change with one writer and one read-only reviewer. Run all workers in Fast mode.
 ```
 
 Natural-language trigger:
@@ -70,12 +70,12 @@ Natural-language trigger:
 Split this implementation and its review across a small Codex team. Give each writer separate files, agree on the shared API first, and keep the reviewer read-only.
 ```
 
-The skill chooses the smallest useful team and its recommended settings automatically. Resolve settings in this order: explicit user choice, saved defaults, project/user rules, then recommendation. Use Fast for all workers when no setting was specified, and ask only about unresolved conflicts or unavailable requested options. Read [the task manifest guide](../skills/fast-agents/references/manifest-guide.md), inspect the local CLI, and show the team and resolved settings before launching. `doctor` checks schema and model/service-tier availability without inference:
+The skill chooses the smallest useful team and its recommended settings automatically. Resolve settings in this order: explicit user choice, saved defaults, project/user rules, then recommendation. Use Fast for all workers when no setting was specified, and ask only about unresolved conflicts or unavailable requested options. Read [the task manifest guide](../skills/fast-codex-subagents/references/manifest-guide.md), inspect the local CLI, and show the team and resolved settings before launching. `doctor` checks schema and model/service-tier availability without inference:
 
 ```bash
-python3 skills/fast-agents/scripts/fast_agents.py doctor
+python3 skills/fast-codex-subagents/scripts/fast_agents.py doctor
 ```
 
 The preferred backend is one Codex app-server stdio process with separate logical worker threads. It supports Codex CLI 0.162.1 only; `exec` is an explicit fallback and is never selected silently. Fake-server tests do not make model calls.
 
-For opt-in skill installation, saved defaults, instruction setup, and safe rollback commands, see [the setup guide](../skills/fast-agents/references/setup-and-rollback.md).
+For opt-in skill installation, saved defaults, instruction setup, and safe rollback commands, see [the setup guide](../skills/fast-codex-subagents/references/setup-and-rollback.md).

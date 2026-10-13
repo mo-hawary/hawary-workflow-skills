@@ -6,8 +6,8 @@ Hawary Workflow Skills is designed as a report-first workflow package for coding
 
 - Report-first behavior is the default for audits, reviews, QA, docs cleanup, and dependency checks.
 - Skills require explicit approval before implementation edits, dependency upgrades, lockfile changes, hook installation, CI changes, or destructive actions.
-- `fast-agents` chooses the smallest useful team automatically, launches writers only for a user-requested implementation, and records requested/effective/upstream tier evidence separately.
-- `fast-agents` setup commands preview installs, saved defaults, and global-instruction edits; they make no setup change without an explicit apply step.
+- `fast-codex-subagents` chooses the smallest useful team automatically, launches writers only for a user-requested implementation, and records requested/effective/upstream tier evidence separately.
+- `fast-codex-subagents` setup commands preview skill installs, saved defaults, and shared-instruction edits; they make no setup change without an explicit apply step.
 - The Codex-only helper defaults to one schema-pinned app-server process with separate logical threads, `on-request` approvals, automatic review, and role-specific sandboxes. It never blanket-approves requests or retries another backend/tier silently.
 - The app-server adapter is experimental and accepts Codex CLI 0.162.1 only. Doctor checks the generated protocol schema and `model/list` without inference; fake tests are not evidence of a paid model tier.
 - No hidden credential collection is part of any skill or bundled script.
@@ -22,7 +22,7 @@ Hawary Workflow Skills is designed as a report-first workflow package for coding
 - Produce source-backed reports, specs, review findings, QA plans, and verification steps.
 - Run the dependency-audit helper only when the user or agent environment allows command execution.
 - Write a JSON dependency report only when the helper is invoked with a report path.
-- Launch scoped Codex app-server logical writer/reviewer threads when `fast-agents` is selected, with authenticated loopback control and private local runtime state.
+- Launch scoped Codex app-server logical writer/reviewer threads when `fast-codex-subagents` is selected, with authenticated loopback control and private local runtime state.
 - Modify selected skill homes, a dedicated defaults file, or a selected Codex instruction file only through the explicit setup/apply commands.
 
 ## What The Package Should Not Do

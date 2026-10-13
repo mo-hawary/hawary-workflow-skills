@@ -45,6 +45,35 @@ def test_skills_index_matches_canonical_skill_folders():
         assert skill["outputs"]
 
 
+def test_fast_codex_subagents_public_identity_matches_ui_metadata():
+    skill_file = SKILLS_DIR / "fast-codex-subagents" / "SKILL.md"
+    assert frontmatter_value(skill_file, "name") == "fast-codex-subagents"
+
+    ui_path = skill_file.parent / "agents" / "openai.yaml"
+    ui_metadata = ui_path.read_text(encoding="utf-8")
+    assert 'display_name: "Fast Codex Subagents"' in ui_metadata
+    assert "$fast-codex-subagents" in ui_metadata
+
+
+def test_fast_codex_subagents_evidence_remains_historical():
+    evidence_path = SKILLS_DIR / "fast-codex-subagents" / "references" / "evidence" / "2026-10-13-summary.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    identity = evidence["skill_identity_at_recording"]
+    assert identity["public_skill_id"] == "fast-agents"
+    assert identity["current_public_skill_id"] == "fast-codex-subagents"
+    assert identity["release_version"] is None
+
+    pair = evidence["corrected_fast_on_off_pair"]
+    assert pair["runs"]["fast_on"]["full_turn_seconds"] == 47.917
+    assert pair["runs"]["fast_off"]["full_turn_seconds"] == 61.657
+    assert pair["runs"]["fast_on"]["combined_total_tokens"] == 325163
+    assert pair["runs"]["fast_off"]["combined_total_tokens"] == 300566
+    assert pair["prelaunch_source_snapshot"]["files"]["skills/fast-agents/SKILL.md"] == (
+        "bd6e036149fc7f4d7b4c9086824118251937caff15a2b74efe81bea85a348a6f"
+    )
+
+
 def test_claude_marketplace_exposes_canonical_skills_without_duplication():
     marketplace_path = ROOT / ".claude-plugin" / "marketplace.json"
     assert marketplace_path.exists()

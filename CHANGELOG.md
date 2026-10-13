@@ -8,7 +8,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
-- `fast-agents` with a version-pinned Codex app-server supervisor, separate logical worker threads, smallest-team guidance, authenticated local control, and explicit requested/effective Fast-tier evidence.
+- `fast-codex-subagents`, an experimental public-beta skill with a Codex CLI 0.162.1-pinned app-server supervisor, separate logical worker threads, smallest-team guidance, authenticated local control, and explicit requested/effective Fast-tier evidence.
 - Fake Codex CLI/app-server fixtures and cross-platform `test_fast_agents.py` coverage for protocol routing, approvals, IPC steering, recovery, process ownership, setup, and rollback without paid model calls.
 - `dependency-security-auditor` for dependency CVE scans, freshness checks, and hook/CI audit design.
 - Prompt examples for `dependency-security-auditor`.
@@ -24,6 +24,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Changed
 
+- Renamed the pre-release `fast-agents` skill to `fast-codex-subagents`; internal helper filenames and existing runtime-state and ownership identifiers remain stable.
 - Hardened `dependency-security-auditor` package-manager detection, partial-status reporting, pnpm audit parsing, and Python requirements evidence notes.
 - Added dependency-auditor setup hints and unsupported-tool handling for friendlier local installs.
 - Added bootcamp fixtures for npm, pnpm, Yarn, Bun, Flutter/Dart, pinned and unpinned Python requirements, Python lockfiles, manifest-only Node, and stale mixed Node lockfiles.

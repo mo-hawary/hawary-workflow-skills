@@ -627,7 +627,7 @@ def _build_parser() -> argparse.ArgumentParser:
     instruction_apply_parser.add_argument("--expected-before", required=True)
     instruction_apply_parser.add_argument("--runtime-root")
 
-    rollback_parser = sub.add_parser("rollback", help="preview or roll back unchanged fast-agents-owned setup")
+    rollback_parser = sub.add_parser("rollback", help="preview or roll back unchanged fast-codex-subagents setup")
     rollback_sub = rollback_parser.add_subparsers(dest="rollback_kind", required=True)
     rollback_install_parser = rollback_sub.add_parser("install")
     rollback_install_parser.add_argument("--agents-home", type=Path)
@@ -713,7 +713,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Monitoring interrupted; worker processes were left running.", file=sys.stderr)
         return 130
     except (FastAgentsError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
-        print(f"fast-agents: {error}", file=sys.stderr)
+        print(f"fast-codex-subagents: {error}", file=sys.stderr)
         return 2
     return 0
 

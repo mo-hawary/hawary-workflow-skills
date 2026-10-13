@@ -32,11 +32,13 @@ DEFAULTS_OWNER_SUFFIX = ".fast-agents-owner.json"
 MANAGED_BLOCK = "\n".join(
     [
         "<!-- fast-agents:begin -->",
-        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-agents` skill as the delegation master for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
+        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-codex-subagents` skill as the delegation coordinator for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
         "This block is shared instruction text only; it applies only in clients configured to load the selected Codex home instruction file. The setup command cannot verify Codex app activation, so verify that inside the app.",
         "<!-- fast-agents:end -->",
     ]
 )
+MANAGED_BEGIN = b"<!-- fast-agents:begin -->"
+MANAGED_END = b"<!-- fast-agents:end -->"
 
 
 def _utc_stamp() -> str:
@@ -71,12 +73,12 @@ def _existing_install_status(destination: Path, source_hashes: dict[str, str]) -
     if destination.is_symlink():
         return "collision", "target is a symlink"
     if not destination.exists():
-        return "new", "will install the complete fast-agents folder"
+        return "new", "will install the complete fast-codex-subagents folder"
     if not destination.is_dir():
         return "collision", "target exists and is not a directory"
     marker_path = destination / INSTALL_MARKER
     if not marker_path.is_file():
-        return "collision", "target exists without a fast-agents ownership marker"
+        return "collision", "target exists without an owned skill install marker"
     try:
         marker = read_json(marker_path)
         current = _tree_hashes(destination)
@@ -102,7 +104,7 @@ def install_preview(agents_home: Path | None, claude_home: Path | None) -> list[
     source_hashes = _tree_hashes(source, exclude_marker=False)
     preview = []
     for kind, home in selected:
-        destination = home / "fast-agents"
+        destination = home / "fast-codex-subagents"
         state, detail = _existing_install_status(destination, source_hashes)
         preview.append({"kind": kind, "home": str(home), "destination": str(destination), "state": state, "detail": detail})
     collisions = [item for item in preview if item["state"] in {"collision", "modified", "outdated"}]
@@ -151,7 +153,7 @@ def install_skill(agents_home: Path | None, claude_home: Path | None, apply: boo
                 shutil.rmtree(staging, ignore_errors=True)
                 raise FastAgentsError(f"install target appeared during setup: {destination}") from error
             created.append(destination)
-            messages.append(f"Installed complete fast-agents folder at {destination}")
+            messages.append(f"Installed complete fast-codex-subagents folder at {destination}")
     except Exception:
         for destination in reversed(created):
             state, _ = _existing_install_status(destination, _tree_hashes(source, exclude_marker=False))
@@ -167,7 +169,7 @@ def rollback_skill(agents_home: Path | None, claude_home: Path | None, apply: bo
         raise FastAgentsError("choose --agents-home and/or --claude-home explicitly")
     plans: list[tuple[Path, str]] = []
     for home in selected:
-        destination = _normalize_skill_home(home) / "fast-agents"
+        destination = _normalize_skill_home(home) / "fast-codex-subagents"
         state, detail = _existing_install_status(destination, _tree_hashes(_skill_source(), exclude_marker=False))
         if state not in {"identical", "outdated", "modified"}:
             raise FastAgentsError(f"{destination}: cannot verify an owned install ({detail})")
@@ -244,7 +246,7 @@ def save_defaults(
     if owner_path.exists():
         history = read_json(owner_path)
         if history.get("owner") != "hawary-fast-agents-defaults" or not isinstance(history.get("changes"), list):
-            raise FastAgentsError("defaults rollback record is not owned by fast-agents")
+            raise FastAgentsError("defaults rollback record belongs to another setup")
     backup_path: Path | None = None
     if path.exists():
         backup_path = path.with_name(f"{path.name}.backup.{_utc_stamp()}.{uuid.uuid4().hex[:8]}")
@@ -272,7 +274,7 @@ def rollback_defaults(target: Path | None, apply: bool = False) -> list[str]:
     path = (target or default_config_path()).expanduser().resolve()
     owner_path = _defaults_owner_path(path)
     if not owner_path.is_file():
-        raise FastAgentsError(f"no fast-agents defaults rollback record found for {path}")
+        raise FastAgentsError(f"no owned defaults rollback record found for {path}")
     history = read_json(owner_path)
     changes = history.get("changes")
     if history.get("owner") != "hawary-fast-agents-defaults" or not isinstance(changes, list) or not changes:
@@ -284,7 +286,7 @@ def rollback_defaults(target: Path | None, apply: bool = False) -> list[str]:
     backup = Path(latest["backup"]) if latest.get("backup") else None
     if backup and (not backup.is_file() or sha256_file(backup) != latest.get("before_sha256")):
         raise FastAgentsError("defaults backup is missing or changed; rollback refused")
-    messages = [f"Defaults file: {path}", "Rollback would restore the last backup or remove the file created by fast-agents."]
+    messages = [f"Defaults file: {path}", "Rollback would restore the last backup or remove the file created by this helper."]
     if not apply:
         return messages + ["Preview only. Rerun with --apply to roll back the unchanged owned defaults."]
     if backup:
@@ -324,6 +326,55 @@ def _instruction_owner_path(target: Path) -> Path:
     return target.parent / INSTRUCTION_OWNER
 
 
+def _managed_instruction_span(content: bytes) -> tuple[int, int, bytes]:
+    """Return the one complete generated block, including its trailing LF."""
+    if content.count(MANAGED_BEGIN) != 1 or content.count(MANAGED_END) != 1:
+        raise FastAgentsError("managed instruction markers are missing or duplicated")
+    start = content.find(MANAGED_BEGIN)
+    end_marker = content.find(MANAGED_END)
+    if end_marker <= start or content[start + len(MANAGED_BEGIN):start + len(MANAGED_BEGIN) + 1] != b"\n":
+        raise FastAgentsError("managed instruction markers are malformed")
+    if start and content[start - 1:start] != b"\n":
+        raise FastAgentsError("managed instruction markers are malformed")
+    end = end_marker + len(MANAGED_END)
+    if content[end:end + 1] == b"\n":
+        end += 1
+    return start, end, content[start:end]
+
+
+def _validate_owned_instruction(target: Path, content: bytes, owner: dict[str, Any]) -> tuple[int, int, bytes]:
+    """Verify the setup receipt, original rollback baseline, and owned block."""
+    if owner.get("owner") != "hawary-fast-agents-instructions" or owner.get("target") != str(target):
+        raise FastAgentsError("instruction ownership record belongs to another tool")
+    if owner.get("schema_version") != 1 or sha256_bytes(content) != owner.get("after_sha256"):
+        raise FastAgentsError("instruction file changed after managed setup; refusing to replace it")
+
+    before_exists = owner.get("before_exists")
+    before_sha = owner.get("before_sha256")
+    backup_value = owner.get("backup")
+    if before_exists is True:
+        if not isinstance(before_sha, str) or not isinstance(backup_value, str):
+            raise FastAgentsError("instruction rollback ownership could not be verified")
+        backup = Path(backup_value)
+        if (
+            backup.parent != target.parent
+            or backup.is_symlink()
+            or not backup.is_file()
+            or sha256_file(backup) != before_sha
+        ):
+            raise FastAgentsError("instruction backup is missing or changed; rollback refused")
+    elif before_exists is False:
+        if before_sha is not None or backup_value is not None:
+            raise FastAgentsError("instruction rollback ownership could not be verified")
+    else:
+        raise FastAgentsError("instruction rollback ownership could not be verified")
+
+    start, end, block = _managed_instruction_span(content)
+    if sha256_bytes(block) != owner.get("block_sha256"):
+        raise FastAgentsError("the managed instruction block changed; refusing to replace it")
+    return start, end, block
+
+
 def instruction_preview(target_arg: Path | None, runtime_root: Path) -> tuple[str, Path, str, str]:
     target = _resolve_instruction_target(target_arg)
     exists = target.is_file()
@@ -333,18 +384,25 @@ def instruction_preview(target_arg: Path | None, runtime_root: Path) -> tuple[st
     except UnicodeDecodeError as error:
         raise FastAgentsError("selected Codex instruction file is not UTF-8; left unchanged") from error
     owner_path = _instruction_owner_path(target)
+    refresh_owner = False
+    owner_before_sha: str | None = None
     if owner_path.exists():
         owner = read_json(owner_path)
-        if owner.get("owner") != "hawary-fast-agents-instructions" or owner.get("target") != str(target):
-            raise FastAgentsError("instruction ownership record belongs to another tool")
-        if target.exists() and sha256_file(target) == owner.get("after_sha256"):
+        if not target.is_file():
+            raise FastAgentsError("instruction file changed after managed setup; refusing to replace it")
+        start, end, current_block = _validate_owned_instruction(target, original, owner)
+        current_block_sha = sha256_bytes((MANAGED_BLOCK + "\n").encode("utf-8"))
+        if sha256_bytes(current_block) == current_block_sha:
             return "unchanged", target, owner.get("before_sha256") or "absent", owner["after_sha256"]
-        raise FastAgentsError("instruction file changed after fast-agents setup; refusing to replace it")
-    existing_text = original.decode("utf-8")
-    if "<!-- fast-agents:begin -->" in existing_text or "<!-- fast-agents:end -->" in existing_text:
-        raise FastAgentsError("fast-agents markers already exist without an owned setup record; refusing collision")
-    separator = "" if not existing_text or existing_text.endswith("\n") else "\n"
-    updated = (existing_text + separator + MANAGED_BLOCK + "\n").encode("utf-8")
+        updated = original[:start] + (MANAGED_BLOCK + "\n").encode("utf-8") + original[end:]
+        refresh_owner = True
+        owner_before_sha = sha256_file(owner_path)
+    else:
+        existing_text = original.decode("utf-8")
+        if "<!-- fast-agents:begin -->" in existing_text or "<!-- fast-agents:end -->" in existing_text:
+            raise FastAgentsError("managed instruction markers already exist without an ownership record; refusing collision")
+        separator = "" if not existing_text or existing_text.endswith("\n") else "\n"
+        updated = (existing_text + separator + MANAGED_BLOCK + "\n").encode("utf-8")
     before_sha = sha256_bytes(original) if exists else "absent"
     after_sha = sha256_bytes(updated)
 
@@ -361,6 +419,8 @@ def instruction_preview(target_arg: Path | None, runtime_root: Path) -> tuple[st
         "after_sha256": after_sha,
         "mode": stat.S_IMODE(target.stat().st_mode) if exists else 0o600,
         "after_bytes_b64": base64.b64encode(updated).decode("ascii"),
+        "refresh_owner": refresh_owner,
+        "owner_before_sha256": owner_before_sha,
         "created_at": _utc_stamp(),
     }
     atomic_write_json(plans_dir / f"{plan_id}.json", plan)
@@ -371,7 +431,7 @@ def _print_instruction_preview(target: Path, before_sha: str, after_sha: str) ->
     return [
         f"Selected active Codex instruction file: {target}",
         f"Original SHA-256: {before_sha}",
-        "Exact appended block:",
+        "Exact managed block to add or replace:",
         MANAGED_BLOCK,
         f"Result SHA-256: {after_sha}",
     ]
@@ -381,7 +441,11 @@ def show_instruction_preview(target_arg: Path | None, runtime_root: Path) -> lis
     plan_id, target, before_sha, after_sha = instruction_preview(target_arg, runtime_root)
     if plan_id == "unchanged":
         return [f"Selected active Codex instruction file: {target}", "The owned instruction block is already installed unchanged."]
-    return _print_instruction_preview(target, before_sha, after_sha) + [f"Preview ID: {plan_id}", "No global instruction file was changed."]
+    plan = read_json(runtime_root.expanduser().resolve() / "instruction-plans" / f"{plan_id}.json")
+    lines = _print_instruction_preview(target, before_sha, after_sha)
+    if plan.get("refresh_owner") is True:
+        lines.append("This preview replaces only the unchanged block in the existing owned setup.")
+    return lines + [f"Preview ID: {plan_id}", "No global instruction file was changed."]
 
 
 def apply_instruction_preview(
@@ -406,6 +470,7 @@ def apply_instruction_preview(
         raise FastAgentsError("selected instruction target changed after preview; no file was changed")
     current_exists = target.is_file()
     current_sha = sha256_file(target) if current_exists else "absent"
+    current_content = target.read_bytes() if current_exists else b""
     if current_sha != plan["before_sha256"] or expected_before != plan["before_sha256"]:
         raise FastAgentsError("instruction file changed after preview; no changes were written")
     if confirm_sha != plan["after_sha256"]:
@@ -414,35 +479,57 @@ def apply_instruction_preview(
     if sha256_bytes(after_bytes) != plan["after_sha256"]:
         raise FastAgentsError("instruction preview integrity check failed")
     owner_path = _instruction_owner_path(target)
-    if owner_path.exists():
-        raise FastAgentsError("instruction ownership record appeared after preview; no changes were written")
-
+    refresh_owner = plan.get("refresh_owner") is True
     backup_path: Path | None = None
-    if current_exists:
-        backup_path = target.with_name(f"{target.name}.fast-agents-backup.{_utc_stamp()}.{uuid.uuid4().hex[:8]}")
-        shutil.copy2(target, backup_path)
-        if sha256_file(backup_path) != current_sha:
-            backup_path.unlink(missing_ok=True)
-            raise FastAgentsError("instruction backup verification failed; no changes were written")
-    owner = {
-        "owner": "hawary-fast-agents-instructions",
-        "schema_version": 1,
-        "target": str(target),
-        "before_exists": current_exists,
-        "before_sha256": current_sha if current_exists else None,
-        "after_sha256": plan["after_sha256"],
-        "block_sha256": sha256_bytes((MANAGED_BLOCK + "\n").encode("utf-8")),
-        "backup": str(backup_path) if backup_path else None,
-    }
+    prior_owner_content: bytes | None = None
+    if refresh_owner:
+        if not current_exists or not owner_path.is_file():
+            raise FastAgentsError("instruction ownership changed after preview; no changes were written")
+        prior_owner_content = owner_path.read_bytes()
+        if sha256_bytes(prior_owner_content) != plan.get("owner_before_sha256"):
+            raise FastAgentsError("instruction ownership record changed after preview; no changes were written")
+        prior_owner = read_json(owner_path)
+        _validate_owned_instruction(target, target.read_bytes(), prior_owner)
+        owner = dict(prior_owner)
+        owner["after_sha256"] = plan["after_sha256"]
+        owner["block_sha256"] = sha256_bytes((MANAGED_BLOCK + "\n").encode("utf-8"))
+    else:
+        if owner_path.exists():
+            raise FastAgentsError("instruction ownership record appeared after preview; no changes were written")
+        if current_exists:
+            backup_path = target.with_name(f"{target.name}.fast-agents-backup.{_utc_stamp()}.{uuid.uuid4().hex[:8]}")
+            shutil.copy2(target, backup_path)
+            if sha256_file(backup_path) != current_sha:
+                backup_path.unlink(missing_ok=True)
+                raise FastAgentsError("instruction backup verification failed; no changes were written")
+        owner = {
+            "owner": "hawary-fast-agents-instructions",
+            "schema_version": 1,
+            "target": str(target),
+            "before_exists": current_exists,
+            "before_sha256": current_sha if current_exists else None,
+            "after_sha256": plan["after_sha256"],
+            "block_sha256": sha256_bytes((MANAGED_BLOCK + "\n").encode("utf-8")),
+            "backup": str(backup_path) if backup_path else None,
+        }
     try:
         atomic_write_bytes(target, after_bytes, mode=int(plan.get("mode", 0o600)))
         atomic_write_json(owner_path, owner)
-    except OSError:
-        if backup_path:
+    except (OSError, FastAgentsError):
+        if refresh_owner and current_exists:
+            atomic_write_bytes(target, current_content, mode=int(plan.get("mode", 0o600)))
+            if prior_owner_content is not None:
+                atomic_write_bytes(owner_path, prior_owner_content)
+        elif backup_path:
             shutil.copy2(backup_path, target)
         else:
             target.unlink(missing_ok=True)
         raise
+    if refresh_owner:
+        preserved_backup = owner.get("backup") or "none; the original setup created the instruction file"
+        result = _print_instruction_preview(target, plan["before_sha256"], plan["after_sha256"])
+        result.extend([f"Preserved rollback baseline backup: {preserved_backup}", "Refreshed only the displayed managed block."])
+        return result
     return _print_instruction_preview(target, plan["before_sha256"], plan["after_sha256"]) + [
         f"Backup: {backup_path if backup_path else 'none; this command created the instruction file'}",
         "Applied only the displayed managed block.",
@@ -464,7 +551,7 @@ def rollback_instruction(target_arg: Path | None, apply: bool = False) -> list[s
         directory = requested_path.resolve()
     owner_path = directory / INSTRUCTION_OWNER
     if not owner_path.is_file():
-        raise FastAgentsError(f"no fast-agents instruction ownership record found for {directory}")
+        raise FastAgentsError(f"no owned instruction record found for {directory}")
     owner = read_json(owner_path)
     recorded_target = owner.get("target")
     if owner.get("owner") != "hawary-fast-agents-instructions" or not isinstance(recorded_target, str):
@@ -480,13 +567,9 @@ def rollback_instruction(target_arg: Path | None, apply: bool = False) -> list[s
         raise FastAgentsError("instruction rollback ownership could not be verified")
     if not target.is_file() or sha256_file(target) != owner.get("after_sha256"):
         raise FastAgentsError("instruction file changed after setup; rollback refused to overwrite modified instructions")
-    text = target.read_text(encoding="utf-8")
-    if text.count(MANAGED_BLOCK) != 1:
-        raise FastAgentsError("the managed instruction block changed; rollback refused")
+    _validate_owned_instruction(target, target.read_bytes(), owner)
     backup = Path(owner["backup"]) if owner.get("backup") else None
-    if backup and (not backup.is_file() or sha256_file(backup) != owner.get("before_sha256")):
-        raise FastAgentsError("instruction backup is missing or changed; rollback refused")
-    messages = [f"Instruction file: {target}", "Rollback is limited to the unchanged file owned by fast-agents."]
+    messages = [f"Instruction file: {target}", "Rollback is limited to the unchanged file owned by this helper."]
     if not apply:
         return messages + ["Preview only. Rerun with --apply to roll back the unchanged managed setup."]
     if backup:

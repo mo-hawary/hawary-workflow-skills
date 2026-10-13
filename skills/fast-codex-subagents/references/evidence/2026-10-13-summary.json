@@ -1,6 +1,12 @@
 {
   "record_type": "curated_author_evidence_summary",
   "record_date": "2026-10-13",
+  "skill_identity_at_recording": {
+    "public_skill_id": "fast-agents",
+    "current_public_skill_id": "fast-codex-subagents",
+    "release_version": null,
+    "note": "No published skill release version existed when these records were collected. CLI 0.162.1 is the recorded runtime version; original paths, hashes, and metrics identify the pre-rename source snapshot."
+  },
   "evidence_note": "Curated summary of selectively checked private scoped records and source diffs; not raw or independent published telemetry.",
   "environment": {
     "platform": "macOS",

@@ -1,11 +1,13 @@
 ---
-name: fast-agents
-description: Coordinate safe Codex execution with scoped threads and Fast evidence. Use for substantive implementation or review, even for one bounded worker; keep brief answers and planning in the foreground.
+name: fast-codex-subagents
+description: Coordinate scoped Codex subagents with role, dependency, and Fast-tier evidence. Use for substantive implementation, review, or other work that needs delegated execution.
 ---
 
-# Fast Agents
+# Fast Codex Subagents
 
-Use this workflow for Codex CLI and Codex app when the loaded instructions expose this skill. The bundled helper launches Codex CLI's app-server; the instruction installer cannot verify that Codex app loaded the same instruction file. Other agents can read the workflow but cannot launch this Codex-specific runtime.
+Use this workflow for Codex CLI and Codex app when the loaded instructions expose this skill. It coordinates scoped subagents, including a single bounded worker when that is the smallest useful team. The bundled helper launches Codex CLI's app-server; the instruction installer cannot verify that Codex app loaded the same instruction file. Other agents can read the workflow but cannot launch this Codex-specific runtime.
+
+The bundled helper is experimental public beta. Its app-server adapter requires Python 3.10+ and Codex CLI 0.162.1 exactly. Fake/unit tests have passed on macOS, Linux, and Windows; some Windows `exec` fixtures are skipped. Real Codex model sessions have been demonstrated on macOS only. This does not establish production readiness or provider-side model, effort, or service-tier execution.
 
 ## Workflow
 
@@ -17,8 +19,8 @@ Use this workflow for Codex CLI and Codex app when the loaded instructions expos
 6. Poll `status` or `control status/events`. Steering, interrupting, and replying require explicit commands with the current thread/turn/request IDs. Status and watch are read-only. `resume` reconnects to the existing supervisor; use `resume --recover` only to reconcile saved thread/turn state. An uncertain submitted turn is never replayed automatically. Read [runtime and safety details](references/runtime-and-safety.md).
 7. Review private role reports and the workspace diff. Treat declared file ownership as a coordination boundary, not a per-file sandbox. Report effective Fast tier separately from upstream execution, which remains unverified without provider telemetry.
 
-For a dated live-trial record or fixture replay, see the [validation record](references/live-validation-2026-10-13.md) and [timing observations](references/timing-observation-2026-10-13.md).
+The dated trial records were collected before this rename under the public skill ID `fast-agents`, using an unpublished source snapshot and Codex CLI 0.162.1. The current package name is `fast-codex-subagents`; the records remain historical evidence and their source hashes identify the former snapshot. See the [validation record](references/live-validation-2026-10-13.md) and [timing observations](references/timing-observation-2026-10-13.md).
 
 ## Setup
 
-Install, defaults, and shared Codex instruction changes are opt-in commands with previews. The managed instruction block targets both Codex CLI and Codex app only through clients that load the selected shared instruction file; verify app activation in Codex app itself. Read [setup and rollback](references/setup-and-rollback.md).
+Install, defaults, and shared Codex instruction changes are opt-in commands with previews. Skill installs use the `fast-codex-subagents` folder; saved defaults and runtime state retain their existing `fast-agents` paths and formats. The managed instruction block targets both Codex CLI and Codex app only through clients that load the selected shared instruction file; verify app activation in Codex app itself. Read [setup and rollback](references/setup-and-rollback.md).

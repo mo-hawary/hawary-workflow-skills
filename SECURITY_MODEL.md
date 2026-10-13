@@ -43,18 +43,18 @@ Path: `skills/dependency-security-auditor/scripts/dependency_audit.py`
 - Outdated packages are reported separately from CVEs.
 - Command execution: deterministic from discovered stack evidence and explicit CLI flags.
 
-## `fast_agents.py`
+## `fast_agents.py` (Fast Codex Subagents)
 
-Path: `skills/fast-agents/scripts/fast_agents.py`
+Path: `skills/fast-codex-subagents/scripts/fast_agents.py`
 
 ### Read Scope
 
-- Reads the supplied manifest and workspace path, applicable saved defaults, selected task state, process identities, event summaries, and setup ownership records.
+- Reads the supplied manifest and workspace path, applicable saved defaults from the existing `fast-agents` state directory, selected task state, process identities, event summaries, and setup ownership records.
 - The preferred app-server backend is pinned to Codex CLI 0.162.1. `doctor` inspects version and options, generates/checks the local protocol schema, reads `features list`, and calls `model/list` for model, effort, and service-tier capability. These checks make no model inference.
 
 ### Write Scope
 
-- `launch` creates a private task directory with normalized settings, per-role prompts/events/stderr/final reports, token usage when supplied, current thread/turn IDs, status, and process identities. The helper does not edit workspace files itself.
+- `launch` creates a private task directory under the existing `fast-agents` runtime state namespace with normalized settings, per-role prompts/events/stderr/final reports, token usage when supplied, current thread/turn IDs, status, and process identities. The helper does not edit workspace files itself.
 - Codex writers can edit under the workspace-write sandbox. Reviewers use a read-only sandbox. Declared ownership is validated and included in prompts but is not a per-file OS sandbox; inspect the resulting diff.
 - `install`, `defaults set`, and shared instruction setup write only their explicit target after preview confirmation. Rollback checks hashes and preserves modified files.
 - POSIX runtime directories/files are owner-only (`0700`/`0600`). Windows uses a protected owner-only DACL and verifies the owner ACE and inheritance flags. Failure to enforce protection blocks setup.

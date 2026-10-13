@@ -11,7 +11,9 @@ python3 scripts/fast_agents.py install --agents-home /path/to/agents/skills --cl
 python3 scripts/fast_agents.py install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills --apply
 ```
 
-Installation copies the complete `fast-agents` folder and records hashes for rollback. Existing unmanaged, modified, or outdated targets stop the install. Preview rollback before applying it:
+Installation copies the complete `fast-codex-subagents` folder and records hashes for rollback. Existing unmanaged, modified, or outdated targets stop the install. Preview rollback before applying it:
+
+The renamed skill uses a new destination. Existing `fast-agents` skill folders are left untouched; this installer neither adopts nor removes prior folders.
 
 ```bash
 python3 scripts/fast_agents.py rollback install --agents-home /path/to/agents/skills --claude-home /path/to/claude/skills
@@ -40,11 +42,11 @@ python3 scripts/fast_agents.py rollback defaults
 python3 scripts/fast_agents.py rollback defaults --apply
 ```
 
-The defaults file is separate from Codex instructions. Saved settings take precedence over project/user rules; explicit user choices take precedence over saved defaults. Rollback restores the verified backup or removes a file created by fast-agents, and refuses if the current file changed.
+The defaults file is separate from Codex instructions. For compatibility, its existing `fast-agents/defaults.json` location and schema remain unchanged. Saved settings take precedence over project/user rules; explicit user choices take precedence over saved defaults. Rollback restores the verified backup or removes a file created by this helper, and refuses if the current file changed.
 
 ## Add the Managed Codex Instruction Block
 
-Preview the active shared instruction file for the selected Codex home. If `AGENTS.override.md` exists, it takes precedence over `AGENTS.md`. The managed text names both Codex CLI and Codex app, but only clients configured to load that selected file apply it. The setup command cannot inspect or automate Codex app activation; verify that in the app. The preview prints the exact appended block, the original hash, and the resulting hash:
+Preview the active shared instruction file for the selected Codex home. If `AGENTS.override.md` exists, it takes precedence over `AGENTS.md`. The managed text names `$fast-codex-subagents` for Codex CLI and Codex app, but only clients configured to load that selected file apply it. The setup command cannot inspect or automate Codex app activation; verify that in the app. The preview prints the exact block to add or replace, the current file hash, and the resulting hash:
 
 ```bash
 python3 scripts/fast_agents.py instructions preview --path /path/to/codex-home
@@ -58,4 +60,6 @@ python3 scripts/fast_agents.py rollback instructions
 python3 scripts/fast_agents.py rollback instructions --apply
 ```
 
-Applying creates a backup before writing. Rollback restores it only if the instruction file and managed block are unchanged. If another instruction is added or edited, rollback refuses and preserves the file.
+The first application creates a backup before writing. Refreshing an existing owned block preserves that original backup. Rollback restores it only if the instruction file and receipt-owned managed block are unchanged. If another instruction is added or edited, rollback refuses and preserves the file.
+
+If an unchanged helper-owned instruction receipt contains the previous `fast-agents` block, preview validates the full file hash, saved backup, and receipt's block hash, then offers to replace only that block. Applying the reviewed preview retains the original backup and rollback baseline. You can also roll back the unchanged old block directly; rollback checks the block against the receipt rather than requiring the current version. Any file or receipt change after preview stops the update.

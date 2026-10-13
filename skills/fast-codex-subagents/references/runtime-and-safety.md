@@ -1,4 +1,4 @@
-# Runtime and Safety
+# Fast Codex Subagents Runtime and Safety
 
 ## Preferred app-server backend
 
@@ -34,7 +34,7 @@ Exec status checks correlated effective-route evidence for opted-in and opted-ou
 
 ## Process ownership and private runtime
 
-The runtime root is `%LOCALAPPDATA%/fast-agents` on Windows, `$XDG_STATE_HOME/fast-agents` when set, or `~/.local/state/fast-agents` otherwise. The task stores private prompts, per-role event streams and stderr, final reports, usage, IDs, status, and process identities. Treat these artifacts as source-sensitive. POSIX directories/files use owner-only `0700`/`0600` permissions. Windows applies and verifies a protected owner-only DACL; if the host cannot enforce it, setup fails closed.
+The runtime root retains the established `fast-agents` state namespace for compatibility: `%LOCALAPPDATA%/fast-agents` on Windows, `$XDG_STATE_HOME/fast-agents` when set, or `~/.local/state/fast-agents` otherwise. This state path does not change the current public skill ID. The task stores private prompts, per-role event streams and stderr, final reports, usage, IDs, status, and process identities. Treat these artifacts as source-sensitive. POSIX directories/files use owner-only `0700`/`0600` permissions. Windows applies and verifies a protected owner-only DACL; if the host cannot enforce it, setup fails closed.
 
 Process identity uses Linux `/proc`, Windows process creation time and executable path through `ctypes`, or macOS `libproc`. Workspace locks use `fcntl` or `msvcrt`. Supervisor launch uses platform-specific detached-process flags and never invokes a shell. On Windows, Codex is launched through `codex.exe` or a resolved Node entrypoint; `.cmd`/`.bat` wrappers are not invoked. Launch and recovery refuse to proceed when a prior manager or app-server identity is missing, alive unexpectedly, or unknown.
 

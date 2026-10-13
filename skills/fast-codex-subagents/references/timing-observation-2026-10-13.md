@@ -1,6 +1,6 @@
-# Timing observations: 2026-10-13
+# Historical timing observations: 2026-10-13
 
-These are exploratory recorded intervals from one seeded-inventory trial. The CLI and native intervals use different clocks and boundaries. They are not matched active-work measurements. Do not use them to claim that one path is faster or to infer a speedup, cost, or general performance result.
+These intervals were recorded before the rename under the pre-release public skill ID `fast-agents`, now `fast-codex-subagents`. No skill release version had been published; Codex CLI 0.162.1 is the recorded runtime version. The values below remain historical observations of that earlier source snapshot, not measurements of a new run with the renamed package. They are exploratory intervals from one seeded-inventory trial. The CLI and native intervals use different clocks and boundaries. They are not matched active-work measurements. Do not use them to claim that one path is faster or to infer a speedup, cost, or general performance result.
 
 | Path and stage | Start event | End event | Duration |
 |---|---|---|---:|
@@ -22,9 +22,9 @@ The [baseline fixture](fixtures/inventory-baseline/README.md) preserves the orig
 ```sh
 trial_dir="$(mktemp -d)"
 mkdir -p "$trial_dir/tests"
-cp skills/fast-agents/references/fixtures/inventory-baseline/inventory.py.txt "$trial_dir/inventory.py"
-cp skills/fast-agents/references/fixtures/inventory-baseline/test_inventory.py.txt "$trial_dir/tests/test_inventory.py"
-cp skills/fast-agents/references/fixtures/inventory-baseline/README.md "$trial_dir/README.md"
+cp skills/fast-codex-subagents/references/fixtures/inventory-baseline/inventory.py.txt "$trial_dir/inventory.py"
+cp skills/fast-codex-subagents/references/fixtures/inventory-baseline/test_inventory.py.txt "$trial_dir/tests/test_inventory.py"
+cp skills/fast-codex-subagents/references/fixtures/inventory-baseline/README.md "$trial_dir/README.md"
 cd "$trial_dir"
 python3 -m unittest discover -s tests -v
 ```

@@ -19,7 +19,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "fast-agents"
+SKILL = ROOT / "skills" / "fast-codex-subagents"
 SCRIPT = SKILL / "scripts" / "fast_agents.py"
 FAKE_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "fake_codex.py"
 FAKE_APP_SERVER_FIXTURE = Path(__file__).parent / "fixtures" / "fast_agents" / "fake_app_server.py"
@@ -33,6 +33,15 @@ runtime = importlib.import_module("fast_agents_runtime")
 app_server = importlib.import_module("fast_agents_app_server")
 setup = importlib.import_module("fast_agents_setup")
 cli = importlib.import_module("fast_agents")
+
+LEGACY_MANAGED_BLOCK = "\n".join(
+    [
+        "<!-- fast-agents:begin -->",
+        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-agents` skill as the delegation master for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
+        "This block is shared instruction text only; it applies only in clients configured to load the selected Codex home instruction file. The setup command cannot verify Codex app activation, so verify that inside the app.",
+        "<!-- fast-agents:end -->",
+    ]
+)
 
 
 @dataclass(frozen=True)
@@ -1100,7 +1109,7 @@ def test_defaults_preview_and_save_preserve_supported_per_role_policy(tmp_path: 
 
 def test_managed_instruction_routes_substantive_execution_and_preserves_foreground_scope():
     managed = setup.MANAGED_BLOCK
-    assert "delegation master for substantive execution" in managed
+    assert "delegation coordinator for substantive execution" in managed
     assert "including a single bounded worker" in managed
     assert "brief factual answers, conversation, and planning in the foreground" in managed
     assert "model, effort, worker count, and per-worker Fast setting automatically" in managed
@@ -1119,8 +1128,8 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     agents_home = tmp_path / ".agents" / "skills"
     claude_home = tmp_path / ".claude" / "skills"
     preview = setup.install_skill(agents_home, claude_home, apply=False)
-    destination = agents_home / "fast-agents"
-    claude_destination = claude_home / "fast-agents"
+    destination = agents_home / "fast-codex-subagents"
+    claude_destination = claude_home / "fast-codex-subagents"
     assert "Preview only" in preview[-1]
     assert not destination.exists()
     assert not claude_destination.exists()
@@ -1128,6 +1137,7 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     applied = setup.install_skill(agents_home, claude_home, apply=True)
     for installed in (destination, claude_destination):
         assert installed.joinpath("SKILL.md").is_file()
+        assert "name: fast-codex-subagents" in installed.joinpath("SKILL.md").read_text(encoding="utf-8")
         assert installed.joinpath("scripts", "fast_agents.py").is_file()
         assert installed.joinpath("scripts", "fast_agents_runtime.py").is_file()
         assert installed.joinpath("references", "manifest-guide.md").is_file()
@@ -1143,10 +1153,10 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     assert claude_destination.exists()
 
     collision_home = tmp_path / "collision"
-    collision = collision_home / "fast-agents"
+    collision = collision_home / "fast-codex-subagents"
     collision.mkdir(parents=True)
     (collision / "keep.txt").write_text("unmanaged", encoding="utf-8")
-    with pytest.raises(common.FastAgentsError, match="without a fast-agents ownership marker"):
+    with pytest.raises(common.FastAgentsError, match="without an owned skill install marker"):
         setup.install_skill(collision_home, None, apply=True)
     assert (collision / "keep.txt").read_text(encoding="utf-8") == "unmanaged"
 
@@ -1156,8 +1166,8 @@ def test_install_is_complete_idempotent_and_refuses_collisions_and_modified_roll
     rollback_preview = setup.rollback_skill(clean_agents_home, clean_claude_home, apply=False)
     assert "Preview only" in rollback_preview[-1]
     setup.rollback_skill(clean_agents_home, clean_claude_home, apply=True)
-    assert not (clean_agents_home / "fast-agents").exists()
-    assert not (clean_claude_home / "fast-agents").exists()
+    assert not (clean_agents_home / "fast-codex-subagents").exists()
+    assert not (clean_claude_home / "fast-codex-subagents").exists()
 
 
 def test_defaults_preview_confirmation_precedence_and_rollback_protect_modifications(tmp_path: Path):
@@ -1229,7 +1239,7 @@ def test_instruction_preview_prefers_override_backs_up_exact_file_and_rolls_back
     preview = setup.show_instruction_preview(codex_home, runtime_root)
     assert str(override) in preview[0]
     assert setup.sha256_bytes(override_before) == before_sha
-    assert "Exact appended block:" in preview
+    assert "Exact managed block to add or replace:" in preview
     setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
     assert global_instructions.read_bytes() == global_before
     assert override.read_bytes().startswith(override_before)
@@ -1268,6 +1278,130 @@ def test_instruction_preview_detects_override_added_after_preview(tmp_path: Path
     with pytest.raises(common.FastAgentsError, match="became active after preview"):
         setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
     assert agents.read_text(encoding="utf-8") == "Original instructions\n"
+
+
+def _install_legacy_managed_instructions(codex_home: Path, runtime_root: Path) -> tuple[Path, bytes, bytes]:
+    codex_home.mkdir(parents=True)
+    target = codex_home / "AGENTS.md"
+    baseline = b"Personal instructions before the managed block.\nKeep this text unchanged.\n"
+    target.write_bytes(baseline)
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(target, runtime_root)
+    setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner = json.loads(owner_path.read_text(encoding="utf-8"))
+    current = target.read_bytes()
+    current_block = (setup.MANAGED_BLOCK + "\n").encode("utf-8")
+    legacy_block = (LEGACY_MANAGED_BLOCK + "\n").encode("utf-8")
+    assert current.count(current_block) == 1
+    legacy_content = current.replace(current_block, legacy_block, 1)
+    target.write_bytes(legacy_content)
+    owner["after_sha256"] = setup.sha256_bytes(legacy_content)
+    owner["block_sha256"] = setup.sha256_bytes(legacy_block)
+    setup.atomic_write_json(owner_path, owner)
+    return target, baseline, legacy_content
+
+
+def test_instruction_preview_refreshes_only_an_owned_legacy_block_and_keeps_rollback_baseline(tmp_path: Path):
+    codex_home = tmp_path / "codex"
+    runtime_root = tmp_path / "runtime"
+    target, baseline, legacy_content = _install_legacy_managed_instructions(codex_home, runtime_root)
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner_before = json.loads(owner_path.read_text(encoding="utf-8"))
+    start, end, _ = setup._managed_instruction_span(legacy_content)
+
+    plan_id, selected, before_sha, after_sha = setup.instruction_preview(target, runtime_root)
+    plan = json.loads((runtime_root / "instruction-plans" / f"{plan_id}.json").read_text(encoding="utf-8"))
+    assert selected == target
+    assert plan["refresh_owner"] is True
+    assert before_sha == setup.sha256_bytes(legacy_content)
+    preview = setup.show_instruction_preview(target, runtime_root)
+    assert "replaces only the unchanged block" in " ".join(preview)
+    setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+
+    refreshed = target.read_bytes()
+    new_start, new_end, new_block = setup._managed_instruction_span(refreshed)
+    assert refreshed[:new_start] == legacy_content[:start]
+    assert refreshed[new_end:] == legacy_content[end:]
+    assert new_block == (setup.MANAGED_BLOCK + "\n").encode("utf-8")
+    owner_after = json.loads(owner_path.read_text(encoding="utf-8"))
+    for key in ("before_exists", "before_sha256", "backup"):
+        assert owner_after[key] == owner_before[key]
+    assert owner_after["after_sha256"] == setup.sha256_bytes(refreshed)
+    assert owner_after["block_sha256"] == setup.sha256_bytes(new_block)
+
+    setup.rollback_instruction(codex_home, apply=True)
+    assert target.read_bytes() == baseline
+    assert Path(owner_before["backup"]).is_file()
+
+
+def test_instruction_rollback_accepts_an_unchanged_owned_legacy_block(tmp_path: Path):
+    codex_home = tmp_path / "codex"
+    runtime_root = tmp_path / "runtime"
+    target, baseline, _ = _install_legacy_managed_instructions(codex_home, runtime_root)
+
+    setup.rollback_instruction(codex_home, apply=True)
+    assert target.read_bytes() == baseline
+    assert not (codex_home / setup.INSTRUCTION_OWNER).exists()
+
+
+@pytest.mark.parametrize("changed_artifact", ["instruction file", "ownership receipt"])
+def test_instruction_refresh_rejects_changes_after_preview(tmp_path: Path, changed_artifact: str):
+    codex_home = tmp_path / "codex"
+    runtime_root = tmp_path / "runtime"
+    target, _, _ = _install_legacy_managed_instructions(codex_home, runtime_root)
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner_before = owner_path.read_bytes()
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(target, runtime_root)
+    if changed_artifact == "instruction file":
+        target.write_bytes(target.read_bytes() + b"User addition after preview.\n")
+    else:
+        owner_path.write_bytes(owner_before + b" ")
+    changed_content = target.read_bytes()
+    changed_owner = owner_path.read_bytes()
+
+    expected_error = "changed after preview" if changed_artifact == "instruction file" else "ownership record changed after preview"
+    with pytest.raises(common.FastAgentsError, match=expected_error):
+        setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+    assert target.read_bytes() == changed_content
+    assert owner_path.read_bytes() == changed_owner
+
+
+def test_instruction_refresh_rejects_a_changed_rollback_backup(tmp_path: Path):
+    codex_home = tmp_path / "codex"
+    runtime_root = tmp_path / "runtime"
+    target, _, legacy_content = _install_legacy_managed_instructions(codex_home, runtime_root)
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner = json.loads(owner_path.read_text(encoding="utf-8"))
+    backup = Path(owner["backup"])
+    backup.write_bytes(b"changed backup")
+
+    with pytest.raises(common.FastAgentsError, match="backup is missing or changed"):
+        setup.instruction_preview(target, runtime_root)
+    assert target.read_bytes() == legacy_content
+    assert json.loads(owner_path.read_text(encoding="utf-8")) == owner
+
+
+@pytest.mark.parametrize("error_type", [OSError, common.FastAgentsError])
+def test_instruction_refresh_restores_pre_refresh_file_and_receipt_if_receipt_write_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error_type: type[Exception]
+):
+    codex_home = tmp_path / "codex"
+    runtime_root = tmp_path / "runtime"
+    target, _, legacy_content = _install_legacy_managed_instructions(codex_home, runtime_root)
+    owner_path = codex_home / setup.INSTRUCTION_OWNER
+    owner_content = owner_path.read_bytes()
+    plan_id, _, before_sha, after_sha = setup.instruction_preview(target, runtime_root)
+
+    def fail_receipt_write(*args: Any, **kwargs: Any) -> None:
+        raise error_type("simulated receipt write failure")
+
+    monkeypatch.setattr(setup, "atomic_write_json", fail_receipt_write)
+    with pytest.raises(error_type, match="simulated receipt write failure"):
+        setup.apply_instruction_preview(runtime_root, plan_id, after_sha, before_sha)
+
+    assert target.read_bytes() == legacy_content
+    assert owner_path.read_bytes() == owner_content
 
 
 @pytest.mark.parametrize("trigger_kind", ["explicit", "natural"])

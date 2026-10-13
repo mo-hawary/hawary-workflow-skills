@@ -1,7 +1,7 @@
 [
   {
     "kind": "explicit",
-    "request": "Use fast-agents to implement this bounded change and give it an independent read-only review. Run all workers in Fast mode.",
+    "request": "Use fast-codex-subagents to implement this bounded change and give it an independent read-only review. Run all workers in Fast mode.",
     "complexity": "bounded",
     "fast_selection": {"mode": "all", "workers": []},
     "plan_mode": false,
@@ -25,7 +25,7 @@
   },
   {
     "kind": "minimal",
-    "request": "Use fast-agents to fix this isolated bounded typo; one writer is enough and no review is needed.",
+    "request": "Use fast-codex-subagents to fix this isolated bounded typo; one writer is enough and no review is needed.",
     "complexity": "bounded",
     "fast_selection": {"mode": "none", "workers": []},
     "plan_mode": false,

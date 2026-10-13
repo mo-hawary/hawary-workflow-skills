@@ -1076,7 +1076,7 @@ def _required_string(value: Any, label: str) -> str:
 def _developer_instructions(role: RolePlan) -> str:
     access = "read-only reviewer" if role.access == "reviewer" else "workspace-write worker"
     return (
-        f"You are a {access} in a user-authorized fast-agents task. Do not delegate or spawn agents. "
+        f"You are a {access} in a user-authorized fast-codex-subagents task. Do not delegate or spawn agents. "
         "Follow the loaded repository and user instructions. The supervisor applies on-request approvals "
         "with Codex automatic review; it never blanket-approves a server request."
     )

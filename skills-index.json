@@ -37,11 +37,11 @@
       "installable": true
     },
     {
-      "name": "fast-agents",
-      "description": "Coordinate safe Codex execution with scoped threads and Fast evidence. Use for substantive implementation or review, even for one bounded worker; keep brief answers and planning in the foreground.",
-      "path": "skills/fast-agents/SKILL.md",
+      "name": "fast-codex-subagents",
+      "description": "Coordinate scoped Codex subagents with role, dependency, and Fast-tier evidence. Use for substantive implementation, review, or other work that needs delegated execution.",
+      "path": "skills/fast-codex-subagents/SKILL.md",
       "category": "orchestration",
-      "outputs": ["validated task manifest", "private task status", "agent reports", "fast-mode evidence"],
+      "outputs": ["validated task manifest", "private task status", "agent reports", "requested/effective Fast-tier evidence"],
       "installable": true
     },
     {

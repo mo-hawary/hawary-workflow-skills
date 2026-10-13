@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A local-only Codex CLI stand-in used by fast-agents tests."""
+"""A local-only Codex CLI stand-in used by Fast Codex Subagents tests."""
 
 from __future__ import annotations
 

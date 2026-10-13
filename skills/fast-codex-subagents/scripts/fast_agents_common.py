@@ -1,4 +1,4 @@
-"""Shared manifest, configuration, and durable-file helpers for fast-agents."""
+"""Shared manifest, configuration, and durable-file helpers for Fast Codex Subagents."""
 
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ def _validate_role_name(value: Any, label: str) -> str:
     if device_stem in WINDOWS_DEVICE_NAMES:
         raise FastAgentsError(f"{label} is a reserved device name on common filesystems")
     if portable_name in ROLE_ARTIFACT_STEMS:
-        raise FastAgentsError(f"{label} conflicts with a fast-agents artifact name")
+        raise FastAgentsError(f"{label} conflicts with a Fast Codex Subagents artifact name")
     return name
 
 

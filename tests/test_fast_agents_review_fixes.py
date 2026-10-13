@@ -13,7 +13,7 @@ import uuid
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / "skills" / "fast-agents" / "scripts"
+SCRIPTS = ROOT / "skills" / "fast-codex-subagents" / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
