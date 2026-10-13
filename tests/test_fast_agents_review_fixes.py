@@ -1046,3 +1046,48 @@ def test_control_endpoint_rejects_excess_connections_without_servicing_commands(
         finally:
             server.active_connections = 0
     asyncio.run(check())
+
+def test_duplicate_codex_steer_rejected_before_second_rpc(tmp_path: Path):
+    async def check():
+        task_dir, _, status = make_task(tmp_path)
+        status["roles"]["worker0"].update({"state": "running", "turn_id": "turn-1", "thread_id": "thread-1"})
+        common.atomic_write_json(task_dir / "status.json", status)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "codex")
+        calls = []
+        async def send(method, params):
+            calls.append((method, params))
+            return {"turnId": "turn-1"}
+        supervisor.client = SimpleNamespace(closed=asyncio.Event(), request=send)
+        payload = {"command": "steer", "role": "worker0", "turn_id": "turn-1", "text": "fix the bug",
+                   "idempotency_key": "request-one"}
+        assert (await supervisor._handle_control(payload))["acknowledged"] is True
+        with pytest.raises(common.FastAgentsError, match="duplicate steering"):
+            await supervisor._handle_control(payload)
+        with pytest.raises(common.FastAgentsError, match="duplicate steering"):
+            await supervisor._handle_control({**payload, "idempotency_key": "another-key"})
+        assert len(calls) == 1
+        assert supervisor.status["roles"]["worker0"]["steer_history"][0]["state"] == "acknowledged"
+    asyncio.run(check())
+
+
+def test_uncertain_steering_is_not_retried(tmp_path: Path):
+    async def check():
+        task_dir, _, status = make_task(tmp_path)
+        status["roles"]["worker0"].update({"state": "running", "turn_id": "t-1", "thread_id": "thread-1"})
+        common.atomic_write_json(task_dir / "status.json", status)
+        supervisor = app_server.AppServerSupervisor(task_dir, tmp_path / "runtime", "codex")
+        calls = []
+        async def send(method, params):
+            calls.append(method)
+            raise app_server.AppServerError("lost response")
+        supervisor.client = SimpleNamespace(closed=asyncio.Event(), request=send)
+        payload = {"command": "steer", "role": "worker0", "turn_id": "t-1", "text": "change branch",
+                   "idempotency_key": "request-one"}
+        with pytest.raises(app_server.AppServerError, match="lost response"):
+            await supervisor._handle_control(payload)
+        with pytest.raises(common.FastAgentsError, match="duplicate steering"):
+            await supervisor._handle_control(payload)
+        assert calls == ["turn/steer"]
+        saved = common.read_json(task_dir / "status.json")
+        assert saved["roles"]["worker0"]["steer_history"][0]["state"] == "delivery_uncertain"
+    asyncio.run(check())

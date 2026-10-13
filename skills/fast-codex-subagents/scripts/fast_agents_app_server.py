@@ -29,6 +29,8 @@ from fast_agents_protocol import (
 
 
 MAX_CONTROL_EVENTS = 500
+MAX_PENDING_APPROVAL_REQUESTS = 64
+MAX_STEERING_EVENTS_PER_TURN = 64
 PROGRESS_STATUS_FLUSH_SECONDS = 0.2
 PROGRESS_ONLY_EVENTS = frozenset({"item/started", "item/completed", "thread/tokenUsage/updated"})
 KNOWN_SERVER_REQUESTS = SUPPORTED_APP_SERVER_REQUESTS
@@ -269,6 +271,9 @@ class AppServerSupervisor:
             return
         if not isinstance(turn_id, str) or not self._request_matches_live_turn(role_name, thread_id, turn_id):
             await self._reject_server_request(message, role_name, "request is not bound to a current live worker turn")
+            return
+        if len(self.pending_requests) >= MAX_PENDING_APPROVAL_REQUESTS:
+            await self._reject_server_request(message, role_name, "too many pending approval requests; operator intervention required")
             return
         record = {
             "request_id": request_id,
@@ -893,15 +898,41 @@ class AppServerSupervisor:
             role_name = _required_string(request.get("role"), "role")
             turn_id = _required_string(request.get("turn_id"), "turn_id")
             text = _required_string(request.get("text"), "text")
+            client_key = _required_string(request.get("idempotency_key"), "idempotency_key")
+            if len(client_key) > 128:
+                raise FastAgentsError("steer idempotency key exceeds 128 characters")
             if len(text) > 16_000:
                 raise FastAgentsError("steer text exceeds 16000 characters")
             role_state = self._require_current_turn(role_name, turn_id)
+            import hashlib
+
+            fingerprint = hashlib.sha256((turn_id + "\0" + text).encode("utf-8")).hexdigest()
+            history = role_state.setdefault("steer_history", [])
+            if any(row.get("key") == client_key or row.get("fingerprint") == fingerprint for row in history):
+                raise FastAgentsError("duplicate steering command refused; previous delivery may already have occurred")
+            if len(history) >= MAX_STEERING_EVENTS_PER_TURN:
+                raise FastAgentsError("steering history is full for this turn; do not send more commands without explicit reconciliation")
+            entry = {"key": client_key, "fingerprint": fingerprint, "state": "submitted", "turn_id": turn_id}
+            history.append(entry)
+            # Durable intent before RPC: a timeout/cancellation is never blindly replayed.
+            self._save_status()
             assert self.client is not None
-            result = await self.client.request(
-                "turn/steer",
-                {"threadId": role_state["thread_id"], "expectedTurnId": turn_id, "input": [{"type": "text", "text": text, "text_elements": []}]},
-            )
+            try:
+                result = await self.client.request(
+                    "turn/steer",
+                    {"threadId": role_state["thread_id"], "expectedTurnId": turn_id,
+                     "input": [{"type": "text", "text": text, "text_elements": []}]},
+                )
+            except BaseException:
+                entry["state"] = "delivery_uncertain"
+                self._save_status()
+                raise
             ack_turn = result.get("turnId")
+            if ack_turn != turn_id:
+                entry["state"] = "delivery_uncertain"
+                self._save_status()
+                raise FastAgentsError("Codex returned a different turn id; steering outcome is uncertain")
+            entry["state"] = "acknowledged"
             self._summary_event("control/steer.ack", {"threadId": role_state["thread_id"], "turnId": ack_turn, "itemId": None}, role_name)
             self._save_status()
             return {"acknowledged": True, "role": role_name, "thread_id": role_state["thread_id"], "turn_id": ack_turn}
@@ -1085,14 +1116,24 @@ class AppServerSupervisor:
         self._invalidate_pending("supervisor stopped")
         exit_result = 0 if self.status.get("state") == "completed" else 1
         if self.client and self.client.process and self.client.process.returncode is None:
-            code = await self.client.close_stdin_and_wait()
-            self.status.setdefault("server", {}).update({"state": "stopped", "exit_code": code})
-            if self.lock_record is not None:
-                self.lock_record["server_state"] = "stopped"
-            atomic_write_json(self.task_dir / "server.exit.json", {"exit_code": code, "finished_at": _utc_now()})
+            try:
+                code = await self.client.close_stdin_and_wait()
+            except AppServerError as error:
+                # Never label an unproven process exit successful or kill by PID.
+                self.status["state"] = "recovery_required"
+                self.status["action"] = str(error)
+                self.status.setdefault("server", {})["state"] = "lost"
+                if self.lock_record is not None:
+                    self.lock_record["server_state"] = "lost"
+                exit_result = 1
+            else:
+                self.status.setdefault("server", {}).update({"state": "stopped", "exit_code": code})
+                if self.lock_record is not None:
+                    self.lock_record["server_state"] = "stopped"
+                atomic_write_json(self.task_dir / "server.exit.json", {"exit_code": code, "finished_at": _utc_now()})
         if self.control:
             await self.control.close()
-        self.status["manager"]["state"] = "completed" if exit_result == 0 else "failed"
+        self.status["manager"]["state"] = "completed" if exit_result == 0 else "recovery_required" if self.status.get("state") == "recovery_required" else "failed"
         self._save_status()
         if self.lock_record is not None and self.lock_record_path:
             self.lock_record["manager_state"] = self.status["manager"]["state"]
