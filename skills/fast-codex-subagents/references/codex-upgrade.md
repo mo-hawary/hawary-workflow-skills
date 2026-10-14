@@ -65,11 +65,30 @@
 
 ## Live CI provisioning
 
-The `codex-live-smoke.yml` workflow runs on main pushes, nightly, or manual
-dispatch (not pull requests). Its Linux/macOS jobs require the repository
-secret `CODEX_SMOKE_API_KEY`; missing authentication **fails** the job.
-The workflow does not create or manage this secret. It installs Codex CLI
-0.162.1 and uploads a seven-day metadata-only transcript artifact on completion.
+The `codex-live-smoke.yml` workflow is **ChatGPT-login only** and needs
+**no API key or GitHub secret**. It cannot run a paid/subscription-backed model
+turn on an unauthenticated ephemeral GitHub-hosted runner.
+
+To run it, provision a **trusted, dedicated self-hosted runner** on Linux or
+macOS, with labels `self-hosted`, `codex-authenticated` and the appropriate
+GitHub OS label (`Linux` or `macOS`). Use a dedicated OS account, install
+the fixture-tested Codex CLI 0.162.1, sign into ChatGPT interactively once
+with `codex login`, and verify `codex login status` **as the runner user**.
+Protect its login files/keychain and do not make this runner available for
+untrusted fork PRs. The workflow refuses API-key environment variables.
+
+Use manual `workflow_dispatch` with the target OS until the runner has been
+validated. For unattended main/nightly smoke, configure repository variable
+`CODEX_LIVE_SMOKE_ENABLED=true` and, if needed,
+`CODEX_LIVE_SMOKE_OS=Linux` or `macOS` for the registered runner.
+Without this opt-in the main/nightly job skips rather than failing or
+requesting an API key. One configured runner OS is selected per scheduled
+run; dispatch manually on the other OS to establish platform coverage.
+The workflow uploads a seven-day metadata-only transcript artifact after a run.
+
+A logged-in runner can consume ChatGPT plan usage and is subject to the
+account's usage limits; recurring model turns should be enabled intentionally.
+Never copy a local `auth.json` to GitHub secrets or into build artifacts.
 
 To enforce a **required** live check in repository policy, an administrator must
 configure the appropriate GitHub ruleset/branch-protection check. A scheduled

@@ -77,5 +77,9 @@ def test_live_workflow_is_non_pr_and_requires_authentication():
     assert "schedule:" in workflow
     assert "branches: [main]" in workflow
     assert "pull_request:" not in workflow
-    assert "CODEX_SMOKE_API_KEY" in workflow
-    assert "@openai/codex@0.162.1" in workflow
+    assert "CODEX_SMOKE_API_KEY" not in workflow
+    assert "OPENAI_API_KEY: ${{ secrets." not in workflow
+    assert "CODEX_LIVE_SMOKE_ENABLED" in workflow
+    assert "self-hosted" in workflow
+    assert "codex-authenticated" in workflow
+    assert "codex login status" in workflow

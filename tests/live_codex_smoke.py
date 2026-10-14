@@ -1,6 +1,6 @@
 """Authenticated Codex-only live smoke with metadata-only transcript output.
 
-Manual/nightly use only; performs a real Codex model turn, never on PR CI.
+Use a self-hosted runner signed in with ChatGPT; never an API key or PR CI.
 """
 from __future__ import annotations
 
@@ -45,9 +45,17 @@ def scrub(kind, method, data=None):
 
 
 async def live_smoke(codex: str, output: Path):
-    home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
-    if not (os.environ.get("OPENAI_API_KEY") or os.environ.get("CODEX_API_KEY") or (home / "auth.json").is_file()):
-        raise RuntimeError("Authenticated Codex credentials required for the real model smoke")
+    # Never fall back to API-key billing when a ChatGPT-plan smoke was requested.
+    if os.environ.get("OPENAI_API_KEY") or os.environ.get("CODEX_API_KEY"):
+        raise RuntimeError("ChatGPT-only smoke refuses OPENAI_API_KEY/CODEX_API_KEY; remove API credentials")
+    login = subprocess.run(
+        [codex, "login", "status"], capture_output=True, text=True, timeout=10, check=False
+    )
+    if login.returncode != 0 or "chatgpt" not in (login.stdout + login.stderr).lower():
+        raise RuntimeError(
+            "Codex is not signed into ChatGPT for this runner user. Run codex login "
+            "on the self-hosted runner, then verify codex login status; no API key is needed"
+        )
     version_result = subprocess.run([codex, "--version"], capture_output=True, text=True, check=True, timeout=10)
     match = re.search(r"codex-cli\s+(\S+)", version_result.stdout + version_result.stderr)
     version = match.group(1) if match else "unknown"
