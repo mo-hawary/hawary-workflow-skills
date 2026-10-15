@@ -1206,7 +1206,9 @@ def _launch_role(
         _write_lock_record(lock_record_path, lock_record)
     status["roles"][name].update(
         {
-            "state": "running" if identity else "unknown",
+            # The scheduler owns the Popen handle and settles this role from its
+            # real exit, so a missing identity must not block dependents early.
+            "state": "running",
             "started_at": utc_now(),
             "pid": process.pid,
             "identity": identity,

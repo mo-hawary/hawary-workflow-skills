@@ -631,7 +631,11 @@ class AppServerSupervisor:
             if isinstance(error, asyncio.CancelledError):
                 raise
             self._invalidate_pending("worker turn could not be reconciled", role_name=role.name)
-            if self.client is None or self.client.closed.is_set() or role_state.get("thread_start_state") == "submitted" or role_state.get("turn_start_state") == "submitted":
+            # A turn observed via turn/started but not yet terminal may still be
+            # running, so it needs reconciliation rather than a failed verdict.
+            turn_observed_unsettled = bool(role_state.get("turn_id")) and role_state.get("turn_status") not in TERMINAL_TURN_STATES
+            if (self.client is None or self.client.closed.is_set() or role_state.get("thread_start_state") == "submitted"
+                    or role_state.get("turn_start_state") == "submitted" or turn_observed_unsettled):
                 role_state.update({"state": "unknown", "error": f"recovery required: {error}", "finished_at": _utc_now()})
                 role_state["recovery_required"] = True
                 self.recovery_reason = "app-server loss left a submitted request to reconcile"
