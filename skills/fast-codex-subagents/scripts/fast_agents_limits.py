@@ -20,10 +20,10 @@ def validate_budgets(value: Any, label: str) -> dict[str, Any]:
             continue
         number = value[key]
         if (isinstance(number, bool) or not isinstance(number, (int, float))
-                or not math.isfinite(number) or number <= 0
+                or (isinstance(number, float) and not math.isfinite(number)) or number <= 0
                 or (key == "max_tokens" and not isinstance(number, int))):
             raise FastAgentsError(f"{label}.{key} must be a positive finite {'integer' if key == 'max_tokens' else 'number'}")
-    if result.get("action", "warn") not in {"warn", "interrupt"}:
+    if not isinstance(result.get("action", "warn"), str) or result.get("action", "warn") not in {"warn", "interrupt"}:
         raise FastAgentsError(f"{label}.action must be warn or interrupt")
     if not any(key in value for key in allowed - {"action"}):
         raise FastAgentsError(f"{label} must specify a limit")

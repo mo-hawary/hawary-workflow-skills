@@ -2089,7 +2089,14 @@ def test_app_server_loss_reconciles_threads_without_replaying_uncertain_turns(
     assert recovered.returncode == 0, recovered.stderr
     if loss == "active":
         status = wait_for_control_status(fake_app_server, task_id, runtime_root, lambda item: item["state"] == "recovery_required")
-        assert status["roles"]["first"]["state"] == "unknown"
+        assert status["roles"]["first"]["state"] == "running"
+        assert status["roles"]["first"]["recovery_required"] is True
+        # The exact active turn is now proven, so explicit cancellation remains
+        # available while task scheduling stays blocked pending reconciliation.
+        interrupted = run_cli(["control", "--task", task_id, "--runtime-root", str(runtime_root),
+                               "interrupt", "--role", "first", "--turn-id", status["roles"]["first"]["turn_id"]],
+                              fake_app_server.env())
+        assert interrupted.returncode == 0, interrupted.stderr
         assert "no new turn was started" in status["action"]
         assert fake_app_server.state()["counts"]["turn/start"] == 1
     else:

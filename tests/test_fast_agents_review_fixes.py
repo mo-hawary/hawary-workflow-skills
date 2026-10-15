@@ -224,14 +224,17 @@ def test_oversized_single_event_and_other_responses_fail_with_bounded_errors(tmp
 
 
 @pytest.mark.parametrize("requested", [(False, False), (True, False)])
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="TOML observer fixture uses Python 3.11 tomllib; runtime has no TOML dependency")
 def test_exec_workers_override_inherited_fast_configuration(tmp_path: Path, requested: tuple[bool, ...]):
     task_dir, manifest, _ = make_task(tmp_path, backend="exec", fast=requested)
     home = tmp_path / "codex-home"
     home.mkdir()
     (home / "config.toml").write_text('service_tier="fast"\n[features]\nfast_mode=true\n', encoding="utf-8")
     fake = tmp_path / "inspect_config.py"
-    fake.write_text('''import json, os, pathlib, sys, tomllib
+    fake.write_text('''import json, os, pathlib, sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 config = tomllib.loads((pathlib.Path(os.environ["CODEX_HOME"]) / "config.toml").read_text())
 args = sys.argv[1:]
 for index, arg in enumerate(args):

@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
@@ -148,6 +150,10 @@ def main():
     login = subprocess.run([args.codex, "login", "status"], capture_output=True, text=True, timeout=10)
     if login.returncode or "chatgpt" not in (login.stdout + login.stderr).lower():
         parser.error("sign into ChatGPT using codex login before running live trials")
+    version = subprocess.run([args.codex, "--version"], capture_output=True, text=True, timeout=10, check=True).stdout.strip()
+    fixture = SCRIPTS.parent / "references" / "fixtures" / "inventory-baseline"
+    case_sha = hashlib.sha256(TASK.encode() + (fixture / "inventory.py.txt").read_bytes()
+                              + (fixture / "test_inventory.py.txt").read_bytes()).hexdigest()
     args.output.mkdir(mode=0o700, parents=True)
     rows = []
     for index, row in enumerate(schedule):
@@ -160,6 +166,8 @@ def main():
                                    "wall_seconds": round(time.perf_counter() - started, 4)})
         rows.append(measured)
         atomic_write_json(args.output / "summary.json", {"kind": "exploratory_single_fixture_live_trials",
+            "codex_version": version, "python_version": platform.python_version(), "os": platform.system(),
+            "case_sha256": case_sha,
             "helper_git_sha": git(ROOT, "rev-parse", "HEAD").decode().strip(), "helper_sha256": source_fingerprint(),
             "source_dirty": bool(git(ROOT, "status", "--porcelain")), "summary": summarize(rows), "trials": rows,
             "limitations": ["One synthetic case; not a general workload benchmark", "Cache/warm-up uncontrolled",

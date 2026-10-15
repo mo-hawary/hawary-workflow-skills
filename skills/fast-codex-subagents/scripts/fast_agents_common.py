@@ -370,7 +370,7 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
 
     budgets = validate_budgets(raw.get("budgets", {}), "task budgets")
     isolation = raw.get("isolation", "shared")
-    if isolation not in {"shared", "worktree"}:
+    if not isinstance(isolation, str) or isolation not in {"shared", "worktree"}:
         raise FastAgentsError("isolation must be shared or worktree")
     acceptance_raw = raw.get("acceptance", [])
     if not isinstance(acceptance_raw, list) or len(acceptance_raw) > 20:
