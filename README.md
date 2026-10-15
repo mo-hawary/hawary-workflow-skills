@@ -132,7 +132,7 @@ skills/
         `-- examples.md
 ```
 
-`SKILL.md` is the portable source. Instructions are Markdown-first; optional standard-library Python helpers automate specific workflows, and Ruby validates the repository package. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it. `fast-codex-subagents` is experimental public beta and requires Python 3.10+. Its experimental app-server adapter requires Codex CLI 0.162.1 exactly; `exec` is an explicit fallback, not a cross-agent launcher. Fake/unit tests passed on Linux, macOS, and Windows, with some Windows `exec` fixtures skipped; real Codex model sessions have been demonstrated only on macOS. Doctor checks schema and model/tier availability without inference.
+`SKILL.md` is the portable source. Instructions are Markdown-first; optional standard-library Python helpers automate specific workflows, and Ruby validates the repository package. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it. `fast-codex-subagents` is experimental public beta and requires Python 3.10+. Its experimental app-server adapter requires Codex CLI 0.162.1 or later; 0.162.1 is the tested release, newer releases are accepted with a warning, and please report anything that breaks. `exec` is an explicit fallback, not a cross-agent launcher. Fake/unit tests passed on Linux, macOS, and Windows, with some Windows `exec` fixtures skipped; real Codex model sessions have been demonstrated only on macOS. Doctor checks schema and model/tier availability without inference.
 
 ## For AI Agents
 

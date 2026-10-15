@@ -2,19 +2,30 @@
 
 ## Current compatibility contract
 
-- Tested Codex CLI version: **0.162.1**.
-- Candidate family for deliberate upgrade: **>=0.162.1,<0.163.0**.
-- Acceptance is intentionally stricter than the numeric range: only releases in
-  `TESTED_CODEX_VERSIONS` execute. Other versions fail with upgrade instructions.
+- Requires Codex CLI 0.162.1 or later. 0.162.1 is the tested release; newer
+  releases are accepted with a warning, and please report anything that breaks.
+- Releases older than 0.162.1, and an unreadable version, are rejected.
+- A newer release than the tested one, including prereleases, runs. `doctor`
+  and launch print a warning asking users to report any problem at
+  <https://github.com/mo-hawary/hawary-workflow-skills/issues/new?template=compatibility_report.yml>
+  with the output of `fast_agents.py doctor --json`.
+- `doctor` still checks that the installed CLI's generated app-server schema
+  has the methods and request shapes the helper needs. That is a real
+  compatibility check, not a version list. If it fails, the message asks the
+  user to report it the same way.
 - The app-server generated schema is rechecked from the installed CLI before
   a new task and before a recovered supervisor starts.
-- The older `exec` backend also runs only against a verified release.
-  It never automatically replaces a failed app-server request.
+- The older `exec` backend runs against the installed CLI under the same
+  version rules. It never automatically replaces a failed app-server request.
 
-## Deliberate upgrade procedure
+## Marking a newer release as tested
+
+Use this procedure when a maintainer wants a newer Codex CLI release to be
+recorded as tested. Adding the exact release to `TESTED_CODEX_VERSIONS`
+removes its warning. It is a maintainer step, not a gate for users.
 
 1. Select a *stable* Codex CLI release and read its release notes. Do not
-   silently accept preview or prerelease versions.
+   silently accept preview or prerelease versions as tested.
 2. Install it in a separate testing environment; record its exact
    `codex --version` output. Do not change the production binary yet.
 3. Run `codex app-server generate-json-schema --out <directory>` and compare
@@ -35,18 +46,31 @@
    `tests/fixtures/fast_agents/transcripts/recorded/<version>/` and run
    the transcript replay suite. Windows live coverage is optional until a
    Windows credential and host are available.
-9. Only then add the exact release to
-   `fast_agents_protocol.TESTED_CODEX_VERSIONS`. If the release exceeds the
-   candidate family, expand `CANDIDATE_CODEX_RANGE` with an explicit review
-   and update the public compatibility docs.
+9. Add the exact release to `fast_agents_protocol.TESTED_CODEX_VERSIONS`,
+   which removes the newer-release warning for it, and update the public
+   compatibility docs and the tested version named above.
 10. Update the release notes and CI pin. Record tested OS, CLI SHA/version,
     requested and reported effective Fast tiers, and upstream execution
     verification separately.
 
+## Handling a compatibility report
+
+When a user reports a problem on a newer, untested release:
+
+1. Ask for the report's `fast_agents.py doctor --json` output and the exact
+   `codex --version`. Do not ask for prompts, transcripts, or credentials.
+2. Reproduce the failure on that release in a separate testing environment,
+   then decide whether it is a schema change (update the adapter and fixtures
+   as in steps 3 to 8 above) or an isolated bug.
+3. Mark the release as tested only after the fixes and the fake and live checks
+   above pass. Until then, keep the warning and say which behavior is affected.
+4. Never disable the version check or silently pick another service tier to
+   work around a report.
+
 ## Required environment and troubleshooting
 
 - Codex CLI must be discoverable on PATH or passed explicitly through
-  `--codex`, and identify itself as a fixture-verified `codex-cli`.
+  `--codex`, and identify itself as `codex-cli` 0.162.1 or later.
 - `CODEX_HOME` must point to an existing Codex configuration directory,
   or the default user Codex directory must exist. A valid `config.toml`,
   `auth.json`, or an API-key environment variable is required for active
@@ -55,9 +79,10 @@
   non-Codex environment markers are rejected. Environment variables are not
   cryptographic caller authentication; a local terminal with Codex access can
   still invoke the helper.
-- If `doctor` reports a mismatched app-server schema or unsupported version,
-  inspect it and update fixtures through this procedure; never disable the
-  version gate or silently pick an alternative service tier.
+- If `doctor` reports a mismatched app-server schema or a version older than
+  0.162.1, inspect it and update fixtures through this procedure. For a newer
+  release with a schema problem, follow "Handling a compatibility report" above.
+  Never disable the version check or silently pick an alternative service tier.
 - If startup or recovery cannot establish process identity, leave the task
   blocked and inspect the existing private state. Do not kill arbitrary PIDs.
 - If Codex requires an unexpected approval, examine that exact live request
@@ -72,7 +97,7 @@ turn on an unauthenticated ephemeral GitHub-hosted runner.
 To run it, provision a **trusted, dedicated self-hosted runner** on Linux or
 macOS, with labels `self-hosted`, `codex-authenticated` and the appropriate
 GitHub OS label (`Linux` or `macOS`). Use a dedicated OS account, install
-the fixture-tested Codex CLI 0.162.1, sign into ChatGPT interactively once
+the tested Codex CLI 0.162.1 (or the release under validation), sign into ChatGPT interactively once
 with `codex login`, and verify `codex login status` **as the runner user**.
 Protect its login files/keychain and keep it away from untrusted code. The
 workflow refuses API-key environment variables. Before enabling the runner:

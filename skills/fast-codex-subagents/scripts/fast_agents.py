@@ -26,8 +26,10 @@ from fast_agents_common import (
 from fast_agents_platform import codex_argv, platform_coverage_label, protect_private_path
 from fast_agents_protocol import (
     APP_SERVER_VERSION,
+    MIN_CODEX_VERSION,
     TESTED_CODEX_VERSIONS,
-    tested_version_error,
+    minimum_version_error,
+    untested_version_warning,
     catalog_efforts,
     catalog_tiers,
     generate_and_verify_schema,
@@ -82,6 +84,17 @@ def _fast_workers_arg(value: str) -> dict[str, Any]:
 
 def _run_capture(argv: list[str], timeout: float = 10.0) -> subprocess.CompletedProcess[str]:
     return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, shell=False, check=False)
+
+
+def _warn_untested_version(executable: str) -> None:
+    """Print a non-blocking notice for a newer, untested Codex CLI; the version gate still decides."""
+    try:
+        result = _run_capture(codex_argv(executable, "--version"))
+    except (OSError, subprocess.SubprocessError):
+        return
+    match = VERSION_PATTERN.search((result.stdout or result.stderr).strip())
+    if match and (warning := untested_version_warning(match.group(1))):
+        print(warning, file=sys.stderr)
 
 
 def _exec_capabilities(executable: str | None = None) -> dict[str, Any]:
@@ -170,7 +183,7 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
         identity = {"available": False, "platform": None, "limitation": str(error)}
     catalog: list[dict[str, Any]] = []
     catalog_error: str | None = None
-    if version in TESTED_CODEX_VERSIONS and schema.verified:
+    if minimum_version_error(version) is None and schema.verified:
         try:
             with tempfile.TemporaryDirectory(prefix="fast-agents-doctor-") as temporary:
                 private_temp = Path(temporary)
@@ -190,8 +203,8 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
         except (FastAgentsError, OSError, subprocess.SubprocessError, asyncio.TimeoutError) as error:
             catalog_error = str(error)
     else:
-        catalog_error = tested_version_error(version) or "model/list requires a verified app-server schema"
-    version_supported = tested_version_error(version) is None
+        catalog_error = minimum_version_error(version) or "model/list requires a verified app-server schema"
+    version_supported = minimum_version_error(version) is None
     return {
         "available": bool(
             version_result.returncode == 0
@@ -207,7 +220,9 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
         "backend": "app-server",
         "executable": resolved,
         "version": version,
-        "supported_version": APP_SERVER_VERSION,
+        "supported_version": MIN_CODEX_VERSION,
+        "tested_versions": sorted(TESTED_CODEX_VERSIONS),
+        "adapter_version": APP_SERVER_VERSION,
         "version_exit_code": version_result.returncode,
         "app_server_options": {
             "listen": "--listen" in help_text,
@@ -237,19 +252,23 @@ def _app_server_capabilities(executable: str | None = None) -> dict[str, Any]:
 
 def _codex_capabilities(executable: str | None = None, backend: str = "app-server") -> dict[str, Any]:
     if backend == "exec":
-        return _exec_capabilities(executable)
-    if backend == "app-server":
-        return _app_server_capabilities(executable)
-    return {"available": False, "backend": backend, "error": f"unsupported backend: {backend}"}
+        report = _exec_capabilities(executable)
+    elif backend == "app-server":
+        report = _app_server_capabilities(executable)
+    else:
+        return {"available": False, "backend": backend, "error": f"unsupported backend: {backend}"}
+    report["version_warning"] = untested_version_warning(str(report.get("version", "unknown")))
+    return report
 
 
 def _format_doctor_report(report: dict[str, Any], as_json: bool, backend: str) -> str:
     if as_json:
         return json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
+    warning_lines = [f"Version warning: {report['version_warning']}"] if report.get("version_warning") else []
     if not report["available"]:
         if backend == "app-server":
             reasons = []
-            if (version_error := tested_version_error(str(report.get("version", "unknown")))) is not None:
+            if (version_error := minimum_version_error(str(report.get("version", "unknown")))) is not None:
                 reasons.append(version_error)
             options = report.get("app_server_options", {})
             missing_options = [name for name in ("listen", "stdio", "schema_generator") if not options.get(name)]
@@ -276,7 +295,7 @@ def _format_doctor_report(report: dict[str, Any], as_json: bool, backend: str) -
         return "\n".join(
             [
                 f"Codex CLI: {report['version']} ({report['executable']})",
-                f"app-server adapter: {APP_SERVER_VERSION}; schema {'verified' if protocol.get('verified') else 'unverified'}",
+                f"app-server adapter: {APP_SERVER_VERSION}; minimum Codex {MIN_CODEX_VERSION}; schema {'verified' if protocol.get('verified') else 'unverified'}",
                 f"app-server options: listen={options.get('listen')}, stdio={options.get('stdio')}, schema generator={options.get('schema_generator')}",
                 f"Catalog models: {len(report.get('model_catalog', []))}; priority-tier models: {', '.join(tier_models) or 'none listed'}",
                 "Standard tier: explicit `default` route; it is not listed as a model catalog tier.",
@@ -285,6 +304,7 @@ def _format_doctor_report(report: dict[str, Any], as_json: bool, backend: str) -
                 f"Process identity: {report['process_identity'].get('platform') or report['process_identity'].get('limitation')}",
                 f"Host coverage: {report['platform_coverage']}",
                 "Probe: local schema generation and model/list only; no model inference.",
+                *warning_lines,
             ]
         )
     flags = report["supported_flags"]
@@ -292,6 +312,7 @@ def _format_doctor_report(report: dict[str, Any], as_json: bool, backend: str) -
     missing = ", ".join(name for name, present in flags.items() if not present) or "none"
     lines = [
         f"Codex CLI: {report['version']} ({report['executable']})",
+        *warning_lines,
         f"Recognized exec flags: {supported}",
         f"Missing required flag checks: {missing}",
         f"fast_mode feature list: {report['fast_mode_feature_line'] or ('unavailable (exit ' + str(report['feature_list_exit_code']) + ')' if report['feature_list_exit_code'] else 'not listed')}",
@@ -388,7 +409,7 @@ def _launch(args: argparse.Namespace) -> int:
     codex = _find_codex(args.codex)
     _print_lines(summary)
     capabilities = _codex_capabilities(codex, manifest.backend)
-    if (version_error := tested_version_error(str(capabilities.get("version", "unknown")))) is not None:
+    if (version_error := minimum_version_error(str(capabilities.get("version", "unknown")))) is not None:
         raise FastAgentsError(version_error)
     if manifest.backend == "exec":
         required = {"-C", "-m", "-c", "--enable", "--approve-for-me", "-s read-only", "--json", "--color", "-o"}
@@ -402,7 +423,7 @@ def _launch(args: argparse.Namespace) -> int:
             raise FastAgentsError("Codex app-server stdio options are unavailable")
         if not capabilities.get("protocol", {}).get("verified"):
             raise FastAgentsError(capabilities.get("protocol", {}).get("error") or "app-server protocol schema is not verified")
-        if (version_error := tested_version_error(str(capabilities.get("version")))) is not None:
+        if (version_error := minimum_version_error(str(capabilities.get("version")))) is not None:
             raise FastAgentsError(version_error)
         by_model = {item.get("id"): item for item in capabilities.get("model_catalog", []) if isinstance(item, dict)}
         for role in manifest.roles:
@@ -416,6 +437,8 @@ def _launch(args: argparse.Namespace) -> int:
                 raise FastAgentsError(f"{requested_tier} tier is unavailable for {role.name}; resolve the unavailable option before launch")
             if role.fast_requested and not capabilities.get("fast_mode_feature_available"):
                 raise FastAgentsError(f"Fast priority is unavailable for {role.name}; resolve the unavailable option before launch")
+    if capabilities.get("version_warning"):
+        print(capabilities["version_warning"], file=sys.stderr)
     print(
         f"Doctor: Codex {capabilities.get('version', 'unknown')} · {manifest.backend} · "
         f"schema {'verified' if capabilities.get('protocol', {}).get('verified') else 'exec options inspected'} · "
@@ -455,12 +478,9 @@ def _status(args: argparse.Namespace, resume: bool = False) -> int:
                         + ("reconciled persisted turns; waiting roles may continue" if result.get("reconciled") else "state remains uncertain; no turn was replayed")
                     )
             elif manager_identity_state in {"dead", "stale_identity"}:
-                start_recovery_supervisor(
-                    args.task,
-                    root,
-                    Path(__file__),
-                    _find_codex(args.codex) if getattr(args, "codex", None) else _recover_codex(task_dir),
-                )
+                recovery_codex = _find_codex(args.codex) if getattr(args, "codex", None) else _recover_codex(task_dir)
+                _warn_untested_version(recovery_codex)
+                start_recovery_supervisor(args.task, root, Path(__file__), recovery_codex)
             else:
                 raise FastAgentsError("cannot prove the previous supervisor stopped; recovery refused")
             status = read_task_status(task_dir)

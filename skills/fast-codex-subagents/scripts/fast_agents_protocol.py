@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -16,11 +17,13 @@ from fast_agents_common import FastAgentsError
 from fast_agents_platform import codex_argv, protect_private_path
 
 
-# Version families are candidates, not permission to execute an untested CLI.
-# Add a release only after its protocol fixtures and live smoke are verified.
+# Codex CLI versions at or above MIN_CODEX_VERSION are accepted. Versions listed in
+# TESTED_CODEX_VERSIONS have fixture and live-smoke evidence; newer ones only warn.
 APP_SERVER_VERSION = "0.162.1"  # currently fixture-backed
-CANDIDATE_CODEX_RANGE = ">=0.162.1,<0.163.0"
+MIN_CODEX_VERSION = "0.162.1"
 TESTED_CODEX_VERSIONS = frozenset({"0.162.1"})
+ISSUES_URL = "https://github.com/mo-hawary/hawary-workflow-skills/issues/new?template=compatibility_report.yml"
+CODEX_VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]+)?$")
 MAX_PROTOCOL_LINE = 8 * 1024 * 1024
 MAX_RPC_TIMEOUT_SECONDS = 120.0
 STDIO_WRITE_TIMEOUT_SECONDS = 15.0
@@ -40,16 +43,36 @@ class AppServerRpcError(AppServerError):
         super().__init__(f"app-server {method} failed: {error.get('message', 'unknown RPC error')}")
 
 
-def tested_version_error(version: str) -> str | None:
-    if version in TESTED_CODEX_VERSIONS:
+def parse_codex_version(version: str) -> tuple[int, int, int] | None:
+    """Return the numeric release triple; a prerelease or build suffix uses its release numbers."""
+    match = CODEX_VERSION_PATTERN.match(version.strip())
+    if match is None:
+        return None
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+
+def minimum_version_error(version: str) -> str | None:
+    parsed = parse_codex_version(version)
+    if parsed is None:
+        return (
+            f"Codex CLI version {version!r} could not be read. Upgrade Codex CLI to "
+            f"{MIN_CODEX_VERSION} or newer; no unknown or older version is used."
+        )
+    if parsed < parse_codex_version(MIN_CODEX_VERSION):
+        return (
+            f"Codex CLI {version} is older than the minimum supported {MIN_CODEX_VERSION}. "
+            f"Upgrade Codex CLI to {MIN_CODEX_VERSION} or newer; no older version is used."
+        )
+    return None
+
+
+def untested_version_warning(version: str) -> str | None:
+    if version in TESTED_CODEX_VERSIONS or minimum_version_error(version) is not None:
         return None
     tested = ", ".join(sorted(TESTED_CODEX_VERSIONS))
     return (
-        f"Codex CLI {version} has no verified protocol fixtures. Tested: {tested}; "
-        f"candidate family: {CANDIDATE_CODEX_RANGE}. Follow the upgrade runbook: "
-        "capture a sanitized real transcript, add versioned schema fixtures, "
-        "run replay and live smoke tests, and explicitly add the release to "
-        "TESTED_CODEX_VERSIONS. No fallback or untested version is used."
+        f"Codex CLI {version} is not in the tested set ({tested}). It should work; "
+        f"if anything breaks, please report it with `fast_agents.py doctor --json` output: {ISSUES_URL}"
     )
 
 
@@ -92,7 +115,7 @@ def _method_variants(schema: dict[str, Any]) -> set[str]:
 
 
 def verify_schema_directory(schema_root: Path, version: str) -> ProtocolSchemaReport:
-    if (error := tested_version_error(version)) is not None:
+    if (error := minimum_version_error(version)) is not None:
         return ProtocolSchemaReport(False, version, (), (), error)
     try:
         v2 = schema_root / "v2"
@@ -139,11 +162,11 @@ def verify_schema_directory(schema_root: Path, version: str) -> ProtocolSchemaRe
             raise ValueError("Model catalog schema lacks effort or service-tier evidence")
         return ProtocolSchemaReport(True, version, tuple(sorted(methods)), tuple(sorted(server_requests)))
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
-        return ProtocolSchemaReport(False, version, (), (), f"app-server schema verification failed: {error}")
+        return ProtocolSchemaReport(False, version, (), (), f"app-server schema verification failed: {error}; please report it: {ISSUES_URL}")
 
 
 def generate_and_verify_schema(executable: str, version: str, timeout: float = 20.0) -> ProtocolSchemaReport:
-    if (error := tested_version_error(version)) is not None:
+    if (error := minimum_version_error(version)) is not None:
         return ProtocolSchemaReport(False, version, (), (), error)
     with tempfile.TemporaryDirectory(prefix="fast-agents-schema-") as temporary:
         target = Path(temporary)
@@ -151,10 +174,10 @@ def generate_and_verify_schema(executable: str, version: str, timeout: float = 2
             argv = [*codex_argv(executable, "app-server", "generate-json-schema", "--out", str(target))]
             result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, shell=False, check=False)
         except (OSError, subprocess.SubprocessError) as error:
-            return ProtocolSchemaReport(False, version, (), (), f"could not generate app-server schema: {error}")
+            return ProtocolSchemaReport(False, version, (), (), f"could not generate app-server schema: {error}; please report it: {ISSUES_URL}")
         if result.returncode:
             detail = (result.stderr or result.stdout).strip()
-            return ProtocolSchemaReport(False, version, (), (), f"app-server schema generator failed: {detail or result.returncode}")
+            return ProtocolSchemaReport(False, version, (), (), f"app-server schema generator failed: {detail or result.returncode}; please report it: {ISSUES_URL}")
         return verify_schema_directory(target, version)
 
 

@@ -76,6 +76,6 @@ The skill chooses the smallest useful team and its recommended settings automati
 python3 skills/fast-codex-subagents/scripts/fast_agents.py doctor
 ```
 
-The preferred backend is one Codex app-server stdio process with separate logical worker threads. It supports Codex CLI 0.162.1 only; `exec` is an explicit fallback and is never selected silently. Fake-server tests do not make model calls.
+The preferred backend is one Codex app-server stdio process with separate logical worker threads. It requires Codex CLI 0.162.1 or later. 0.162.1 is the tested release; newer releases are accepted with a warning, and please report anything that breaks. `exec` is an explicit fallback and is never selected silently. Fake-server tests do not make model calls.
 
 For opt-in skill installation, saved defaults, instruction setup, and safe rollback commands, see [the setup guide](../skills/fast-codex-subagents/references/setup-and-rollback.md).

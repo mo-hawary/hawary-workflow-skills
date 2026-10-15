@@ -9,7 +9,7 @@ Hawary Workflow Skills is designed as a report-first workflow package for coding
 - `fast-codex-subagents` chooses the smallest useful team automatically, launches writers only for a user-requested implementation, and records requested/effective/upstream tier evidence separately.
 - `fast-codex-subagents` setup commands preview skill installs, saved defaults, and shared-instruction edits; they make no setup change without an explicit apply step.
 - The Codex-only helper defaults to one schema-pinned app-server process with separate logical threads, `on-request` approvals, automatic review, and role-specific sandboxes. It never blanket-approves requests or retries another backend/tier silently.
-- The app-server adapter is experimental and accepts Codex CLI 0.162.1 only. Doctor checks the generated protocol schema and `model/list` without inference; fake tests are not evidence of a paid model tier.
+- The app-server adapter is experimental and requires Codex CLI 0.162.1 or later (0.162.1 is the tested release; newer releases warn and ask for a compatibility report). Doctor checks the generated protocol schema and `model/list` without inference; fake tests are not evidence of a paid model tier.
 - No hidden credential collection is part of any skill or bundled script.
 - No automatic package upgrades are performed by the dependency auditor.
 - Users adopting new skills or scripts should review pull request changes before running them, even in this package.

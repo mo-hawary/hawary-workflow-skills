@@ -163,7 +163,7 @@ skills/
 
 <div dir="rtl" lang="ar-EG">
 
-`SKILL.md` هو المصدر الأساسي اللي أي agent يقدر يقرأه. التعليمات Markdown-first، ومعاها Python helpers اختيارية لبعض workflows، و Ruby للتحقق من package. مجلد `references/` فيه الأمثلة والـ checklists والـ templates بعيد عن جسم skill الأساسي. ملف `agents/openai.yaml` اختياري ومفيد كـ metadata لـ OpenAI/Codex، وأي agent تاني يقدر يتجاهله. `fast-codex-subagents` تجريبي ومحتاج Python 3.10+؛ الـ app-server adapter التجريبي محتاج Codex CLI 0.162.1 بالضبط، و `exec` بديل صريح. اختبارات fake/unit عدت على Linux و macOS و Windows، وبعض Windows `exec` fixtures بتتخطى؛ جلسات Codex الحية اتجربت على macOS بس.
+`SKILL.md` هو المصدر الأساسي اللي أي agent يقدر يقرأه. التعليمات Markdown-first، ومعاها Python helpers اختيارية لبعض workflows، و Ruby للتحقق من package. مجلد `references/` فيه الأمثلة والـ checklists والـ templates بعيد عن جسم skill الأساسي. ملف `agents/openai.yaml` اختياري ومفيد كـ metadata لـ OpenAI/Codex، وأي agent تاني يقدر يتجاهله. `fast-codex-subagents` تجريبي ومحتاج Python 3.10+؛ الـ app-server adapter التجريبي محتاج Codex CLI 0.162.1 أو أحدث؛ 0.162.1 هو النسخة اللي اتجربت، والنسخ الأحدث بتتقبل مع warning، ولو لقيت أي مشكلة بلغ عنها. و `exec` بديل صريح. اختبارات fake/unit عدت على Linux و macOS و Windows، وبعض Windows `exec` fixtures بتتخطى؛ جلسات Codex الحية اتجربت على macOS بس.
 
 ## تعليمات للـ AI agents
 
