@@ -17,7 +17,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "skills" / "fast-codex-subagents" / "scripts"))
-from fast_agents_protocol import AppServerClient, catalog_efforts, catalog_tiers, tested_version_error  # noqa: E402
+from fast_agents_protocol import AppServerClient, catalog_efforts, catalog_tiers, minimum_version_error  # noqa: E402
 
 MARKER = "CODEX_SKILL_SMOKE_OK"
 
@@ -59,7 +59,7 @@ async def live_smoke(codex: str, output: Path):
     version_result = subprocess.run([codex, "--version"], capture_output=True, text=True, check=True, timeout=10)
     match = re.search(r"codex-cli\s+(\S+)", version_result.stdout + version_result.stderr)
     version = match.group(1) if match else "unknown"
-    if (error := tested_version_error(version)):
+    if (error := minimum_version_error(version)):
         raise RuntimeError(error)
     output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     records = []

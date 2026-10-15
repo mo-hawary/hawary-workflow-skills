@@ -50,7 +50,7 @@ Path: `skills/fast-codex-subagents/scripts/fast_agents.py`
 ### Read Scope
 
 - Reads the supplied manifest and workspace path, applicable saved defaults from the existing `fast-agents` state directory, selected task state, process identities, event summaries, and setup ownership records.
-- The Codex-only app-server backend is restricted to tested CLI releases (currently 0.162.1), with a candidate upgrade family kept separate from the active allowlist. `doctor` inspects version and options, generates/checks the local protocol schema, reads `features list`, and calls `model/list` for model, effort, and service-tier capability. These checks make no model inference. Recovery startup performs the compatibility preflight again to reject an upgraded or incompatible executable.
+- The Codex-only app-server backend requires Codex CLI 0.162.1 or later. 0.162.1 is the tested release; newer releases are accepted with a warning that links the compatibility report, and older or unreadable versions are rejected. `doctor` inspects version and options, generates/checks the local protocol schema, reads `features list`, and calls `model/list` for model, effort, and service-tier capability. These checks make no model inference. Recovery startup performs the compatibility preflight again to reject an older or schema-incompatible executable.
 - When writers are present, the helper runs bounded, read-only `git rev-parse` and `git status --porcelain` commands to compare initially dirty paths with newly dirty paths after execution. Git commands use argument arrays and disable fsmonitor; no staging, commit, checkout, or reset is performed.
 
 ### Write Scope

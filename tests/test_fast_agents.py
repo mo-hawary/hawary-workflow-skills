@@ -1481,7 +1481,34 @@ def test_fake_app_server_doctor_schema_and_model_list_are_no_inference(fake_app_
     assert report["standard_tier_request_value"] == "default"
     assert "not a model/list service tier id" in report["standard_tier_catalog_note"]
     protocol = importlib.import_module("fast_agents_protocol")
-    assert protocol.verify_schema_directory(PROTOCOL_SCHEMA_FIXTURE, "0.162.2").verified is False
+    assert protocol.verify_schema_directory(PROTOCOL_SCHEMA_FIXTURE, "0.162.0").verified is False
+    assert protocol.verify_schema_directory(PROTOCOL_SCHEMA_FIXTURE, "0.163.0-alpha.9").verified is True
+
+
+def test_newer_codex_cli_doctor_proceeds_with_warning(fake_app_server: FakeAppServer, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    protocol = importlib.import_module("fast_agents_protocol")
+    # Shim that reports a newer CLI version and forwards every other call to the pinned fake server.
+    shim = tmp_path / "newer-codex.py"
+    shim.write_text(
+        f"#!{sys.executable}\n"
+        "import subprocess\n"
+        "import sys\n"
+        "if sys.argv[1:] == ['--version']:\n"
+        "    print('codex-cli 0.163.0-alpha.9')\n"
+        "    raise SystemExit(0)\n"
+        f"raise SystemExit(subprocess.call([sys.executable, {str(fake_app_server.executable)!r}, *sys.argv[1:]]))\n",
+        encoding="utf-8",
+    )
+    shim.chmod(0o755)
+    for key, value in fake_app_server.env().items():
+        monkeypatch.setenv(key, value)
+    report = json.loads(cli.doctor(str(shim), as_json=True, backend="app-server"))
+    assert report["available"] is True
+    assert report["version"] == "0.163.0-alpha.9"
+    assert report["protocol"]["verified"] is True
+    assert report["model_catalog_error"] is None
+    assert report["supported_version"] == protocol.MIN_CODEX_VERSION
+    assert protocol.ISSUES_URL in report["version_warning"]
 
 
 def test_app_server_routes_concurrent_logical_threads_and_records_effective_tiers_and_usage(

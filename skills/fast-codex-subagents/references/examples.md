@@ -20,7 +20,7 @@ Inspect the local CLI without starting a model session:
 python3 skills/fast-codex-subagents/scripts/fast_agents.py doctor
 ```
 
-The preferred backend is one app-server stdio process with separate logical threads. The adapter is experimental and accepts Codex CLI 0.162.1 only; `exec` is an explicit fallback. Doctor checks the generated schema and `model/list` without inference.
+The preferred backend is one app-server stdio process with separate logical threads. The adapter is experimental and requires Codex CLI 0.162.1 or later. 0.162.1 is the tested release; newer releases are accepted with a warning, and please report anything that breaks. `exec` is an explicit fallback. Doctor checks the generated schema and `model/list` without inference.
 
 Read current saved preferences and inspect an existing task:
 

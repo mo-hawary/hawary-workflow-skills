@@ -985,19 +985,29 @@ def test_codex_only_manifest_scope_is_machine_validatable():
     assert 'agents: ["codex"]' in skill
     assert entry["agents"] == ["codex"]
 
-def test_tested_codex_version_policy_is_fail_closed():
+def test_codex_version_policy_accepts_minimum_and_newer_with_issue_warning():
     from fast_agents_protocol import (
-        TESTED_CODEX_VERSIONS, CANDIDATE_CODEX_RANGE,
-        tested_version_error, verify_schema_directory,
+        ISSUES_URL, MIN_CODEX_VERSION, TESTED_CODEX_VERSIONS,
+        minimum_version_error, untested_version_warning, verify_schema_directory,
     )
     assert TESTED_CODEX_VERSIONS == {"0.162.1"}
-    assert CANDIDATE_CODEX_RANGE.startswith(">=0.162.1")
-    assert tested_version_error("0.162.1") is None
-    for version in ("0.162.0", "0.162.2", "0.163.0-alpha.5", "unknown"):
-        message = tested_version_error(version)
-        assert "no verified protocol fixtures" in message
-        assert "upgrade runbook" in message
+    assert MIN_CODEX_VERSION == "0.162.1"
+    assert minimum_version_error("0.162.1") is None
+    assert untested_version_warning("0.162.1") is None
+    for version in ("0.162.2", "0.163.0", "0.163.0-alpha.9", "1.0.0"):
+        assert minimum_version_error(version) is None
+        warning = untested_version_warning(version)
+        assert version in warning
+        assert ISSUES_URL in warning
+    for version in ("0.162.0", "0.150.3", "unknown"):
+        message = minimum_version_error(version)
+        assert "Upgrade Codex CLI" in message
+        assert untested_version_warning(version) is None
         assert verify_schema_directory(Path("does-not-exist"), version).verified is False
+    newer = verify_schema_directory(Path("does-not-exist"), "0.163.0")
+    assert newer.verified is False
+    assert "please report it" in newer.error and ISSUES_URL in newer.error
+
 
 def test_codex_runtime_guard_fails_early_for_wrong_host(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     import fast_agents as cli

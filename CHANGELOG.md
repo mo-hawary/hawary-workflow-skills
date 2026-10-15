@@ -8,8 +8,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- `fast-codex-subagents` accepts Codex CLI 0.162.1 and later. Newer untested releases, including prereleases, warn in `doctor` and launch and link the compatibility report instead of failing; older or unreadable versions are still rejected.
 - Codex-only installer rejects new Claude skill-home installations while preserving explicit rollback support for previously installed owned copies.
-- Codex-only skill metadata and runtime checks; fixture-tested CLI release registry, versioned schema fixture archives, and a Codex upgrade runbook.
+- Codex-only skill metadata and runtime checks; CLI version and generated-schema compatibility checks, versioned schema fixture archives, and a Codex upgrade runbook.
 - Opt-in, self-hosted Codex live smoke via ChatGPT sign-in without an API key or billing secret; main/nightly runs are disabled until a dedicated authenticated runner is configured. Metadata-only transcript recorder and review-gated goldens remain distinct from fake fixtures.
 - Bounded control IPC, steering duplicate rejection, finite app-server timeouts, limits on approval requests and team sizes, and explicit parent-exit/cancellation semantics.
 - Automatic routing to direct Codex exec for a single bounded independent role; app-server for multi-role/dependent or complex tasks, without silent backend fallback.
