@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 import json
 import os
 import uuid
@@ -38,6 +39,7 @@ RECOVERY_WAIT_RATIO = 0.8
 PROGRESS_ONLY_EVENTS = frozenset({"item/started", "item/completed", "thread/tokenUsage/updated"})
 KNOWN_SERVER_REQUESTS = SUPPORTED_APP_SERVER_REQUESTS
 TERMINAL_TURN_STATES = {"completed", "failed", "interrupted"}
+INTERRUPT_SETTLE_SECONDS = 30.0
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,17 @@ class AppServerSupervisor:
         self._pending_snapshot: str | None = None
         self.scheduler_task: asyncio.Task[None] | None = None
         self.recovery_reason: str | None = None
+        self.worktrees = None
+        self.worktree_lock = asyncio.Lock()
+        if self.manifest.get("isolation") == "worktree":
+            from fast_agents_worktrees import WorktreeSession
+
+            self.worktrees = WorktreeSession(task_dir, Path(self.manifest["workspace"]))
+
+    def _role_workspace(self, role_name: str) -> Path:
+        if self.worktrees is not None:
+            return Path(self.status["roles"][role_name]["workspace"])
+        return Path(self.manifest["workspace"])
 
     def _save_status(self) -> None:
         self.status["updated_at"] = _utc_now()
@@ -229,6 +242,9 @@ class AppServerSupervisor:
         if role_name:
             role_state = self.status["roles"][role_name]
             role_state["last_activity"] = _event_summary(method, params)
+            event_turn = params.get("turnId")
+            if event_turn is None or event_turn == role_state.get("turn_id"):
+                role_state["last_activity_at"] = _utc_now()
             if method == "turn/started":
                 turn = params.get("turn", {})
                 if isinstance(turn, dict) and isinstance(turn.get("id"), str):
@@ -327,9 +343,10 @@ class AppServerSupervisor:
         if role_name in self.roles and str(message.get("method")) not in KNOWN_SERVER_REQUESTS:
             role_state = self.status["roles"][role_name]
             if role_state.get("state") in {"starting", "running"}:
-                role_state.update({"state": "failed", "error": "unsupported app-server request; role stopped safely", "finished_at": _utc_now(), "exit_code": 1})
-                self._write_exit(role_name)
-                self.role_done[role_name].set()
+                # Rejecting one RPC does not terminate its model turn. Keep its
+                # scheduler slot and current-turn controls until terminal evidence.
+                role_state["error"] = "unsupported app-server request rejected; turn remains active and may be interrupted"
+                role_state["protocol_rejection"] = str(message.get("method"))
         self._save_status()
 
     def _set_effective_tier(self, role_name: str, tier: Any, *, reported: bool = True) -> str | None:
@@ -517,11 +534,16 @@ class AppServerSupervisor:
             descriptor = os.open(stderr_path, os.O_CREAT | os.O_WRONLY, 0o600)
             os.close(descriptor)
             protect_private_path(stderr_path, directory=False)
-        role_state.update({"state": "starting", "started_at": _utc_now(), "error": None})
+        role_state.update({"state": "starting", "started_at": _utc_now(), "last_activity_at": _utc_now(), "error": None})
         self._save_status()
         try:
             if self.client is None:
                 raise AppServerError("app-server connection is unavailable")
+            if self.worktrees is not None:
+                async with self.worktree_lock:
+                    workspace = await asyncio.to_thread(self.worktrees.start_role, role.name, role.access)
+                    role_state["workspace"] = str(workspace)
+                    self._save_status()
             if not role_state.get("thread_id"):
                 role_state["thread_start_state"] = "submitted"
                 self._save_status()
@@ -529,7 +551,7 @@ class AppServerSupervisor:
                     "thread/start",
                     {
                         "model": role.model,
-                        "cwd": self.manifest["workspace"],
+                        "cwd": str(self._role_workspace(role.name)),
                         "ephemeral": False,
                         "sandbox": "workspace-write" if role.access == "writer" else "read-only",
                         "approvalPolicy": "on-request",
@@ -699,6 +721,10 @@ class AppServerSupervisor:
                 self._invalidate_pending("app-server transport disconnected")
                 self.transport_lost.set()
                 break
+            await self._check_budgets()
+            if self.transport_lost.is_set():
+                break
+            await self._collect_completed_writers()
             progress = False
             for name, role in self.roles.items():
                 role_state = self.status["roles"][name]
@@ -742,6 +768,7 @@ class AppServerSupervisor:
 
             if self.transport_lost.is_set():
                 break
+            await self._collect_completed_writers()
             if all(value.get("state") in TERMINAL_TURN_STATES | {"blocked", "unknown"} for value in self.status["roles"].values()) and not self.role_tasks:
                 break
             if not progress:
@@ -769,7 +796,122 @@ class AppServerSupervisor:
             self.manifest["roles"],
         )
         self.status["verification_state"] = "not_run"
+        if self.status.get("state") == "completed" and self.manifest.get("acceptance"):
+            from fast_agents_worktrees import run_acceptance
+
+            workspace = self.worktrees._tree("integration") if self.worktrees else Path(self.manifest["workspace"])
+            prior = self.status.get("acceptance", {})
+            if prior:
+                # Never replay host commands on recovery. A passed isolated
+                # result may be reused only for the same immutable patch.
+                if prior.get("state") == "passed" and self.worktrees:
+                    import hashlib
+
+                    patch = await asyncio.to_thread(self.worktrees.final_patch)
+                    if hashlib.sha256(patch).hexdigest() != prior.get("patch_sha256"):
+                        raise FastAgentsError("accepted isolated patch changed during recovery")
+                    self.status["verification_state"] = "passed"
+                elif prior.get("state") in {"running", "recovery_required"}:
+                    self.status.update(state="recovery_required", action="Acceptance cleanup is uncertain; inspect private logs; commands were not replayed")
+                else:
+                    self.status.update(state="failed", action="Prior acceptance was not replayed; inspect its private logs")
+            else:
+                before_patch = await asyncio.to_thread(self.worktrees.final_patch) if self.worktrees else None
+                self.status["acceptance"] = {"state": "running"}
+                self._save_status()
+                result = await asyncio.to_thread(run_acceptance, self.task_dir, workspace, self.manifest["acceptance"])
+                if self.worktrees and result["state"] == "passed":
+                    import hashlib
+
+                    try:
+                        patch = await asyncio.to_thread(self.worktrees.final_patch)
+                        if patch != before_patch:
+                            result.update(state="failed", error="acceptance modified the reviewed patch")
+                        else:
+                            result["patch_sha256"] = hashlib.sha256(patch).hexdigest()
+                            self.status["workspace_scope"] = {"state": "isolated_patches_checked"}
+                    except (FastAgentsError, OSError):
+                        result.update(state="failed", error="acceptance left the integration tree modified; inspect it")
+                self.status["acceptance"] = result
+                self.status["verification_state"] = result["state"]
+                if result["state"] != "passed":
+                    self.status.update(state="recovery_required" if result["state"] == "recovery_required" else "failed",
+                                       action="Acceptance did not pass; inspect the private command logs")
         self._save_status()
+
+    async def _collect_completed_writers(self) -> None:
+        if self.worktrees is None:
+            return
+        for name, role in self.roles.items():
+            state = self.status["roles"][name]
+            task = self.role_tasks.get(name)
+            if (role.access != "writer" or state.get("state") != "completed" or state.get("patch_collected")
+                    or task is not None and not task.done()):
+                continue
+            try:
+                async with self.worktree_lock:
+                    await asyncio.to_thread(self.worktrees.collect, name, list(role.owns))
+                state["patch_collected"] = True
+            except (FastAgentsError, OSError) as error:
+                state.update(state="failed", error=f"isolated patch collection failed: {error}")
+            self._save_status()
+
+    async def _check_budgets(self) -> None:
+        """Keep active slots occupied until an interrupt is proven terminal."""
+        from fast_agents_limits import age_seconds, exceeded, observed_tokens
+
+        now = dt.datetime.now(dt.timezone.utc)
+        task_budget = self.manifest.get("budgets", {})
+        started = [value for value in self.status["roles"].values() if value.get("started_at")]
+        counts = [observed_tokens(value.get("usage")) for value in started]
+        task_tokens = sum(counts) if counts and all(count is not None for count in counts) else None
+        task_hits = exceeded(task_budget, wall=age_seconds(self.status.get("created_at"), now),
+                             idle=0, tokens=task_tokens)
+        for item in self.manifest["roles"]:
+            name = item["name"]
+            state = self.status["roles"][name]
+            if state.get("state") == "waiting":
+                if task_hits and task_budget.get("action") == "interrupt":
+                    state.update({"state": "blocked", "error": "task execution budget exceeded", "finished_at": _utc_now()})
+                    self._save_status()
+                continue
+            if state.get("state") not in {"starting", "running"}:
+                continue
+            role_budget = item.get("budgets", {})
+            idle = age_seconds(state.get("last_activity_at") or state.get("started_at"), now)
+            role_hits = exceeded(role_budget, wall=age_seconds(state.get("started_at"), now), idle=idle,
+                                 tokens=observed_tokens(state.get("usage")))
+            inherited_idle = (["max_idle_seconds"] if "max_idle_seconds" in task_budget
+                              and idle >= task_budget["max_idle_seconds"] else [])
+            hits = sorted(set(task_hits + inherited_idle + role_hits))
+            if not hits:
+                continue
+            record = state.setdefault("budget", {"alerts": []})
+            fresh = [hit for hit in hits if hit not in record["alerts"]]
+            if fresh:
+                record["alerts"].extend(fresh)
+                record["token_telemetry"] = "observed" if observed_tokens(state.get("usage")) is not None else "unavailable"
+                self._summary_event("budget/exceeded", {"threadId": state.get("thread_id"),
+                                    "turnId": state.get("turn_id")}, name)
+                self._save_status()
+            should_interrupt = bool((task_hits or inherited_idle) and task_budget.get("action") == "interrupt"
+                                    or role_hits and role_budget.get("action") == "interrupt")
+            if not should_interrupt or not state.get("turn_id"):
+                continue
+            if "interrupt_state" not in record:
+                record.update({"interrupt_state": "submitted", "interrupt_at": _utc_now()})
+                self._save_status()  # Intent is durable before submission; never replay on timeout.
+                try:
+                    assert self.client is not None
+                    await self.client.request("turn/interrupt", {"threadId": state["thread_id"], "turnId": state["turn_id"]})
+                    record["interrupt_state"] = "acknowledged"
+                except (AppServerError, OSError):
+                    record["interrupt_state"] = "delivery_uncertain"
+                self._save_status()
+            if (state.get("turn_status") not in TERMINAL_TURN_STATES
+                    and age_seconds(record.get("interrupt_at"), now) >= INTERRUPT_SETTLE_SECONDS):
+                self.recovery_reason = "budget interrupt has not produced terminal evidence; reconcile without replay"
+                self.transport_lost.set()
 
     def _set_terminal_task_state(self) -> None:
         state, action = classify_task_roles(self.status["roles"])
@@ -843,6 +985,11 @@ class AppServerSupervisor:
                 # report is an output failure, not an uncertain submission.
                 state["recovery_required"] = False
             else:
+                # A resumed history proves this exact turn is still active.
+                # Keep task scheduling blocked, but restore explicit interrupt
+                # control instead of leaving an observed live turn unreachable.
+                state.update(state="running", turn_status=turn_status or "inProgress", recovery_required=True)
+                self.role_done[name].clear()
                 unresolved.append(f"{name}: turn {turn_id} remains {turn_status or 'unknown'}")
         elif state.get("state") not in {"waiting", "completed", "failed", "blocked"}:
             unresolved.append(f"{name}: worker state cannot be reconciled")
@@ -1034,7 +1181,7 @@ class AppServerSupervisor:
             self._invalidate_pending("request is no longer bound to a live turn", role_name=pending.get("role"), turn_id=pending.get("turn_id"))
             raise FastAgentsError("server request is stale or no longer belongs to the current live turn")
         role = self.roles[pending["role"]]
-        response = _validate_server_reply(pending, request, role, Path(self.manifest["workspace"]))
+        response = _validate_server_reply(pending, request, role, self._role_workspace(role.name))
         assert self.client is not None
         # Claim the request synchronously before the first await. Even if the
         # underlying stdio write is backpressured, a second control caller
@@ -1127,6 +1274,8 @@ class AppServerSupervisor:
         self.status["state"] = "starting"
         self._save_status()
         try:
+            if self.worktrees is not None:
+                await asyncio.to_thread(self.worktrees.prepare)
             await self._start_client()
             self.control = ControlServer(self.task_dir, self._handle_control)
             await self.control.start()
@@ -1216,7 +1365,15 @@ class AppServerSupervisor:
             self.scheduler_task = asyncio.create_task(self._schedule_then_finish())
 
     async def _schedule_then_finish(self) -> None:
-        await self._schedule()
+        try:
+            await self._schedule()
+        except Exception as error:
+            uncertain = self.status.get("acceptance", {}).get("state") in {"running", "recovery_required"} or any(state.get("turn_status") not in TERMINAL_TURN_STATES
+                            and state.get("state") in {"starting", "running", "unknown"}
+                            for state in self.status["roles"].values())
+            self.status.update(state="recovery_required" if uncertain else "failed",
+                               action=f"Supervisor scheduling/verification failed; no automatic replay: {error}")
+            self._save_status()
         if self.status.get("state") != "recovery_required":
             self.finished.set()
 

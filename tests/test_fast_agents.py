@@ -315,8 +315,7 @@ def test_manifest_validation_enforces_ownership_dependencies_contract_and_routin
         common.load_manifest(manifest_path)
 
     manifest_path = write_manifest(tmp_path / "manifest.json", workspace, [writer("one", ["src/a.py"], model="gpt-6.1-sol")])
-    with pytest.raises(common.FastAgentsError, match="writers must use gpt-6-luna"):
-        common.load_manifest(manifest_path)
+    assert common.load_manifest(manifest_path).roles[0].model == "gpt-6.1-sol"
 
     manifest_path = write_manifest(tmp_path / "manifest.json", workspace, [writer("one", ["src/a.py"])], shared_contract="")
     with pytest.raises(common.FastAgentsError, match="shared_contract"):
@@ -360,8 +359,7 @@ def test_reviewer_effort_respects_explicit_choice_and_supported_values(tmp_path:
         [reviewer(model="gpt-6-luna", effort="low")],
         fast_requested=False,
     )
-    with pytest.raises(common.FastAgentsError, match="read-only reviewers must use gpt-6.1-sol"):
-        common.load_manifest(wrong_model_manifest, defaults_path=tmp_path / "no-defaults.json")
+    assert common.load_manifest(wrong_model_manifest, defaults_path=tmp_path / "no-defaults.json").roles[0].model == "gpt-6-luna"
 
     for name, effort in (("unknown", "turbo"), ("list", ["low"]), ("object", {"value": "low"})):
         invalid_effort_manifest = write_manifest(
@@ -1052,7 +1050,7 @@ def test_nonportable_role_ids_fail_before_private_runtime_creation(
     [
         ({"schema_version": 1, "fast_requested": False, "backend": "exec", "writer": {}, "reviewer": {}}, "unknown fields"),
         ({"schema_version": 1, "writer": {"network": True}, "reviewer": {}}, "contain unknown fields"),
-        ({"schema_version": 1, "writer": {"model": "other-model"}, "reviewer": {}}, "writer model must be"),
+        ({"schema_version": 1, "writer": {"model": "invalid model id"}, "reviewer": {}}, "writer model must be"),
         ({"schema_version": 1, "writer": {"effort": "../high"}, "reviewer": {}}, "writer effort must be"),
         ({"schema_version": 1, "writer": {"fast_requested": "yes"}, "reviewer": {}}, "true or false"),
         ({"schema_version": 1, "fast_selection": {"mode": "selected", "workers": ["../escape"]}, "writer": {}, "reviewer": {}}, "letters, numbers"),
@@ -1115,8 +1113,9 @@ def test_defaults_preview_and_save_preserve_supported_per_role_policy(tmp_path: 
 
 def test_managed_instruction_routes_substantive_execution_and_preserves_foreground_scope():
     managed = setup.MANAGED_BLOCK
-    assert "delegation coordinator for substantive execution" in managed
-    assert "including a single bounded worker" in managed
+    assert "when explicitly requested" in managed
+    assert "small coherent edits" in managed
+    assert "ordinary delegation may use native subagents" in managed
     assert "brief factual answers, conversation, and planning in the foreground" in managed
     assert "model, effort, worker count, and per-worker Fast setting automatically" in managed
     assert "use Fast for all workers by default" in managed

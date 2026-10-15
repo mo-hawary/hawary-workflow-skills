@@ -224,6 +224,7 @@ def test_oversized_single_event_and_other_responses_fail_with_bounded_errors(tmp
 
 
 @pytest.mark.parametrize("requested", [(False, False), (True, False)])
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="TOML observer fixture uses Python 3.11 tomllib; runtime has no TOML dependency")
 def test_exec_workers_override_inherited_fast_configuration(tmp_path: Path, requested: tuple[bool, ...]):
     task_dir, manifest, _ = make_task(tmp_path, backend="exec", fast=requested)
     home = tmp_path / "codex-home"

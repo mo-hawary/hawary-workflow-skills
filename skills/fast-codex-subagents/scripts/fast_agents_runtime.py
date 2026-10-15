@@ -345,6 +345,9 @@ def _private_task_manifest(manifest: TaskManifest) -> dict[str, Any]:
         "backend": manifest.backend,
         "max_concurrency": manifest.max_concurrency,
         "plan_mode": manifest.plan_mode,
+        "budgets": manifest.budgets,
+        "isolation": manifest.isolation,
+        "acceptance": [list(command) for command in manifest.acceptance],
         "roles": [
             {
                 "name": role.name,
@@ -358,6 +361,7 @@ def _private_task_manifest(manifest: TaskManifest) -> dict[str, Any]:
                 "prompt": role.prompt,
                 "fast_requested": role.fast_requested,
                 "setting_sources": role.setting_sources,
+                "budgets": role.budgets,
             }
             for role in manifest.roles
         ],

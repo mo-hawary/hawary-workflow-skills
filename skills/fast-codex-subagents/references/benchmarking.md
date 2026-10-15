@@ -37,6 +37,24 @@ Also record median, p95, sample size, failure rate, and paired differences acros
 
 An observed latency difference is not a causal claim without repeated, controlled runs. Compare task completion and correctness **before** throughput or token-cost claims. The historical October 13, 2026 single Fast ON/OFF trial is exploratory evidence only; its result is not a benchmark for all repositories, models, or platforms.
 
+## Executable workflow comparison
+
+Preview the live trial plan without starting Codex:
+
+```bash
+python tests/benchmark_codex_workflows.py --rounds 10
+```
+
+On a POSIX host with a ChatGPT-authenticated Codex CLI, explicitly start trials:
+
+```bash
+python tests/benchmark_codex_workflows.py --rounds 10 --run-live --output /tmp/codex-workflow-trials
+```
+
+The runner rotates and reverses balanced groups of four modes: foreground, requested native subagents, helper Fast, and helper Standard. Each trial creates the same seeded inventory fixture from scratch, preserves raw logs privately, includes setup and external acceptance in wall time, and records failures without retries. Acceptance uses an external pristine test copy. An uncertain task stops the campaign; its private artifacts remain for inspection. Model/effort are selectable; defaults hold the same requested model/effort across modes. Missing usage stays null.
+
+This bundled case is a reproducible exploratory test, not a diverse performance corpus. Cache/warm-up remain uncontrolled. Native delegation and effective settings require review of the private transcript: requesting native agents does not prove they ran. Do not publish speedup claims until that compliance review and the broader matched corpus above are complete. Authenticated runs and reviewed current-source goldens are still required; dry runs and fake tests are not substitutes.
+
 ## Coordinator overhead: fake Codex, no model calls
 
 Run this diagnostic on a host with Python and the fake CLI fixtures:

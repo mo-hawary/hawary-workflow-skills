@@ -32,7 +32,7 @@ DEFAULTS_OWNER_SUFFIX = ".fast-agents-owner.json"
 MANAGED_BLOCK = "\n".join(
     [
         "<!-- fast-agents:begin -->",
-        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-codex-subagents` skill as the delegation coordinator for substantive execution, including a single bounded worker when that is the smallest useful team. Keep brief factual answers, conversation, and planning in the foreground. Choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
+        "For Codex CLI or Codex app sessions that load this shared instruction file, use the `fast-codex-subagents` skill when explicitly requested or when per-worker Fast/permission controls, dependencies, or durable recovery are needed. Keep small coherent edits, brief factual answers, conversation, and planning in the foreground; ordinary delegation may use native subagents. When selecting the helper, choose the team, model, effort, worker count, and per-worker Fast setting automatically; use Fast for all workers by default, while preserving explicit user routing and choices, saved and project Fast settings, ownership, sandbox, Plan Mode, and on-request approval rules. Avoid routine setup questions.",
         "This block is shared instruction text only; it applies only in clients configured to load the selected Codex home instruction file. The setup command cannot verify Codex app activation, so verify that inside the app.",
         "<!-- fast-agents:end -->",
     ]
@@ -203,6 +203,7 @@ def defaults_preview(
     fast_requested: bool | None = None,
     writer_effort: str | None = None,
     fast_selection: dict[str, Any] | None = None,
+    profiles: dict[str, dict[str, str]] | None = None,
 ) -> tuple[Path, dict[str, Any], str | None, str]:
     path = (target or default_config_path()).expanduser().resolve()
     old_sha = _defaults_current_sha(path)
@@ -214,9 +215,11 @@ def defaults_preview(
         existing["fast_selection"] = fast_selection
         existing.pop("fast_requested", None)
     if writer_effort is not None:
-        if writer_effort not in {"low", "max"}:
-            raise FastAgentsError("writer effort default must be low or max")
         existing.setdefault("writer", {})["effort"] = writer_effort
+    for access, settings in (profiles or {}).items():
+        if access not in {"writer", "reviewer"}:
+            raise FastAgentsError("default profiles must be writer or reviewer")
+        existing.setdefault(access, {}).update(settings)
     existing.setdefault("writer", {}).setdefault("model", "gpt-6-luna")
     existing.setdefault("reviewer", {}).setdefault("model", "gpt-6.1-sol")
     existing.setdefault("reviewer", {}).setdefault("effort", "xhigh")
@@ -233,8 +236,9 @@ def save_defaults(
     confirm_sha: str | None = None,
     expected_before: str | None = None,
     fast_selection: dict[str, Any] | None = None,
+    profiles: dict[str, dict[str, str]] | None = None,
 ) -> list[str]:
-    path, data, before_sha, after_sha = defaults_preview(target, fast_requested, writer_effort, fast_selection)
+    path, data, before_sha, after_sha = defaults_preview(target, fast_requested, writer_effort, fast_selection, profiles)
     encoded = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
     messages = [f"Dedicated defaults file: {path}", f"Current SHA-256: {before_sha or 'absent'}", "Planned contents:", encoded.decode("utf-8").rstrip(), f"New SHA-256: {after_sha}"]
     if not apply:

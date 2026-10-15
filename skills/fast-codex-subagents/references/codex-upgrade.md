@@ -124,6 +124,10 @@ requesting an API key. One configured runner OS is selected per scheduled
 run; dispatch manually on the other OS to establish platform coverage.
 The workflow uploads a seven-day metadata-only transcript artifact after a run.
 
+It also runs `tests/live_codex_helper_smoke.py`: an actual manifest launch in a disposable Git tree with an isolated writer, dependent read-only reviewer, control-status polling, patch collection, and external acceptance. The sanitized helper capture records the current Git SHA, dirty-source flag, helper fingerprint, role settings, and event envelopes. Private prompts, source paths, reports, and runtime files stay on the runner. Promote only clean-source, reviewed captures. The helper smoke does not claim live steering, interruption, approval-response, or crash-recovery coverage; those remain fault-injected offline tests until deliberately exercised on authenticated hosts.
+
+The replay suite now feeds audited envelope ordering and thread/turn correlations through the supervisor's event handlers and asserts terminal state. Safe payload bodies are reconstructed; metadata capture is not a lossless raw-wire transcript. Synthetic regression traces must remain outside the genuine-capture directory.
+
 A logged-in runner can consume ChatGPT plan usage and is subject to the
 account's usage limits; recurring model turns should be enabled intentionally.
 Never copy a local `auth.json` to GitHub secrets or into build artifacts.
