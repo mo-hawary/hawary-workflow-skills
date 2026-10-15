@@ -230,7 +230,11 @@ def test_exec_workers_override_inherited_fast_configuration(tmp_path: Path, requ
     home.mkdir()
     (home / "config.toml").write_text('service_tier="fast"\n[features]\nfast_mode=true\n', encoding="utf-8")
     fake = tmp_path / "inspect_config.py"
-    fake.write_text('''import json, os, pathlib, sys, tomllib
+    fake.write_text('''import json, os, pathlib, sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 config = tomllib.loads((pathlib.Path(os.environ["CODEX_HOME"]) / "config.toml").read_text())
 args = sys.argv[1:]
 for index, arg in enumerate(args):

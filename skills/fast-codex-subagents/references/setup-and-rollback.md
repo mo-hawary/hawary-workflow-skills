@@ -29,6 +29,7 @@ python3 scripts/fast_agents.py defaults show
 python3 scripts/fast_agents.py defaults set --fast-requested true --writer-effort max
 python3 scripts/fast_agents.py defaults set --fast-workers none
 python3 scripts/fast_agents.py defaults set --fast-workers implement,review
+python3 scripts/fast_agents.py defaults set --writer-model gpt-6.1-sol --writer-effort high --reviewer-model gpt-6-luna --reviewer-effort high
 ```
 
 When no saved Fast choice exists, `defaults show` reports `recommended all`. Existing saved `none`, selected-worker, and per-role choices remain in effect until changed.

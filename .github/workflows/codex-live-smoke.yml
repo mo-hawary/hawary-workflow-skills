@@ -46,14 +46,19 @@ jobs:
           fi
           codex --version
           codex login status
-      - name: Execute read-only skill smoke and capture redacted transcript
+      - name: Execute read-only protocol smoke and capture redacted transcript
         shell: bash
         run: python tests/live_codex_smoke.py --capture "$RUNNER_TEMP/codex-smoke-transcript.json"
+      - name: Execute actual helper with isolated writer, dependent reviewer, and acceptance
+        shell: bash
+        run: python tests/live_codex_helper_smoke.py --capture "$RUNNER_TEMP/codex-helper-smoke.json"
       - name: Upload sanitized transcript for manual golden review
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-smoke-sanitized-${{ inputs.os || vars.CODEX_LIVE_SMOKE_OS || 'macOS' }}
-          path: ${{ runner.temp }}/codex-smoke-transcript.json
+          path: |
+            ${{ runner.temp }}/codex-smoke-transcript.json
+            ${{ runner.temp }}/codex-helper-smoke.json
           if-no-files-found: warn
           retention-days: 7

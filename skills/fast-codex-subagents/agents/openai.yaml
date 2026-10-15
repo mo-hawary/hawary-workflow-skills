@@ -2,4 +2,4 @@ supported_agents: ["codex"]
 interface:
   display_name: "Fast Codex Subagents"
   short_description: "Coordinate scoped Codex work with clear roles and safe approvals."
-  default_prompt: "Use $fast-codex-subagents to coordinate substantive Codex work with scoped roles, and apply Fast to all workers when the choice is unspecified."
+  default_prompt: "Use $fast-codex-subagents when scoped Codex workers need per-worker Fast, permissions, dependencies, or recovery. Keep small edits in the foreground unless explicitly delegated."

@@ -19,6 +19,7 @@ from typing import Any
 from fast_agents_common import (
     FastAgentsError,
     TaskManifest,
+    SUPPORTED_REASONING_EFFORTS,
     default_config_path,
     load_defaults,
     load_manifest,
@@ -147,8 +148,8 @@ def _exec_capabilities(executable: str | None = None) -> dict[str, Any]:
         "fast_config": {
             "service_tier_override": ["-c", 'service_tier="fast"'],
             "feature_enable": ["--enable", "fast_mode"],
-            "writer_effort_values": ["low", "max"],
-            "reviewer_effort_values": ["xhigh"],
+            "writer_effort_values": sorted(SUPPORTED_REASONING_EFFORTS),
+            "reviewer_effort_values": sorted(SUPPORTED_REASONING_EFFORTS),
             "runtime_confirmation": "unverified until correlated runtime event evidence is present",
             "config_key_schema": "not enumerated by codex exec --help",
         },
@@ -418,6 +419,22 @@ def _launch(args: argparse.Namespace) -> int:
             raise FastAgentsError(f"Codex CLI is missing required exec options: {', '.join(sorted(missing))}")
         if manifest.fast_requested and not capabilities.get("fast_mode_feature_listed"):
             raise FastAgentsError("Fast mode is unavailable in the local feature list; resolve the unavailable option before launch")
+        # The historical exec profiles are fixed, tested defaults. Explicit
+        # alternatives require the same live catalog check as app-server roles.
+        custom = any(role.model != ("gpt-6-luna" if role.access == "writer" else "gpt-6.1-sol")
+                     or role.effort not in ({"low", "max"} if role.access == "writer" else {"xhigh"})
+                     for role in manifest.roles)
+        if custom:
+            catalog = _app_server_capabilities(codex)
+            if not catalog.get("available"):
+                raise FastAgentsError("custom exec profiles require a verified app-server model catalog")
+            available = {model["id"]: model for model in catalog.get("model_catalog", [])}
+            for role in manifest.roles:
+                model = available.get(role.model, {})
+                if role.effort not in model.get("efforts", []):
+                    raise FastAgentsError(f"requested model/effort {role.model}/{role.effort} is unavailable")
+                if role.fast_requested and "priority" not in model.get("service_tiers", []):
+                    raise FastAgentsError(f"priority tier is unavailable for {role.name}")
     else:
         if not capabilities.get("app_server_options", {}).get("listen") or not capabilities.get("app_server_options", {}).get("stdio"):
             raise FastAgentsError("Codex app-server stdio options are unavailable")
@@ -566,7 +583,10 @@ def _defaults_show(args: argparse.Namespace) -> int:
 
 
 def _run_defaults_set(args: argparse.Namespace) -> int:
-    if args.fast_requested is None and args.fast_workers is None and args.writer_effort is None:
+    profiles = {access: {key: getattr(args, f"{access}_{key}") for key in ("model", "effort")
+                         if getattr(args, f"{access}_{key}", None) is not None} for access in ("writer", "reviewer")}
+    profiles = {access: settings for access, settings in profiles.items() if settings}
+    if args.fast_requested is None and args.fast_workers is None and not profiles:
         raise FastAgentsError("set at least one saved default")
     if args.fast_requested is not None and args.fast_workers is not None:
         raise FastAgentsError("choose either --fast-requested or --fast-workers, not both")
@@ -578,6 +598,7 @@ def _run_defaults_set(args: argparse.Namespace) -> int:
         confirm_sha=args.confirm,
         expected_before=args.expected_before,
         fast_selection=args.fast_workers,
+        profiles=profiles,
     )
     _print_lines(lines)
     return 0
@@ -608,6 +629,12 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_parser.add_argument("--runtime-root")
     launch_parser.add_argument("--codex", help="Codex executable path; defaults to PATH discovery")
     launch_parser.add_argument("--plan-mode", action="store_true", help="enforce the host's current Plan Mode")
+
+    integrate_parser = sub.add_parser("integrate", help="preview or explicitly apply an acceptance-verified isolated patch")
+    integrate_parser.add_argument("--task", required=True)
+    integrate_parser.add_argument("--runtime-root")
+    integrate_parser.add_argument("--apply", action="store_true")
+    integrate_parser.add_argument("--confirm", help="SHA-256 from the integration preview")
 
     status_parser = sub.add_parser("status", help="summarize an existing task without printing raw model output")
     status_parser.add_argument("--task", required=True)
@@ -674,7 +701,10 @@ def _build_parser() -> argparse.ArgumentParser:
     defaults_set.add_argument("--path")
     defaults_set.add_argument("--fast-requested", type=_bool_arg)
     defaults_set.add_argument("--fast-workers", type=_fast_workers_arg, help="all, none, or comma-separated worker names")
-    defaults_set.add_argument("--writer-effort", choices=["low", "max"])
+    defaults_set.add_argument("--writer-effort", choices=sorted(SUPPORTED_REASONING_EFFORTS))
+    defaults_set.add_argument("--reviewer-effort", choices=sorted(SUPPORTED_REASONING_EFFORTS))
+    defaults_set.add_argument("--writer-model")
+    defaults_set.add_argument("--reviewer-model")
     defaults_set.add_argument("--apply", action="store_true")
     defaults_set.add_argument("--confirm")
     defaults_set.add_argument("--expected-before")
@@ -751,6 +781,13 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.command == "control":
             return _control(args)
+        if args.command == "integrate":
+            require_codex_runtime_environment()
+            from fast_agents_worktrees import integration_preview
+
+            task_dir = task_path(_runtime_root(args.runtime_root).expanduser().resolve(), args.task)
+            print(json.dumps(integration_preview(task_dir, apply=args.apply, confirm=args.confirm), indent=2))
+            return 0
         if args.command == "monitor":
             task_dir = task_path(_runtime_root(args.runtime_root).expanduser().resolve(), args.task)
             _print_lines(cleanup_monitors(task_dir, args.apply))

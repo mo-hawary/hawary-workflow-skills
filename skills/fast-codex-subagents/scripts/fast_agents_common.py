@@ -11,7 +11,7 @@ import tempfile
 import time
 import unicodedata
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, TypeVar
 
@@ -19,7 +19,7 @@ from typing import Any, TypeVar
 SCHEMA_VERSION = 1
 WRITER_MODEL = "gpt-6-luna"
 REVIEWER_MODEL = "gpt-6.1-sol"
-SUPPORTED_REASONING_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max", "ultra"})
+SUPPORTED_REASONING_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"})
 ROLE_NAME = re.compile(r"\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\Z")
 MAX_OBJECTIVE_CHARS = 4_000
 MAX_SHARED_CONTRACT_CHARS = 12_000
@@ -69,6 +69,7 @@ class Role:
     prompt: str
     fast_requested: bool
     setting_sources: dict[str, str]
+    budgets: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,9 @@ class TaskManifest:
     plan_mode: bool
     roles: tuple[Role, ...]
     source_path: Path
+    budgets: dict[str, Any] = field(default_factory=dict)
+    isolation: str = "shared"
+    acceptance: tuple[tuple[str, ...], ...] = ()
 
     @property
     def has_writers(self) -> bool:
@@ -362,6 +366,23 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
     backend_selection = raw.get("backend", "auto")
     if backend_selection not in {"auto", "app-server", "exec"}:
         raise FastAgentsError("backend must be auto, app-server, or exec")
+    from fast_agents_limits import validate_budgets
+
+    budgets = validate_budgets(raw.get("budgets", {}), "task budgets")
+    isolation = raw.get("isolation", "shared")
+    if not isinstance(isolation, str) or isolation not in {"shared", "worktree"}:
+        raise FastAgentsError("isolation must be shared or worktree")
+    acceptance_raw = raw.get("acceptance", [])
+    if not isinstance(acceptance_raw, list) or len(acceptance_raw) > 20:
+        raise FastAgentsError("acceptance must be an array of at most 20 argument arrays")
+    acceptance = []
+    for command in acceptance_raw:
+        if (not isinstance(command, list) or not command or len(command) > 100
+                or any(not isinstance(arg, str) or not arg or "\0" in arg or len(arg) > 4000 for arg in command)):
+            raise FastAgentsError("each acceptance command must be a non-empty argument array without NULs")
+        acceptance.append(tuple(command))
+    if plan_mode and acceptance:
+        raise FastAgentsError("Plan Mode forbids host acceptance commands")
     # Auto-routing is a documented choice made before preflight, never a
     # fallback after a failed launch. Explicit backend selections always win.
     trivial = (
@@ -370,6 +391,13 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
         and not raw_roles[0].get("depends_on")
     )
     backend = ("exec" if trivial else "app-server") if backend_selection == "auto" else backend_selection
+    needs_supervisor = bool(budgets or isolation == "worktree" or acceptance or any(
+        isinstance(item, dict) and item.get("budgets") for item in raw_roles
+    ))
+    if needs_supervisor:
+        if backend_selection == "exec":
+            raise FastAgentsError("budgets, acceptance, and worktree isolation require the app-server backend")
+        backend = "app-server"
     project_settings = raw.get("project_settings", {})
     if not isinstance(project_settings, dict):
         raise FastAgentsError("project_settings must be an object")
@@ -416,17 +444,12 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
             "model": "explicit" if item.get("model") is not None else "saved" if saved_role.get("model") is not None else "project" if project_role.get("model") is not None else "recommended",
             "effort": "explicit" if item.get("effort") is not None else "saved" if saved_role.get("effort") is not None else "project" if project_role.get("effort") is not None else "recommended",
         }
-        if access == "writer":
-            if model != WRITER_MODEL:
-                raise FastAgentsError(f"role {name}: writers must use {WRITER_MODEL}")
-            if effort not in {"low", "max"}:
-                raise FastAgentsError(f"role {name}: writers must use low or max reasoning effort")
-        elif access == "reviewer":
-            if model != REVIEWER_MODEL:
-                raise FastAgentsError(f"role {name}: read-only reviewers must use {REVIEWER_MODEL}")
-            if not isinstance(effort, str) or effort not in SUPPORTED_REASONING_EFFORTS:
-                choices = ", ".join(sorted(SUPPORTED_REASONING_EFFORTS))
-                raise FastAgentsError(f"role {name}: reviewers must use a supported reasoning effort ({choices})")
+        model = _required_text(model, f"role {name}.model")
+        if len(model) > 200 or any(char.isspace() for char in model):
+            raise FastAgentsError(f"role {name}: model must be a catalog identifier of at most 200 characters")
+        if not isinstance(effort, str) or effort not in SUPPORTED_REASONING_EFFORTS:
+            choices = ", ".join(sorted(SUPPORTED_REASONING_EFFORTS))
+            raise FastAgentsError(f"role {name}: {access}s must use a supported reasoning effort ({choices})")
 
         owns_raw = _string_list(item.get("owns", []), f"role {name}.owns")
         if access == "writer" and not owns_raw:
@@ -458,6 +481,7 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
                 prompt=prompt.strip(),
                 fast_requested=False,
                 setting_sources=setting_sources,
+                budgets=validate_budgets(item.get("budgets", {}), f"role {name} budgets"),
             )
         )
 
@@ -517,6 +541,21 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
     role_tuple = tuple(resolved_roles)
     _check_ownership(role_tuple)
     _check_dependency_graph(role_tuple)
+    if isolation == "worktree":
+        by_name = {role.name: role for role in role_tuple}
+        writers = {role.name for role in role_tuple if role.access == "writer"}
+        def ancestors(name: str) -> set[str]:
+            result: set[str] = set()
+            pending = list(by_name[name].depends_on)
+            while pending:
+                parent = pending.pop()
+                if parent not in result:
+                    result.add(parent)
+                    pending.extend(by_name[parent].depends_on)
+            return result
+        for role in role_tuple:
+            if role.access == "reviewer" and not writers.issubset(ancestors(role.name)):
+                raise FastAgentsError("isolated reviewers must depend on all writers, directly or transitively")
     if plan_mode and any(role.access == "writer" for role in role_tuple):
         raise FastAgentsError("Plan Mode forbids writer roles; remove writers before launch")
 
@@ -531,6 +570,9 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
         plan_mode=plan_mode,
         roles=role_tuple,
         source_path=source,
+        budgets=budgets,
+        isolation=isolation,
+        acceptance=tuple(acceptance),
     )
 
 
@@ -596,8 +638,8 @@ def validate_defaults(data: Any) -> None:
             raise FastAgentsError("saved defaults must use fast_requested or fast_selection, not both")
 
     for access, model, efforts in (
-        ("writer", WRITER_MODEL, {"low", "max"}),
-        ("reviewer", REVIEWER_MODEL, {"xhigh"}),
+        ("writer", WRITER_MODEL, SUPPORTED_REASONING_EFFORTS),
+        ("reviewer", REVIEWER_MODEL, SUPPORTED_REASONING_EFFORTS),
     ):
         role = data.get(access, {})
         if not isinstance(role, dict):
@@ -605,10 +647,11 @@ def validate_defaults(data: Any) -> None:
         unknown = set(role) - {"model", "effort", "fast_requested"}
         if unknown:
             raise FastAgentsError(f"saved defaults {access} contain unknown fields: {', '.join(sorted(unknown))}")
-        if role.get("model", model) != model:
-            raise FastAgentsError(f"saved defaults {access} model must be {model}")
+        selected_model = _required_text(role.get("model", model), f"saved defaults {access} model")
+        if len(selected_model) > 200 or any(char.isspace() for char in selected_model):
+            raise FastAgentsError(f"saved defaults {access} model must be a catalog identifier")
         default_effort = "low" if access == "writer" else "xhigh"
-        if role.get("effort", default_effort) not in efforts:
+        if not isinstance(role.get("effort", default_effort), str) or role.get("effort", default_effort) not in efforts:
             choices = " or ".join(sorted(efforts))
             raise FastAgentsError(f"saved defaults {access} effort must be {choices}")
         role_fast = role.get("fast_requested")

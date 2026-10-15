@@ -345,6 +345,9 @@ def _private_task_manifest(manifest: TaskManifest) -> dict[str, Any]:
         "backend": manifest.backend,
         "max_concurrency": manifest.max_concurrency,
         "plan_mode": manifest.plan_mode,
+        "budgets": manifest.budgets,
+        "isolation": manifest.isolation,
+        "acceptance": [list(command) for command in manifest.acceptance],
         "roles": [
             {
                 "name": role.name,
@@ -358,6 +361,7 @@ def _private_task_manifest(manifest: TaskManifest) -> dict[str, Any]:
                 "prompt": role.prompt,
                 "fast_requested": role.fast_requested,
                 "setting_sources": role.setting_sources,
+                "budgets": role.budgets,
             }
             for role in manifest.roles
         ],
@@ -673,6 +677,8 @@ def launch_task(
 ) -> tuple[str, Path]:
     if (enforce_plan_mode or manifest.plan_mode) and manifest.has_writers:
         raise FastAgentsError("Plan Mode forbids writer roles; no worker was started")
+    if (enforce_plan_mode or manifest.plan_mode) and manifest.acceptance:
+        raise FastAgentsError("Plan Mode forbids host acceptance commands; no worker was started")
     runtime_root = _require_outside_workspace(runtime_root, manifest.workspace)
     runtime_root = _require_outside_git_repositories(runtime_root, "task runtime")
     task_id = str(uuid.uuid4())
