@@ -12,15 +12,17 @@ macOS/Linux:
 
 ```bash
 mkdir -p ~/.claude/skills
-cp -R skills/* ~/.claude/skills/
+for d in skills/*/; do [ "$(basename "$d")" = fast-codex-subagents ] || cp -R "${d%/}" ~/.claude/skills/; done
 ```
 
 Windows PowerShell:
 
 ```powershell
 New-Item -ItemType Directory -Force $HOME\.claude\skills
-Copy-Item -Recurse skills\* $HOME\.claude\skills\
+Get-ChildItem skills -Directory | Where-Object Name -ne 'fast-codex-subagents' | Copy-Item -Recurse -Destination $HOME\.claude\skills\
 ```
+
+`fast-codex-subagents` is Codex-only, so the copy commands above and the marketplace plugin skip it. Install it only into a Codex skills home.
 
 Install one skill:
 
@@ -74,7 +76,7 @@ Validate the marketplace locally before sharing a release candidate:
 claude plugin validate .
 ```
 
-The marketplace adapter lives at [../.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) and points at the canonical `skills/` directory.
+The marketplace adapter lives at [../.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) and lists the canonical skill folders under `skills/` except the Codex-only `fast-codex-subagents`.
 
 ## Claude Code Project Install
 

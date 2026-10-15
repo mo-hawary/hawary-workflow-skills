@@ -10,17 +10,39 @@ permissions:
   contents: read
 
 jobs:
+  fast-codex-subagents-platforms:
+    name: Fast Codex Subagents (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.txt
+
+      - name: Run fake Fast Codex Subagents tests without Codex CLI or model calls
+        run: pytest -q tests/test_fast_agents.py tests/test_fast_agents_review_fixes.py tests/test_fast_agents_atomic_io.py tests/test_fast_agents_real_transcripts.py
+
   skills:
     name: Skill validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
 
@@ -32,6 +54,9 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Compare fake Codex backend startup overhead (no model calls)
+        run: python tests/benchmark_codex_backends.py --pairs 3
 
       - name: Check whitespace
         run: |

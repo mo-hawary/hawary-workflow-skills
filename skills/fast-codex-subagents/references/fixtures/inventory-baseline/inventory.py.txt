@@ -1,0 +1,8 @@
+def invoice_total(items):
+    """Return the total amount in cents for the supplied line items."""
+    return sum(item["unit_price_cents"] for item in items)
+
+
+def merge_items(items):
+    """Sort items by SKU and combine repeated SKUs."""
+    return sorted((dict(item) for item in items), key=lambda item: item["sku"])

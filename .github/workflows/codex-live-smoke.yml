@@ -1,0 +1,59 @@
+name: Authenticated Codex live smoke (ChatGPT sign-in)
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Self-hosted Codex runner OS (signed into ChatGPT)
+        type: choice
+        required: true
+        default: macOS
+        options:
+          - macOS
+          - Linux
+  schedule:
+    - cron: "23 3 * * *"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# PRs always use the fake server. Real turns run only when explicitly
+# dispatched, or after an administrator enables a dedicated authenticated runner
+# with repository variable CODEX_LIVE_SMOKE_ENABLED=true.
+jobs:
+  real-codex-smoke:
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.CODEX_LIVE_SMOKE_ENABLED == 'true') }}
+    name: Codex ChatGPT smoke (${{ inputs.os || vars.CODEX_LIVE_SMOKE_OS || 'macOS' }})
+    runs-on: [self-hosted, codex-authenticated, "${{ inputs.os || vars.CODEX_LIVE_SMOKE_OS || 'macOS' }}"]
+    timeout-minutes: 18
+    steps:
+      - name: Checkout trusted code (main only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Verify subscription-based Codex login (no API key)
+        shell: bash
+        run: |
+          if [[ -n "${OPENAI_API_KEY:-}" || -n "${CODEX_API_KEY:-}" ]]; then
+            echo "::error::This smoke must use ChatGPT Codex login, not API-key billing."
+            exit 1
+          fi
+          codex --version
+          codex login status
+      - name: Execute read-only skill smoke and capture redacted transcript
+        shell: bash
+        run: python tests/live_codex_smoke.py --capture "$RUNNER_TEMP/codex-smoke-transcript.json"
+      - name: Upload sanitized transcript for manual golden review
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: codex-smoke-sanitized-${{ inputs.os || vars.CODEX_LIVE_SMOKE_OS || 'macOS' }}
+          path: ${{ runner.temp }}/codex-smoke-transcript.json
+          if-no-files-found: warn
+          retention-days: 7

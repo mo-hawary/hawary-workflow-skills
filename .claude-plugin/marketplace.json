@@ -14,7 +14,17 @@
       "source": "./",
       "category": "productivity",
       "tags": ["agent-skills", "engineering-workflow", "qa", "security", "code-review"],
-      "skills": "./skills",
+      "skills": [
+        "./skills/cross-layer-contract-audit",
+        "./skills/dependency-security-auditor",
+        "./skills/feature-spec-delivery-pipeline",
+        "./skills/mobile-maestro-e2e-orchestrator",
+        "./skills/project-docs-cleanup",
+        "./skills/project-status-dashboard",
+        "./skills/pull-request-review-loop",
+        "./skills/qa-bug-hunt-planner",
+        "./skills/repo-workflow-checker"
+      ],
       "strict": false,
       "repository": "https://github.com/mo-hawary/hawary-workflow-skills",
       "homepage": "https://github.com/mo-hawary/hawary-workflow-skills",

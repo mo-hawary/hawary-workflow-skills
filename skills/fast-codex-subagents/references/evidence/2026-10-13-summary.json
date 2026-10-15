@@ -1,0 +1,298 @@
+{
+  "record_type": "curated_author_evidence_summary",
+  "record_date": "2026-10-13",
+  "skill_identity_at_recording": {
+    "public_skill_id": "fast-agents",
+    "current_public_skill_id": "fast-codex-subagents",
+    "release_version": null,
+    "note": "No published skill release version existed when these records were collected. CLI 0.162.1 is the recorded runtime version; original paths, hashes, and metrics identify the pre-rename source snapshot."
+  },
+  "evidence_note": "Curated summary of selectively checked private scoped records and source diffs; not raw or independent published telemetry.",
+  "environment": {
+    "platform": "macOS",
+    "codex_cli_version": "0.162.1",
+    "tested_source": "pending local patch based on public PR 28 head 60ce275068004b9a659d10985f5ab78b76408bf0",
+    "release_status": "not a published release"
+  },
+  "fixture": {
+    "name": "synthetic_inventory_totals",
+    "baseline_files": {
+      "README.md": {
+        "sha256": "6d0e8f78f075f7195282f8f2316058d984524f9e92c66fb357f1830cdddf086d"
+      },
+      "inventory.py": {
+        "sha256": "b22d65715ae7c012a82c376f133a91de1753e079cf19bd5894705dab6c9d0a98"
+      },
+      "tests/test_inventory.py": {
+        "sha256": "89345f379002db651c568cc3db33da3ff6c961c7454d706724121eead7aff28a"
+      }
+    },
+    "baseline_test_results": {
+      "failed": 3,
+      "passed": 1
+    },
+    "seeded_defects": 3
+  },
+  "cli_fixture_trial": {
+    "reviewer": {
+      "model_requested": "gpt-6.1-sol",
+      "role": "read_only_reviewer",
+      "effort_configured_per_turn": "low",
+      "findings_count": 3
+    },
+    "writer": {
+      "model_requested": "gpt-6-luna",
+      "effort_configured_per_turn": "low",
+      "fast": "disabled",
+      "requested_tier": "default",
+      "effective_tier_recorded": "default",
+      "upstream_execution": "unverified",
+      "tests_passed": 4,
+      "final_changed_source_paths": [
+        "inventory.py",
+        "tests/test_inventory.py"
+      ]
+    },
+    "effort_evidence": "Helper submitted configured per-turn effort in turn/start; thread/started notifications reported default xhigh. Provider-effective effort was unavailable.",
+    "reviewer_settings_retained": {
+      "approval_policy": "on-request",
+      "approvals_reviewer": "auto_review",
+      "sandbox": "readOnly",
+      "network_access": false
+    },
+    "writer_settings_retained": {
+      "sandbox": "workspaceWrite"
+    },
+    "ownership_boundary": "Coordination declaration; not per-file sandbox enforcement.",
+    "incidental_cache_directories_reported": true
+  },
+  "native_control_trial": {
+    "reviewer_findings_count": 3,
+    "writer_tests_passed": 4,
+    "final_changed_source_paths": [
+      "inventory.py",
+      "tests/test_inventory.py"
+    ],
+    "additional_observation": "Patch checked input immutability on conflicting-price failure.",
+    "tool_tier_advertised": "priority",
+    "upstream_execution": "unverified",
+    "token_metadata": "unavailable"
+  },
+  "completed_cli_workflow_observations": {
+    "completed_tasks": 5,
+    "completed_worker_turns": 6,
+    "recorded_app_server_exit_codes_zero": 5,
+    "recorded_manager_and_server_process_ids_absent_at_audit": 10,
+    "interpretation": "Observed completion and process-exit state for these records only; no success-rate or future-cleanup guarantee."
+  },
+  "timing_observations": {
+    "classification": "exploratory_non_comparable_single_trial",
+    "date": "2026-10-13",
+    "cli": {
+      "review": {
+        "start_boundary": "first_recorded_command",
+        "start_utc": "13:23:36.510Z",
+        "end_boundary": "final_agent_report",
+        "end_utc": "13:24:06.596Z",
+        "duration_seconds": 30.086
+      },
+      "fix": {
+        "start_boundary": "first_recorded_command",
+        "start_utc": "13:24:27.050Z",
+        "end_boundary": "final_agent_report",
+        "end_utc": "13:24:41.406Z",
+        "duration_seconds": 14.356
+      },
+      "stage_duration_sum_seconds": 44.442,
+      "inter_stage_gap_seconds": 20.454,
+      "overall_span_seconds": 64.896,
+      "full_turn_duration_sum_seconds": 84.543,
+      "full_turn_excludes": "helper startup and preflight"
+    },
+    "native": {
+      "review": {
+        "start_boundary": "coordinator_worker_clock_START",
+        "start_utc": "14:37:34Z",
+        "end_boundary": "full_report_delivered_before_END",
+        "end_utc": "14:38:09Z",
+        "duration_seconds": 35
+      },
+      "fix": {
+        "start_boundary": "coordinator_worker_clock_START",
+        "start_utc": "14:38:47Z",
+        "end_boundary": "full_report_delivered_before_END",
+        "end_utc": "14:39:05Z",
+        "duration_seconds": 18
+      },
+      "stage_duration_sum_seconds": 53,
+      "inter_stage_gap_seconds": 38,
+      "overall_span_seconds": 91
+    },
+    "limitations": [
+      "Different timing boundaries, clocks, tools, context, handoffs, service settings, cache effects, and instrumentation.",
+      "No repeated measurements or variance estimate.",
+      "An earlier native exploratory clock stopped before final report delivery and was excluded.",
+      "No comparative speed, performance, or cost inference."
+    ]
+  },
+  "separate_documentation_work": {
+    "review_findings": 2,
+    "approved_paths_changed": 7,
+    "public_package_tests_passed": 10,
+    "skills_ruby_validated": 10,
+    "diff_check": "passed",
+    "writer_model_requested": "gpt-6-luna",
+    "writer_effort_configured_per_turn": "max",
+    "full_turn_seconds": 770.582,
+    "coordinator_steering_required": true
+  },
+  "dev_secrets_forward_checks_under_fast_agents": {
+    "checks": [
+      "explicit_skill_invocation",
+      "natural_language_invocation"
+    ],
+    "loaded_skill_matched_patched_source": true,
+    "runtime_file_count_each": 17,
+    "synthetic_sentinel_occurrences_each": 0,
+    "sentinels_checked": 2,
+    "wrapper_source_inspected": true,
+    "incompatible_mock_cli_executed": false,
+    "attribution_limit": "Observed dev-secrets instruction behavior in two runs; not a fast-agents secret-protection guarantee."
+  },
+  "usage_final_cumulative_cli_records": {
+    "review": {
+      "input_tokens": 117382,
+      "cached_input_tokens_subset": 84992,
+      "output_tokens": 521,
+      "total_tokens": 117903
+    },
+    "fix": {
+      "input_tokens": 150638,
+      "cached_input_tokens_subset": 129536,
+      "output_tokens": 885,
+      "total_tokens": 151523
+    },
+    "combined": {
+      "input_tokens": 268020,
+      "cached_input_tokens_subset": 214528,
+      "uncached_input_tokens": 53492,
+      "output_tokens": 1406,
+      "total_tokens": 269426
+    },
+    "interpretation": "One final cumulative usage record per role; cached input is a subset and is not added again. Counts do not establish billing or cost."
+  },
+  "setup_history": [
+    "Initial validator rejected an explicitly configured low reviewer effort; a local fix allowed supported explicit effort values and added malformed-value guards before completed runs.",
+    "Managed sandbox restrictions blocked local CLI catalog and state access during setup; scoped approved launcher privileges were used."
+  ],
+  "helper_source_hashes": {
+    "collection_provenance": "SHA-256 values collected during the 2026-10-13 audit from helper source files current at that collection time; their bytes matched the forward-test helper copies. They are not claimed as immutable launch-time snapshots for every earlier run or as current hashes after later changes.",
+    "files": {
+      "skills/fast-agents/scripts/fast_agents.py": "61014757956ae0a57b4a7688c74dcf67b58971ea06e961d5b78d0a69fdee81cc",
+      "skills/fast-agents/scripts/fast_agents_common.py": "6125d5c81543080fa6d711c81a77e616690954afc4d8c65b23c2b4f59d9df512",
+      "skills/fast-agents/scripts/fast_agents_ipc.py": "95ef233530e1a09dc15a9f25db2240e8079bdc5d6cdd2b5332102f0487c035e4",
+      "skills/fast-agents/scripts/fast_agents_platform.py": "3a935f2f9942d397dc7ae23f3803aca8fefa89e0d6ccf86744fff0a6b4cb66b3",
+      "skills/fast-agents/scripts/fast_agents_protocol.py": "edf97cd2c334d43e3fe62c46cd9cc355c78d656da36f4a947bedc362c5c47bea",
+      "skills/fast-agents/scripts/fast_agents_runtime.py": "c3e69bb22db160bff13ddad29a7c8f0dec73487e5666561b5822d6630102c4b9",
+      "skills/fast-agents/scripts/fast_agents_setup.py": "0d755c65b9a0b16a00f06325179994bd6a2cd39dfc858c769decc0f82b2b929d",
+      "skills/fast-agents/scripts/fast_agents_app_server.py": "0a8adac4fa86d93751c0508f53485bbf3aa16150921343f85b9a0b3badebd143"
+    }
+  },
+  "unmeasured": [
+    "adversarial sandbox enforcement",
+    "live approval replies",
+    "interruption and recovery",
+    "Codex app activation",
+    "cross-platform behavior",
+    "provider-effective model, reasoning effort, and service-tier execution",
+    "security, leak prevention, general quality, speed, and cost"
+  ],
+  "corrected_fast_on_off_pair": {
+    "record_date": "2026-10-13",
+    "classification": "single_ordered_pair_fast_on_then_explicit_fast_off",
+    "evidence_note": "Curated author summary of selectively verified primary CLI events and coordinator records; not raw or independent telemetry.",
+    "shared_conditions": {
+      "platform": "macOS",
+      "codex_cli_version": "0.162.1",
+      "baseline_fixture": "synthetic_inventory_totals",
+      "reviewer_model_requested": "gpt-6.1-sol",
+      "writer_model_requested": "gpt-6-luna",
+      "reviewer_effort_requested_per_turn": "low",
+      "writer_effort_requested_per_turn": "low",
+      "same_base_task_instructions": true,
+      "complete_generated_inputs_identical": false,
+      "generated_input_differences": [
+        "workspace paths",
+        "fixer review report"
+      ]
+    },
+    "runs": {
+      "fast_on": {
+        "fast_requested": true,
+        "requested_tier": "priority",
+        "effective_tier_recorded": "priority",
+        "upstream_execution": "unverified",
+        "full_turn_seconds": 47.917,
+        "review_findings_count": 3,
+        "baseline_failed_tests": 3,
+        "baseline_passed_tests": 1,
+        "fix_tests_passed": 4,
+        "final_changed_source_paths": [
+          "inventory.py",
+          "tests/test_inventory.py"
+        ],
+        "combined_total_tokens": 325163,
+        "summed_first_command_to_final_report_seconds": 31.307,
+        "summed_first_command_to_final_report_boundary": "role first recorded command execution start to final report completion"
+      },
+      "fast_off": {
+        "fast_requested": false,
+        "requested_tier": "default",
+        "effective_tier_recorded": "default",
+        "upstream_execution": "unverified",
+        "full_turn_seconds": 61.657,
+        "review_findings_count": 3,
+        "baseline_failed_tests": 3,
+        "baseline_passed_tests": 1,
+        "fix_tests_passed": 4,
+        "final_changed_source_paths": [
+          "inventory.py",
+          "tests/test_inventory.py"
+        ],
+        "combined_total_tokens": 300566,
+        "summed_first_command_to_final_report_seconds": 42.112,
+        "summed_first_command_to_final_report_boundary": "role first recorded command execution start to final report completion"
+      }
+    },
+    "observed_arithmetic": {
+      "full_turn_seconds_difference_off_minus_on": 13.74,
+      "full_turn_shorter_percent_for_this_pair_relative_to_off": 22.28,
+      "active_turn_seconds_difference_off_minus_on": 10.805,
+      "interpretation": "Single ordered pair only; Fast ON preceded OFF; cache state and warm-up were uncontrolled. Not causal or generalizable.",
+      "token_interpretation": "ON recorded more combined tokens than OFF. Cached input, where present, is a subset of input. No token-saving or cost inference."
+    },
+    "tier_and_native_limitations": {
+      "reasoning_effort": "low was requested per turn; provider-effective effort unverified",
+      "upstream_service_tier": "unverified",
+      "native_tool_advertised_tier": "priority",
+      "native_control_is_standard_tier_comparison": false,
+      "thread_start_effort_notification": "xhigh default for both; low was requested per turn"
+    },
+    "base_task_instruction_sha256": {
+      "review": "3b448d040cbc89b1349b4a4552b3afe5937847fc08b736a40cc6a398b3af66d9",
+      "fix": "af518a85794eb2e891a357893adcbe8fbac055a0c1220de77a249327ebd512b0"
+    },
+    "prelaunch_source_snapshot": {
+      "capture_boundary": "immediately before first Fast-ON launch attempt; exact timestamp not separately recorded",
+      "scope": "four source files only; setup helper was not captured and is not used by the live backend",
+      "files": {
+        "skills/fast-agents/SKILL.md": "bd6e036149fc7f4d7b4c9086824118251937caff15a2b74efe81bea85a348a6f",
+        "skills/fast-agents/scripts/fast_agents.py": "d3f96cc8e62c11b90bfd071cffd4de69f52cb111ac186a1802e8eb6ea5973b3f",
+        "skills/fast-agents/scripts/fast_agents_common.py": "8016e371c5dac6940a9a935f8c8e4e709c6729c8e885f03f56f4335a49e24a23",
+        "skills/fast-agents/scripts/fast_agents_app_server.py": "0a8adac4fa86d93751c0508f53485bbf3aa16150921343f85b9a0b3badebd143"
+      },
+      "interpretation": "Identifies captured bytes for this pair; does not imply a published release, complete provider inputs, or upstream execution details."
+    },
+    "recorded_manager_and_server_process_ids_absent_at_audit": 4
+  }
+}

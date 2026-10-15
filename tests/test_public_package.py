@@ -45,6 +45,41 @@ def test_skills_index_matches_canonical_skill_folders():
         assert skill["outputs"]
 
 
+def test_fast_codex_subagents_public_identity_matches_ui_metadata():
+    skill_file = SKILLS_DIR / "fast-codex-subagents" / "SKILL.md"
+    assert frontmatter_value(skill_file, "name") == "fast-codex-subagents"
+
+    ui_path = skill_file.parent / "agents" / "openai.yaml"
+    ui_metadata = ui_path.read_text(encoding="utf-8")
+    assert 'display_name: "Fast Codex Subagents"' in ui_metadata
+    assert "$fast-codex-subagents" in ui_metadata
+
+
+def test_fast_codex_subagents_evidence_remains_historical():
+    evidence_path = SKILLS_DIR / "fast-codex-subagents" / "references" / "evidence" / "2026-10-13-summary.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    identity = evidence["skill_identity_at_recording"]
+    assert identity["public_skill_id"] == "fast-agents"
+    assert identity["current_public_skill_id"] == "fast-codex-subagents"
+    assert identity["release_version"] is None
+
+    pair = evidence["corrected_fast_on_off_pair"]
+    assert pair["runs"]["fast_on"]["full_turn_seconds"] == 47.917
+    assert pair["runs"]["fast_off"]["full_turn_seconds"] == 61.657
+    assert pair["runs"]["fast_on"]["combined_total_tokens"] == 325163
+    assert pair["runs"]["fast_off"]["combined_total_tokens"] == 300566
+    assert pair["prelaunch_source_snapshot"]["files"]["skills/fast-agents/SKILL.md"] == (
+        "bd6e036149fc7f4d7b4c9086824118251937caff15a2b74efe81bea85a348a6f"
+    )
+
+
+def skill_agents(name: str) -> list[str] | None:
+    content = (SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+    match = re.search(r"^agents:\s*(.+?)\s*$", content, re.MULTILINE)
+    return json.loads(match.group(1)) if match else None
+
+
 def test_claude_marketplace_exposes_canonical_skills_without_duplication():
     marketplace_path = ROOT / ".claude-plugin" / "marketplace.json"
     assert marketplace_path.exists()
@@ -54,7 +89,24 @@ def test_claude_marketplace_exposes_canonical_skills_without_duplication():
     assert marketplace["plugins"][0]["name"] == "hawary-workflow-skills"
     assert marketplace["plugins"][0]["source"] == "./"
     assert marketplace["plugins"][0]["strict"] is False
-    assert marketplace["plugins"][0]["skills"] == "./skills"
+
+    exposed = marketplace["plugins"][0]["skills"]
+    assert isinstance(exposed, list)
+    assert all(isinstance(entry, str) for entry in exposed)
+    assert len(exposed) == len(set(exposed))
+    assert all(re.fullmatch(r"\./skills/[a-z0-9-]{1,64}", entry) for entry in exposed)
+
+    expected = [f"./skills/{name}" for name in skill_names() if skill_agents(name) != ["codex"]]
+    assert exposed == expected
+
+
+def test_claude_marketplace_never_exposes_codex_only_skills():
+    marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    for entry in marketplace["plugins"][0]["skills"]:
+        name = entry.removeprefix("./skills/")
+        assert skill_agents(name) != ["codex"], f"{entry} is codex-only"
+
+    assert "./skills/fast-codex-subagents" not in marketplace["plugins"][0]["skills"]
 
 
 def test_compatibility_matrix_covers_recommendation_targets():

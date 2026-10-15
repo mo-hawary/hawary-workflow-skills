@@ -11,13 +11,13 @@ Reusable workflow skills for coding agents, AI pair programmers, and teams that 
 [![Validate](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/mo-hawary/hawary-workflow-skills/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10b981.svg)](LICENSE)
 
-**Hawary Workflow Skills** packages repeatable engineering workflows for agents that understand the `SKILL.md` format: repo status, workflow readiness, docs cleanup, feature specs, cross-layer audits, PR review loops, QA bug hunts, and mobile E2E orchestration.
+**Hawary Workflow Skills** packages repeatable engineering workflows for agents that understand the `SKILL.md` format: repo status, workflow readiness, docs cleanup, feature specs, cross-layer audits, PR review loops, QA bug hunts, mobile E2E orchestration, and scoped Codex subagents.
 
 If these skills save you time, please star the repo. It helps other developers discover it.
 
 ## Current State
 
-This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, a machine-readable [skills index](skills-index.json), Claude Code marketplace metadata, examples, roadmap, changelog, and CI validation for skill metadata, links, package metadata, Python tests, and whitespace.
+This repository is public, MIT-licensed, and maintained through protected `main` pull requests. The canonical skill source lives under `skills/`, with English and Egyptian Arabic READMEs, install guides for Codex and Claude, compatible-agent notes, a machine-readable [skills index](skills-index.json), Claude Code marketplace metadata, examples, roadmap, changelog, and CI validation for skill metadata, links, package metadata, Python tests, and whitespace. `fast-codex-subagents` is explicitly **Codex-only** (not executable from Claude or generic agents). It includes an experimental, opt-in Codex CLI helper; setup does not install globally or start model sessions. Active use checks the Codex configuration, installed CLI, tested version, and protocol. Its [runtime safety model](skills/fast-codex-subagents/references/runtime-and-safety.md) distinguishes execution, recovery, scope evidence, and unverified acceptance. For performance comparisons see the [paired benchmarking protocol](skills/fast-codex-subagents/references/benchmarking.md).
 
 ## Use With Your Agent
 
@@ -82,11 +82,14 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`repo-workflow-checker`](skills/repo-workflow-checker/SKILL.md) | You want to know if a repo is ready for repeatable agent work. | Found workflow assets, gaps, suggested scaffold, verification map. |
 | [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | Docs, plans, backlog files, or specs may be stale. | Doc health, stale items, contradictions, archive candidates, proposed edits. |
 | [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | A feature or bug cluster needs a plan before coding. | Source-backed spec, decisions needed, contract changes, phases, acceptance criteria. |
+| [`fast-codex-subagents`](skills/fast-codex-subagents/SKILL.md) | Substantive Codex implementation, review, or other work requiring delegated execution, including one bounded worker. | Smallest useful team, private task state, scoped reports, requested/effective Fast-tier evidence. See [how it works](skills/fast-codex-subagents/references/how-it-works.md). |
 | [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | Client, API, database, jobs, or docs may disagree. | Severity-ranked contract mismatches with evidence, impact, fix direction, verification. |
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | You need evidence-driven mobile E2E testing with Maestro. | Flow setup, checkpoint results, logs/screenshots/state evidence, diagnosis, residual risk. |
 | [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | You need dependency CVE scans, freshness checks, or hook/CI audit design. | Stack detection, scanner status, CVE findings, freshness risk, remediation and CI plan. |
+
+A dated [pre-rename live validation and fixture replay record](skills/fast-codex-subagents/references/live-validation-2026-10-13.md) documents work collected under the former `fast-agents` skill ID and its evidence limits.
 
 ## Choosing A Skill
 
@@ -96,6 +99,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | "Is this repo set up well for agents?" | `repo-workflow-checker` |
 | "Which docs are stale?" | `project-docs-cleanup` |
 | "Plan this feature before implementation." | `feature-spec-delivery-pipeline` |
+| "Use $fast-codex-subagents to coordinate this substantive implementation." | `$fast-codex-subagents` |
 | "Do these layers agree?" | `cross-layer-contract-audit` |
 | "Review this PR without posting comments." | `pull-request-review-loop` |
 | "What should we QA before fixing?" | `qa-bug-hunt-planner` |
@@ -112,19 +116,29 @@ See [docs/examples.md](docs/examples.md) for copy/paste prompts for each skill.
 skills/
 `-- skill-name/
     |-- SKILL.md
+    |-- scripts/
+    |   |-- fast_agents.py (optional Codex CLI helper)
+    |   |-- fast_agents_app_server.py
+    |   |-- fast_agents_protocol.py
+    |   |-- fast_agents_ipc.py
+    |   |-- fast_agents_platform.py
+    |   |-- fast_agents_common.py
+    |   |-- fast_agents_runtime.py
+    |   |-- fast_agents_verification.py
+    |   `-- fast_agents_setup.py
     |-- agents/
     |   `-- openai.yaml
     `-- references/
         `-- examples.md
 ```
 
-`SKILL.md` is the portable source. These skills are Markdown-first by design; Ruby is used only for repository validation. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it.
+`SKILL.md` is the portable source. Instructions are Markdown-first; optional standard-library Python helpers automate specific workflows, and Ruby validates the repository package. `references/` keeps examples, checklists, and templates out of the main skill body. `agents/openai.yaml` is optional OpenAI/Codex UI metadata; other agents can ignore it. `fast-codex-subagents` is experimental public beta and requires Python 3.10+. Its experimental app-server adapter requires Codex CLI 0.162.1 exactly; `exec` is an explicit fallback, not a cross-agent launcher. Fake/unit tests passed on Linux, macOS, and Windows, with some Windows `exec` fixtures skipped; real Codex model sessions have been demonstrated only on macOS. Doctor checks schema and model/tier availability without inference.
 
 ## For AI Agents
 
 When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. If a referenced file is missing, report the gap and continue from the main `SKILL.md`. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
 
-Agents that prefer machine-readable package metadata can start with [skills-index.json](skills-index.json). Claude Code can read [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) as a marketplace adapter that exposes the canonical `skills/` directory.
+Agents that prefer machine-readable package metadata can start with [skills-index.json](skills-index.json). Claude Code can read [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) as a marketplace adapter that lists the canonical skill folders under `skills/` except the Codex-only `fast-codex-subagents`.
 
 ## Adding Skills
 

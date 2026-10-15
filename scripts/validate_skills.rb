@@ -48,6 +48,7 @@ fail_with("no skills found") if SKILL_FILES.empty?
 
 names = {}
 descriptions = {}
+codex_only_names = []
 tracked_files = `git -C #{ROOT.shellescape} ls-files`.lines.map(&:strip)
 tracked_file_set = tracked_files.to_set
 
@@ -65,6 +66,10 @@ SKILL_FILES.each do |path|
   fail_with("#{path}: duplicate skill name #{name}") if names.key?(name)
   fail_with("#{path}: missing description") if description.to_s.empty?
   fail_with("#{path}: description exceeds 200 characters") if description.length > 200
+  if name == "fast-codex-subagents"
+    fail_with("#{path}: must be codex-only") unless data["agents"] == ["codex"]
+  end
+  codex_only_names << name if data["agents"] == ["codex"]
 
   directory_name = File.basename(File.dirname(path))
   fail_with("#{path}: frontmatter name #{name.inspect} does not match directory #{directory_name.inspect}") unless name == directory_name
@@ -126,6 +131,9 @@ catalog_skills.each do |skill|
   fail_with("skills-index.json: #{name} category is missing") if skill["category"].to_s.empty?
   fail_with("skills-index.json: #{name} outputs must be a non-empty array") unless skill["outputs"].is_a?(Array) && !skill["outputs"].empty?
   fail_with("skills-index.json: #{name} must be installable") unless skill["installable"] == true
+  if name == "fast-codex-subagents"
+    fail_with("skills-index.json: fast-codex-subagents must be codex-only") unless skill["agents"] == ["codex"]
+  end
 end
 
 marketplace_path = File.join(ROOT, ".claude-plugin/marketplace.json")
@@ -139,7 +147,28 @@ fail_with(".claude-plugin/marketplace.json: plugins must be a non-empty array") 
 workflow_plugin = plugins.find { |plugin| plugin["name"] == "hawary-workflow-skills" }
 fail_with(".claude-plugin/marketplace.json: missing hawary-workflow-skills plugin") unless workflow_plugin
 fail_with(".claude-plugin/marketplace.json: plugin source must be ./") unless workflow_plugin["source"] == "./"
-fail_with(".claude-plugin/marketplace.json: plugin must expose ./skills") unless workflow_plugin["skills"] == "./skills"
+marketplace_skills = workflow_plugin["skills"]
+fail_with(".claude-plugin/marketplace.json: plugin skills must be an array") unless marketplace_skills.is_a?(Array)
+
+marketplace_skill_names = marketplace_skills.map do |entry|
+  fail_with(".claude-plugin/marketplace.json: plugin skill #{entry.inspect} must be a string") unless entry.is_a?(String)
+
+  match = entry.match(%r{\A\./skills/([a-z0-9-]{1,64})\z})
+  fail_with(".claude-plugin/marketplace.json: plugin skill #{entry.inspect} must be ./skills/<name>") unless match
+
+  match[1]
+end
+
+duplicate_skill = marketplace_skill_names.find { |name| marketplace_skill_names.count(name) > 1 }
+fail_with(".claude-plugin/marketplace.json: duplicate plugin skill ./skills/#{duplicate_skill}") if duplicate_skill
+
+marketplace_skill_names.each do |name|
+  fail_with(".claude-plugin/marketplace.json: plugin skill ./skills/#{name} does not match a skill folder") unless names.key?(name)
+  fail_with(".claude-plugin/marketplace.json: plugin must not expose codex-only skill #{name}") if codex_only_names.include?(name)
+end
+
+missing_skill = (names.keys - codex_only_names - marketplace_skill_names).first
+fail_with(".claude-plugin/marketplace.json: plugin must expose ./skills/#{missing_skill}") if missing_skill
 fail_with(".claude-plugin/marketplace.json: plugin must use strict false") unless workflow_plugin["strict"] == false
 
 tracked_files.each do |relative|
