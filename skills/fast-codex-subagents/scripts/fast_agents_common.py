@@ -381,6 +381,8 @@ def load_manifest(path: Path, defaults_path: Path | None = None) -> TaskManifest
                 or any(not isinstance(arg, str) or not arg or "\0" in arg or len(arg) > 4000 for arg in command)):
             raise FastAgentsError("each acceptance command must be a non-empty argument array without NULs")
         acceptance.append(tuple(command))
+    if plan_mode and acceptance:
+        raise FastAgentsError("Plan Mode forbids host acceptance commands")
     # Auto-routing is a documented choice made before preflight, never a
     # fallback after a failed launch. Explicit backend selections always win.
     trivial = (

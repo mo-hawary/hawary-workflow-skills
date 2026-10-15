@@ -97,6 +97,24 @@ def test_custom_model_defaults_preview_save_and_launch_contract(tmp_path):
     assert data["writer"] == profiles["writer"]
 
 
+def test_plan_mode_rejects_host_acceptance_before_launch(tmp_path):
+    import fast_agents_runtime as runtime
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    path = write_manifest(tmp_path / "manifest.json", workspace, [reviewer()], backend="auto", fast_requested=False)
+    raw = common.read_json(path)
+    raw["acceptance"] = [[sys.executable, "-c", "raise Exception('must not start')"]]
+    common.atomic_write_json(path, raw)
+    manifest = common.load_manifest(path, defaults_path=tmp_path / "absent")
+    with pytest.raises(common.FastAgentsError, match="Plan Mode forbids host acceptance"):
+        runtime.launch_task(manifest, tmp_path / "runtime", Path("unused"), "unused", enforce_plan_mode=True)
+    assert not (tmp_path / "runtime").exists()
+    raw["plan_mode"] = True
+    common.atomic_write_json(path, raw)
+    with pytest.raises(common.FastAgentsError, match="Plan Mode forbids host acceptance"):
+        common.load_manifest(path, defaults_path=tmp_path / "absent")
+
+
 def test_token_budget_does_not_double_count_cached_input_or_invent_telemetry():
     assert observed_tokens({"total": {"totalTokens": 100, "cachedInputTokens": 60}}) == 100
     assert observed_tokens(None) is None

@@ -677,6 +677,8 @@ def launch_task(
 ) -> tuple[str, Path]:
     if (enforce_plan_mode or manifest.plan_mode) and manifest.has_writers:
         raise FastAgentsError("Plan Mode forbids writer roles; no worker was started")
+    if (enforce_plan_mode or manifest.plan_mode) and manifest.acceptance:
+        raise FastAgentsError("Plan Mode forbids host acceptance commands; no worker was started")
     runtime_root = _require_outside_workspace(runtime_root, manifest.workspace)
     runtime_root = _require_outside_git_repositories(runtime_root, "task runtime")
     task_id = str(uuid.uuid4())
