@@ -74,6 +74,12 @@ def test_fast_codex_subagents_evidence_remains_historical():
     )
 
 
+def skill_agents(name: str) -> list[str] | None:
+    content = (SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+    match = re.search(r"^agents:\s*(.+?)\s*$", content, re.MULTILINE)
+    return json.loads(match.group(1)) if match else None
+
+
 def test_claude_marketplace_exposes_canonical_skills_without_duplication():
     marketplace_path = ROOT / ".claude-plugin" / "marketplace.json"
     assert marketplace_path.exists()
@@ -83,7 +89,24 @@ def test_claude_marketplace_exposes_canonical_skills_without_duplication():
     assert marketplace["plugins"][0]["name"] == "hawary-workflow-skills"
     assert marketplace["plugins"][0]["source"] == "./"
     assert marketplace["plugins"][0]["strict"] is False
-    assert marketplace["plugins"][0]["skills"] == "./skills"
+
+    exposed = marketplace["plugins"][0]["skills"]
+    assert isinstance(exposed, list)
+    assert all(isinstance(entry, str) for entry in exposed)
+    assert len(exposed) == len(set(exposed))
+    assert all(re.fullmatch(r"\./skills/[a-z0-9-]{1,64}", entry) for entry in exposed)
+
+    expected = [f"./skills/{name}" for name in skill_names() if skill_agents(name) != ["codex"]]
+    assert exposed == expected
+
+
+def test_claude_marketplace_never_exposes_codex_only_skills():
+    marketplace = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
+    for entry in marketplace["plugins"][0]["skills"]:
+        name = entry.removeprefix("./skills/")
+        assert skill_agents(name) != ["codex"], f"{entry} is codex-only"
+
+    assert "./skills/fast-codex-subagents" not in marketplace["plugins"][0]["skills"]
 
 
 def test_compatibility_matrix_covers_recommendation_targets():

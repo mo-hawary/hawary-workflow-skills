@@ -17,6 +17,7 @@ from fast_agents_common import (
     read_bounded_dependency_context,
     read_json,
 )
+import fast_agents_ipc as ipc
 from fast_agents_ipc import ControlServer
 from fast_agents_platform import platform_coverage_label, protect_private_path
 from fast_agents_protocol import (
@@ -32,6 +33,8 @@ MAX_CONTROL_EVENTS = 500
 MAX_PENDING_APPROVAL_REQUESTS = 64
 MAX_STEERING_EVENTS_PER_TURN = 64
 PROGRESS_STATUS_FLUSH_SECONDS = 0.2
+# Share of the control handler timeout a recover caller waits before reporting an in-progress recovery.
+RECOVERY_WAIT_RATIO = 0.8
 PROGRESS_ONLY_EVENTS = frozenset({"item/started", "item/completed", "thread/tokenUsage/updated"})
 KNOWN_SERVER_REQUESTS = SUPPORTED_APP_SERVER_REQUESTS
 TERMINAL_TURN_STATES = {"completed", "failed", "interrupted"}
@@ -95,6 +98,7 @@ class AppServerSupervisor:
         self.connection_epoch: str | None = None
         self.transport_lost = asyncio.Event()
         self.recovery_lock = asyncio.Lock()
+        self._recovery_task: asyncio.Task[dict[str, Any]] | None = None
         self.finished = asyncio.Event()
         self._progress_flush_task: asyncio.Task[None] | None = None
         self._pending_snapshot: str | None = None
@@ -769,6 +773,77 @@ class AppServerSupervisor:
         self.status["action"] = action
         self._save_status()
 
+    async def _reconcile_role(self, name: str, role: RolePlan, unresolved: list[str]) -> None:
+        state = self.status["roles"][name]
+        thread_id = state.get("thread_id")
+        if not thread_id:
+            if state.get("thread_start_state") == "submitted":
+                unresolved.append(f"{name}: thread/start result was lost before its thread id was saved")
+            elif state.get("state") == "starting":
+                # Provably unsubmitted: the thread/start request is persisted before it is sent.
+                # The scheduler only launches waiting roles, so requeue it rather than stall.
+                state.update({"state": "waiting", "error": None, "recovery_required": False})
+            return
+        self.role_by_thread[thread_id] = name
+        try:
+            resume_result = await self.client.request("thread/resume", {"threadId": thread_id})
+            result = await self.client.request("thread/read", {"threadId": thread_id, "includeTurns": True})
+        except AppServerError as error:
+            unresolved.append(f"{name}: thread could not be resumed/read: {error}")
+            return
+        mismatch = _thread_settings_mismatch(role, resume_result)
+        if mismatch:
+            unresolved.append(f"{name}: resumed settings differ from the saved role contract: {mismatch}")
+            return
+        resumed_tier = self._set_effective_tier(
+            name,
+            resume_result.get("serviceTier"),
+            reported="serviceTier" in resume_result,
+        )
+        requested_tier = "priority" if role.fast_requested else "default"
+        if resumed_tier != requested_tier:
+            unresolved.append(f"{name}: saved {requested_tier} tier is not effective after resume")
+            return
+        thread = result.get("thread", {})
+        turns = thread.get("turns", []) if isinstance(thread, dict) else []
+        turn_id = state.get("turn_id")
+        matching = [turn for turn in turns if isinstance(turn, dict) and turn.get("id") == turn_id] if isinstance(turns, list) else []
+        if not turn_id and state.get("turn_start_state") == "submitted":
+            expected_message = state.get("client_user_message_id")
+            matching = [turn for turn in turns if isinstance(turn, dict) and _turn_matches_client_message(turn, expected_message)] if isinstance(turns, list) else []
+            if len(matching) == 1:
+                turn_id = matching[0].get("id")
+                state["turn_id"] = turn_id
+            else:
+                unresolved.append(f"{name}: turn/start outcome cannot be identified without replay")
+                return
+        elif not turn_id and state.get("turn_start_state") != "submitted":
+            thread_status = thread.get("status") if isinstance(thread, dict) else None
+            if isinstance(thread_status, dict) and thread_status.get("type") == "idle":
+                state.update({"state": "waiting", "thread_start_state": "acknowledged", "recovery_required": False})
+            else:
+                unresolved.append(f"{name}: thread is not proven idle before its first turn")
+                return
+        if turn_id:
+            if len(matching) != 1:
+                unresolved.append(f"{name}: persisted turn id is absent or ambiguous in thread history")
+                return
+            turn = matching[0]
+            turn_status = turn.get("status")
+            usage = turn.get("tokenUsage")
+            if isinstance(usage, dict):
+                state["usage"] = usage
+            if turn_status in TERMINAL_TURN_STATES:
+                self._finish_from_turn(name, turn)
+                # Execution has been proven terminal; any surviving missing
+                # report is an output failure, not an uncertain submission.
+                state["recovery_required"] = False
+            else:
+                unresolved.append(f"{name}: turn {turn_id} remains {turn_status or 'unknown'}")
+        elif state.get("state") not in {"waiting", "completed", "failed", "blocked"}:
+            unresolved.append(f"{name}: worker state cannot be reconciled")
+
+
     async def _reconcile(self) -> dict[str, Any]:
         if self.client is None or self.client.closed.is_set():
             if self.client is not None and self.client.process is not None and self.client.process.returncode is None:
@@ -777,71 +852,9 @@ class AppServerSupervisor:
         assert self.client is not None
         unresolved: list[str] = []
         for name, role in self.roles.items():
-            state = self.status["roles"][name]
-            thread_id = state.get("thread_id")
-            if not thread_id:
-                if state.get("thread_start_state") == "submitted":
-                    unresolved.append(f"{name}: thread/start result was lost before its thread id was saved")
-                continue
-            self.role_by_thread[thread_id] = name
-            try:
-                resume_result = await self.client.request("thread/resume", {"threadId": thread_id})
-                result = await self.client.request("thread/read", {"threadId": thread_id, "includeTurns": True})
-            except AppServerError as error:
-                unresolved.append(f"{name}: thread could not be resumed/read: {error}")
-                continue
-            mismatch = _thread_settings_mismatch(role, resume_result)
-            if mismatch:
-                unresolved.append(f"{name}: resumed settings differ from the saved role contract: {mismatch}")
-                continue
-            resumed_tier = self._set_effective_tier(
-                name,
-                resume_result.get("serviceTier"),
-                reported="serviceTier" in resume_result,
-            )
-            requested_tier = "priority" if role.fast_requested else "default"
-            if resumed_tier != requested_tier:
-                unresolved.append(f"{name}: saved {requested_tier} tier is not effective after resume")
-                continue
-            thread = result.get("thread", {})
-            turns = thread.get("turns", []) if isinstance(thread, dict) else []
-            turn_id = state.get("turn_id")
-            matching = [turn for turn in turns if isinstance(turn, dict) and turn.get("id") == turn_id] if isinstance(turns, list) else []
-            if not turn_id and state.get("turn_start_state") == "submitted":
-                expected_message = state.get("client_user_message_id")
-                matching = [turn for turn in turns if isinstance(turn, dict) and _turn_matches_client_message(turn, expected_message)] if isinstance(turns, list) else []
-                if len(matching) == 1:
-                    turn_id = matching[0].get("id")
-                    state["turn_id"] = turn_id
-                else:
-                    unresolved.append(f"{name}: turn/start outcome cannot be identified without replay")
-                    continue
-            elif not turn_id and state.get("turn_start_state") != "submitted":
-                thread_status = thread.get("status") if isinstance(thread, dict) else None
-                if isinstance(thread_status, dict) and thread_status.get("type") == "idle":
-                    state.update({"state": "waiting", "thread_start_state": "acknowledged", "recovery_required": False})
-                else:
-                    unresolved.append(f"{name}: thread is not proven idle before its first turn")
-                    continue
-            if turn_id:
-                if len(matching) != 1:
-                    unresolved.append(f"{name}: persisted turn id is absent or ambiguous in thread history")
-                    continue
-                turn = matching[0]
-                turn_status = turn.get("status")
-                usage = turn.get("tokenUsage")
-                if isinstance(usage, dict):
-                    state["usage"] = usage
-                if turn_status in TERMINAL_TURN_STATES:
-                    self._finish_from_turn(name, turn)
-                    # Execution has been proven terminal; any surviving missing
-                    # report is an output failure, not an uncertain submission.
-                    state["recovery_required"] = False
-                else:
-                    unresolved.append(f"{name}: turn {turn_id} remains {turn_status or 'unknown'}")
-            elif state.get("state") not in {"waiting", "completed", "failed", "blocked"}:
-                unresolved.append(f"{name}: worker state cannot be reconciled")
-
+            await self._reconcile_role(name, role, unresolved)
+            # Persist each role's reconciled state so a crash mid-recovery keeps progress.
+            self._save_status()
         if not unresolved:
             # A blocked dependent may itself have blocked descendants while
             # its upstream turn was uncertain. Requeue the entire recoverable
@@ -881,6 +894,46 @@ class AppServerSupervisor:
         self._save_status()
         self._start_scheduler()
         return {"reconciled": True, "findings": []}
+
+    async def _run_recovery(self) -> dict[str, Any]:
+        async with self.recovery_lock:
+            # Persist the attempt first so a status poll can see that recovery is running.
+            self.status["recovery"] = {"state": "running", "started_at": _utc_now()}
+            self._save_status()
+            try:
+                result = await self._reconcile()
+            except Exception as error:
+                # The done callback only retrieves the exception, so record why recovery stopped.
+                self.status["recovery"] = {"state": "failed", "error": str(error), "finished_at": _utc_now()}
+                self.status["state"] = "recovery_required"
+                self.status["action"] = f"Recovery failed: {error}. No turn was replayed; resolve the cause before recovering again."
+                self._save_status()
+                raise
+            self.status["recovery"] = {"state": "completed", "finished_at": _utc_now()}
+            self._save_status()
+            return result
+
+    def _ensure_recovery(self) -> asyncio.Task[dict[str, Any]]:
+        # The supervisor owns this task, so a control timeout only ends the caller's wait.
+        task = self._recovery_task
+        if task is None or task.done():
+            task = asyncio.create_task(self._run_recovery())
+            # Retrieve the outcome even when every caller has stopped waiting.
+            task.add_done_callback(lambda done: done.cancelled() or done.exception())
+            self._recovery_task = task
+        return task
+
+    async def _recover_for_control(self) -> dict[str, Any]:
+        task = self._ensure_recovery()
+        done, _ = await asyncio.wait({task}, timeout=RECOVERY_WAIT_RATIO * ipc.CONTROL_HANDLER_TIMEOUT)
+        if not done:
+            return {
+                "reconciled": False,
+                "in_progress": True,
+                "findings": [],
+                "action": "Recovery is still running in the supervisor; poll status and do not request another recover yet.",
+            }
+        return task.result()
 
     async def _handle_control(self, request: dict[str, Any]) -> dict[str, Any]:
         command = request.get("command")
@@ -950,9 +1003,7 @@ class AppServerSupervisor:
         if command == "inspect-request":
             return self._inspect_pending(request)
         if command == "recover":
-            async with self.recovery_lock:
-                result = await self._reconcile()
-            return result
+            return await self._recover_for_control()
         raise FastAgentsError(f"unsupported control command: {command}")
 
     def _require_current_turn(self, role_name: str, turn_id: str) -> dict[str, Any]:
@@ -1076,7 +1127,7 @@ class AppServerSupervisor:
             self.control = ControlServer(self.task_dir, self._handle_control)
             await self.control.start()
             if self.recover_on_start:
-                result = await self._reconcile()
+                result = await self._ensure_recovery()
                 if not result["reconciled"]:
                     self.status["manager"]["state"] = "running"
                     self._save_status()

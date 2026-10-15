@@ -518,11 +518,11 @@ def apply_instruction_preview(
             "backup": str(backup_path) if backup_path else None,
         }
     try:
-        atomic_write_bytes(target, after_bytes, mode=int(plan.get("mode", 0o600)))
+        atomic_write_bytes(target, after_bytes, mode=int(plan.get("mode", 0o600)), private=False)
         atomic_write_json(owner_path, owner)
     except (OSError, FastAgentsError):
         if refresh_owner and current_exists:
-            atomic_write_bytes(target, current_content, mode=int(plan.get("mode", 0o600)))
+            atomic_write_bytes(target, current_content, mode=int(plan.get("mode", 0o600)), private=False)
             if prior_owner_content is not None:
                 atomic_write_bytes(owner_path, prior_owner_content)
         elif backup_path:

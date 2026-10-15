@@ -82,7 +82,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`repo-workflow-checker`](skills/repo-workflow-checker/SKILL.md) | You want to know if a repo is ready for repeatable agent work. | Found workflow assets, gaps, suggested scaffold, verification map. |
 | [`project-docs-cleanup`](skills/project-docs-cleanup/SKILL.md) | Docs, plans, backlog files, or specs may be stale. | Doc health, stale items, contradictions, archive candidates, proposed edits. |
 | [`feature-spec-delivery-pipeline`](skills/feature-spec-delivery-pipeline/SKILL.md) | A feature or bug cluster needs a plan before coding. | Source-backed spec, decisions needed, contract changes, phases, acceptance criteria. |
-| [`fast-codex-subagents`](skills/fast-codex-subagents/SKILL.md) | Substantive Codex implementation, review, or other work requiring delegated execution, including one bounded worker. | Smallest useful team, private task state, scoped reports, requested/effective Fast-tier evidence. |
+| [`fast-codex-subagents`](skills/fast-codex-subagents/SKILL.md) | Substantive Codex implementation, review, or other work requiring delegated execution, including one bounded worker. | Smallest useful team, private task state, scoped reports, requested/effective Fast-tier evidence. See [how it works](skills/fast-codex-subagents/references/how-it-works.md). |
 | [`cross-layer-contract-audit`](skills/cross-layer-contract-audit/SKILL.md) | Client, API, database, jobs, or docs may disagree. | Severity-ranked contract mismatches with evidence, impact, fix direction, verification. |
 | [`pull-request-review-loop`](skills/pull-request-review-loop/SKILL.md) | A PR or branch needs adversarial review, fix validation, and re-review before merge. | Findings, fix proof, review rounds, validation, residual risk, merge readiness. |
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | A feature area needs QA discovery, audit tracks, and fix-ready tickets. | Audit tracks, findings matrix, fix board, impact gates, test plan. |
@@ -138,7 +138,7 @@ skills/
 
 When a developer points you at this repository, read the relevant folder under `skills/`, then load only the referenced files you need from that skill's `references/` directory. If a referenced file is missing, report the gap and continue from the main `SKILL.md`. Do not assume project-specific paths, products, secrets, or private company rules. Ask before editing implementation code when a skill says report-first or approval-required.
 
-Agents that prefer machine-readable package metadata can start with [skills-index.json](skills-index.json). Claude Code can read [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) as a marketplace adapter that exposes the canonical `skills/` directory.
+Agents that prefer machine-readable package metadata can start with [skills-index.json](skills-index.json). Claude Code can read [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) as a marketplace adapter that lists the canonical skill folders under `skills/` except the Codex-only `fast-codex-subagents`.
 
 ## Adding Skills
 

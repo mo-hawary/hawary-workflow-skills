@@ -76,8 +76,19 @@ async def live_smoke(codex: str, output: Path):
             done.set()
 
     async def on_server_request(message):
-        records.append(scrub("server_request", str(message.get("method", "unknown")), message.get("params")))
+        method = str(message.get("method", "unknown"))
+        records.append(scrub("server_request", method, message.get("params")))
         protocol_errors.append("Unexpected interactive request (not approved)")
+        request_id = message.get("id")
+        try:
+            if isinstance(request_id, (str, int)) and not isinstance(request_id, bool):
+                # Answer right away so the smoke fails fast instead of waiting for the turn timeout.
+                if method in {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}:
+                    await client.respond(request_id, {"decision": "decline"})
+                else:
+                    await client.reject_server_request(request_id, "smoke does not approve interactive requests")
+        finally:
+            done.set()
 
     async def on_error(message):
         protocol_errors.append("Protocol reader reported a malformed or unexpected message")

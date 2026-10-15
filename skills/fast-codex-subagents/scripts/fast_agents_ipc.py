@@ -18,7 +18,11 @@ MAX_ACTIVE_CONTROLS = 24
 CONTROL_HANDLER_TIMEOUT = 45.0
 CONTROL_WRITE_TIMEOUT = 5.0
 CONTROL_CLOSE_TIMEOUT = 3.0
+CONTROL_CONNECT_TIMEOUT = 5.0
+# Client waits past the server handler timeout so an accepted action can still be answered.
+CONTROL_RESPONSE_MARGIN = 10.0
 ControlHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+UNCERTAIN_DELIVERY_MESSAGE = "control response was not received; delivery may be uncertain, inspect status before any new action"
 
 
 def _encode_response(value: dict[str, Any]) -> bytes:
@@ -169,13 +173,25 @@ def send_control_request(task_dir: Path, command: str, payload: dict[str, Any] |
         request.update(payload)
     encoded = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=5.0) as connection:
-            connection.sendall(encoded)
-            stream = connection.makefile("rb")
-            response = stream.readline(MAX_CONTROL_LINE + 1)
+        connection = socket.create_connection(("127.0.0.1", port), timeout=CONTROL_CONNECT_TIMEOUT)
     except OSError as error:
         raise FastAgentsError(f"task supervisor is not reachable: {error}") from error
-    if not response or len(response) > MAX_CONTROL_LINE or not response.endswith(b"\n"):
+    with connection:
+        try:
+            connection.settimeout(CONTROL_HANDLER_TIMEOUT + CONTROL_RESPONSE_MARGIN)
+            connection.sendall(encoded)
+        except OSError as error:
+            raise FastAgentsError(f"task supervisor is not reachable: {error}") from error
+        # The request was sent: any failure from here on leaves delivery uncertain.
+        try:
+            stream = connection.makefile("rb")
+            response = stream.readline(MAX_CONTROL_LINE + 1)
+        except OSError as error:
+            raise FastAgentsError(UNCERTAIN_DELIVERY_MESSAGE) from error
+    if not response:
+        # EOF after a sent request means the supervisor may have acted before closing.
+        raise FastAgentsError(UNCERTAIN_DELIVERY_MESSAGE)
+    if len(response) > MAX_CONTROL_LINE or not response.endswith(b"\n"):
         raise FastAgentsError("task supervisor returned an invalid control response")
     try:
         decoded = json.loads(response.decode("utf-8"))

@@ -116,7 +116,7 @@ claude plugin install hawary-workflow-skills@hawary-workflow-skills
 | [`qa-bug-hunt-planner`](skills/qa-bug-hunt-planner/SKILL.md) | لما area محتاجة QA discovery وخطة bugs جاهزة للإصلاح. | audit tracks، findings matrix، fix board، impact gates، و test plan. |
 | [`mobile-maestro-e2e-orchestrator`](skills/mobile-maestro-e2e-orchestrator/SKILL.md) | لما تحتاج mobile E2E proof باستخدام Maestro. | flow setup، checkpoint results، logs/screenshots/state evidence، diagnosis، و residual risk. |
 | [`dependency-security-auditor`](skills/dependency-security-auditor/SKILL.md) | لما تحتاج dependency CVE scans أو freshness checks أو hook/CI audit design. | stack detection، scanner status، CVE findings، freshness risk، remediation، و CI plan. |
-| [`fast-codex-subagents`](skills/fast-codex-subagents/SKILL.md) | للتنفيذ أو المراجعة الجادة على Codex، أو أي مهمة محتاجة تفويض، حتى لو عامل واحد محدود هو الأنسب. | أصغر فريق مفيد، حالة تشغيل خاصة، تقارير محددة، ودليل requested/effective للـ Fast tier. |
+| [`fast-codex-subagents`](skills/fast-codex-subagents/SKILL.md) | للتنفيذ أو المراجعة الجادة على Codex، أو أي مهمة محتاجة تفويض، حتى لو عامل واحد محدود هو الأنسب. | أصغر فريق مفيد، حالة تشغيل خاصة، تقارير محددة، ودليل requested/effective للـ Fast tier. شوف [إزاي بيشتغل](skills/fast-codex-subagents/references/how-it-works.md). |
 
 ## تختار أنهي skill؟
 
@@ -169,7 +169,7 @@ skills/
 
 لو developer وجهك للـ repo ده، اقرأ skill المناسبة من `skills/`، وبعدها افتح بس الملفات اللي محتاجها من `references/`. لو reference file مش موجود، قول إن فيه gap وكمل من `SKILL.md`. ما تفترضش private paths أو product names أو secrets أو rules خاصة بشركة. لو skill بتقول report-first أو approval-required، اسأل قبل ما تعدل implementation code.
 
-لو الـ agent بيفضل metadata قابلة للقراءة آليًا، يبدأ من [skills-index.json](skills-index.json). و Claude Code يقدر يقرأ [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) كـ marketplace adapter بيشاور على `skills/` الأساسي.
+لو الـ agent بيفضل metadata قابلة للقراءة آليًا، يبدأ من [skills-index.json](skills-index.json). و Claude Code يقدر يقرأ [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) كـ marketplace adapter بيسرد مجلدات المهارات الأساسية تحت `skills/` ما عدا `fast-codex-subagents` اللي لـ Codex بس.
 
 ## إضافة skills جديدة
 

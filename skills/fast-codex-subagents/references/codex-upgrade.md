@@ -74,8 +74,21 @@ macOS, with labels `self-hosted`, `codex-authenticated` and the appropriate
 GitHub OS label (`Linux` or `macOS`). Use a dedicated OS account, install
 the fixture-tested Codex CLI 0.162.1, sign into ChatGPT interactively once
 with `codex login`, and verify `codex login status` **as the runner user**.
-Protect its login files/keychain and do not make this runner available for
-untrusted fork PRs. The workflow refuses API-key environment variables.
+Protect its login files/keychain and keep it away from untrusted code. The
+workflow refuses API-key environment variables. Before enabling the runner:
+
+- In the repository Actions settings, set "Require approval for all outside
+  collaborators" so fork PR workflows never start automatically.
+- Why: any `pull_request` workflow can set `runs-on` to the self-hosted labels
+  and then read the runner user's Codex login. Treat the runner as a credential.
+- Prefer an ephemeral or just-in-time runner that is discarded after one job.
+- Run the runner under a dedicated OS user that holds only the Codex login.
+- The live smoke runs only from `main` (the workflow gates on
+  `refs/heads/main` and checks out that run's commit). This gate guards
+  against mistakes by people with write access, not against attackers: a run
+  from another branch uses that branch's copy of the workflow, which can drop
+  the gate. The fork-approval setting above is the real control.
+- Remove or deregister the runner when it is not in use.
 
 Use manual `workflow_dispatch` with the target OS until the runner has been
 validated. For unattended main/nightly smoke, configure repository variable

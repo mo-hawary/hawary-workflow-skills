@@ -941,12 +941,14 @@ def read_task_status(task_dir: Path) -> dict[str, Any]:
     manifest = read_json(task_dir / "manifest.json")
     if manifest.get("backend", "exec") == "app-server":
         manager = status.get("manager", {})
-        if manager.get("state") in {"starting", "running"}:
-            manager_state, _ = inspect_process(manager.get("identity"))
-            manager["identity_state"] = manager_state
-            if manager_state in {"dead", "stale_identity"} and status.get("state") not in {"completed", "failed", "recovery_required"}:
-                status["state"] = "recovery_required"
-                status["action"] = "Supervisor identity ended; run resume --recover to reconcile persisted thread and turn ids before continuing."
+        # Recovery decides supervisor liveness from identity_state, so inspect the recorded
+        # identity whatever the saved manager state is (for example recovery_required after a
+        # shutdown timeout). Only a live manager still in starting/running is reconciled below.
+        manager_state, _ = inspect_process(manager.get("identity"))
+        manager["identity_state"] = manager_state
+        if manager.get("state") in {"starting", "running"} and manager_state in {"dead", "stale_identity"} and status.get("state") not in {"completed", "failed", "recovery_required"}:
+            status["state"] = "recovery_required"
+            status["action"] = "Supervisor identity ended; run resume --recover to reconcile persisted thread and turn ids before continuing."
         return status
     manager = status.get("manager", {})
     manager_active = False
@@ -1571,7 +1573,9 @@ def _argv_is_owned_watch(record: dict[str, Any], task_id: str) -> bool:
     argv = record.get("argv")
     if not isinstance(argv, list) or not all(isinstance(item, str) for item in argv):
         return False
-    return "watch" in argv and "--task" in argv and task_id in argv and record.get("kind") == "watch"
+    # Monitors start either as `watch --task ID` or as `resume --task ID --watch`; both write kind "watch".
+    watch_command = "watch" in argv or ("resume" in argv and "--watch" in argv)
+    return watch_command and "--task" in argv and task_id in argv and record.get("kind") == "watch"
 
 
 def cleanup_monitors(task_dir: Path, apply: bool = False) -> list[str]:

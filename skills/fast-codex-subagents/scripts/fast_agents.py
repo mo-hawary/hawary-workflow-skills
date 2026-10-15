@@ -447,10 +447,13 @@ def _status(args: argparse.Namespace, resume: bool = False) -> int:
             manager_identity_state = status.get("manager", {}).get("identity_state")
             if manager_identity_state == "alive":
                 result = send_control_request(task_dir, "recover")
-                print(
-                    "Recovery: "
-                    + ("reconciled persisted turns; waiting roles may continue" if result.get("reconciled") else "state remains uncertain; no turn was replayed")
-                )
+                if result.get("in_progress"):
+                    print(result.get("action") or "Recovery: still running in the supervisor; poll status before any other action")
+                else:
+                    print(
+                        "Recovery: "
+                        + ("reconciled persisted turns; waiting roles may continue" if result.get("reconciled") else "state remains uncertain; no turn was replayed")
+                    )
             elif manager_identity_state in {"dead", "stale_identity"}:
                 start_recovery_supervisor(
                     args.task,
@@ -461,8 +464,9 @@ def _status(args: argparse.Namespace, resume: bool = False) -> int:
             else:
                 raise FastAgentsError("cannot prove the previous supervisor stopped; recovery refused")
             status = read_task_status(task_dir)
-        elif status.get("manager", {}).get("identity_state") == "alive":
+        elif status.get("manager", {}).get("identity_state") == "alive" and status.get("manager", {}).get("state") in {"starting", "running"}:
             # Status and resume reconnect through the supervisor's read-only capability.
+            # A supervisor past its running phase may already have closed its control server.
             status = send_control_request(task_dir, "status")
     if args.json:
         print(json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True))

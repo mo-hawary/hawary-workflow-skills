@@ -403,16 +403,22 @@ class AppServerClient:
     async def close_stdin_and_wait(self) -> int:
         if self.process is None:
             return 0
-        if self.process.stdin is not None and not self.process.stdin.is_closing():
-            self.process.stdin.close()
-            try:
-                await self.process.stdin.wait_closed()
-            except (OSError, AttributeError):
-                pass
         try:
-            return await asyncio.wait_for(self.process.wait(), SHUTDOWN_WAIT_TIMEOUT_SECONDS)
+            return await asyncio.wait_for(self._close_stdin_then_wait(), SHUTDOWN_WAIT_TIMEOUT_SECONDS)
         except asyncio.TimeoutError as error:
             raise AppServerError("app-server process did not exit after closing stdin; process ownership remains uncertain") from error
+
+    async def _close_stdin_then_wait(self) -> int:
+        process = self.process
+        if process is None:
+            return 0
+        if process.stdin is not None and not process.stdin.is_closing():
+            process.stdin.close()
+            try:
+                await process.stdin.wait_closed()
+            except (OSError, AttributeError):
+                pass
+        return await process.wait()
 
 
 async def _call_handler(handler: EventHandler, message: dict[str, Any]) -> None:
@@ -426,8 +432,8 @@ async def probe_model_catalog(executable: str, cwd: Path, stderr_path: Path) -> 
         return None
 
     client = AppServerClient(executable, cwd, stderr_path, ignore, ignore, ignore)
-    await client.start()
     try:
+        await client.start()
         models: list[dict[str, Any]] = []
         cursor: str | None = None
         seen_cursors: set[str] = set()

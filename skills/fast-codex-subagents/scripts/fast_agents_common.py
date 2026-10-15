@@ -128,34 +128,42 @@ def _retry_windows_sharing_violation(
     return operation()
 
 
-def atomic_write_bytes(path: Path, content: bytes, mode: int = 0o600) -> None:
+def atomic_write_bytes(path: Path, content: bytes, mode: int = 0o600, *, private: bool = True) -> None:
+    """Replace path atomically. private=False keeps user-owned files at mode and skips owner-only ACL/chmod."""
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     from fast_agents_platform import protect_private_path
 
     fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(temporary_name)
+    fd_open = True
     try:
-        protect_private_path(temporary, directory=False)
+        if private:
+            protect_private_path(temporary, directory=False)
         if os.name != "nt":
             os.chmod(temporary, mode)
-        with os.fdopen(fd, "wb") as stream:
+        stream = os.fdopen(fd, "wb")
+        # Once fdopen succeeds, the stream owns fd and closes it; never os.close it again.
+        fd_open = False
+        with stream:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
         _retry_windows_sharing_violation(lambda: os.replace(temporary, path))
-        protect_private_path(path, directory=False)
+        if private:
+            protect_private_path(path, directory=False)
     except BaseException:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
+        if fd_open:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
         temporary.unlink(missing_ok=True)
         raise
 
 
-def atomic_write_json(path: Path, value: Any, mode: int = 0o600) -> None:
+def atomic_write_json(path: Path, value: Any, mode: int = 0o600, *, private: bool = True) -> None:
     encoded = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8") + b"\n"
-    atomic_write_bytes(path, encoded, mode=mode)
+    atomic_write_bytes(path, encoded, mode=mode, private=private)
 
 
 def read_json(path: Path) -> dict[str, Any]:
